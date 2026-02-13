@@ -24,21 +24,21 @@ export default function AuthLayout({
           </div>
           
           <h1 className="text-4xl lg:text-5xl font-bold text-white mb-6 leading-tight">
-            Building Our <br/>
-            Future, <span className="text-white/90">Together</span>
+            Building Our Life, <br/>
+            <span className="text-white/90">Side by Side.</span>
             <Heart className="inline-block ml-3 w-8 h-8 text-pink-300 animate-pulse" fill="currentColor" />
           </h1>
-          <p className="text-white/80 text-lg leading-relaxed max-w-sm">
-            A digital home for our dreams, plans, and every moment in between. Let’s organize our life with love and precision.
+          <p className="text-white/80 text-lg leading-loose max-w-md">
+            Where our plans meet our dreams. This workspace is built for us to grow side by side, ensuring every goal we set brings us closer to our forever.
           </p>
         </div>
 
         <div className="space-y-8 relative z-10">
           <blockquote className="border-l-2 border-white/30 pl-6 italic">
             <p className="text-white/90 text-lg font-light leading-relaxed">
-              &ldquo;Love does not consist in gazing at each other, but in looking outward together in the same direction.&rdquo;
+              &ldquo;Home is not where we are, but who we return to when the day is done.&rdquo;
             </p>
-            <footer className="mt-2 text-white/60 text-sm font-medium">— Antoine de Saint-Exupéry</footer>
+            <footer className="mt-2 text-white/60 text-sm font-medium">— Aegg & Peppaa</footer>
           </blockquote>
           
           <div className="flex items-center gap-4 py-4 px-6 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm w-fit">

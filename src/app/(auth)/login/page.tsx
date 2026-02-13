@@ -36,14 +36,14 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="shadow-2xl border-0 bg-white/50 backdrop-blur-xl dark:bg-zinc-900/50">
+    <Card className="shadow-2xl border border-white/20 bg-white/50 backdrop-blur-xl dark:bg-zinc-900/80 dark:border-white/10">
       <CardHeader className="space-y-2 pb-6 text-center">
         <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
           <LogIn className="w-6 h-6 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold tracking-tight">Welcome Home</CardTitle>
+        <CardTitle className="text-2xl font-bold tracking-tight">Welcome Home.</CardTitle>
         <CardDescription className="text-base">
-          Step back into our shared universe.
+          Take a deep breath. You’re home now.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -105,7 +105,7 @@ export default function LoginPage() {
 
           <Button 
             type="submit" 
-            className="w-full text-base font-bold py-7 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:scale-[1.02] transition-all duration-300 shadow-lg shadow-purple-500/25 text-white border-0" 
+            className="w-full text-base font-bold py-7 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:brightness-110 transition-all duration-300 shadow-lg shadow-purple-500/25 text-white border-0" 
             disabled={loading}
           >
             {loading ? (
@@ -115,7 +115,7 @@ export default function LoginPage() {
               </>
             ) : (
               <>
-                Enter Our Space
+                Enter Workspace
                 <LogIn className="w-5 h-5 ml-2" />
               </>
             )}
