@@ -1,0 +1,22 @@
+﻿src/app/(dashboard)/calendar/page.tsx(20,61): error TS2724: '"lucide-react"' has no exported member named 'Edit2'. Did you mean 'Edit'?
+src/app/(dashboard)/calendar/page.tsx(455,27): error TS2353: Object literal may only specify known properties, and 'ringColor' does not exist in type 'Properties<string | number, string & {}>'.
+src/app/(dashboard)/finance/page.tsx(8,46): error TS2305: Module '"lucide-react"' has no exported member 'PiggyBank'.
+src/app/(dashboard)/finance/page.tsx(9,3): error TS2305: Module '"lucide-react"' has no exported member 'ShoppingCart'.
+src/app/(dashboard)/finance/page.tsx(9,17): error TS2305: Module '"lucide-react"' has no exported member 'Coffee'.
+src/app/(dashboard)/finance/page.tsx(9,25): error TS2305: Module '"lucide-react"' has no exported member 'Car'.
+src/app/(dashboard)/finance/page.tsx(9,36): error TS2305: Module '"lucide-react"' has no exported member 'Gamepad2'.
+src/app/(dashboard)/finance/page.tsx(10,3): error TS2305: Module '"lucide-react"' has no exported member 'Receipt'.
+src/app/(dashboard)/finance/page.tsx(10,43): error TS2724: '"lucide-react"' has no exported member named 'Edit2'. Did you mean 'Edit'?
+src/app/(dashboard)/finance/page.tsx(11,3): error TS2724: '"lucide-react"' has no exported member named 'ArrowUpRight'. Did you mean 'ArrowRight'?
+src/app/(dashboard)/finance/page.tsx(11,17): error TS2724: '"lucide-react"' has no exported member named 'ArrowDownRight'. Did you mean 'ArrowRight'?
+src/app/(dashboard)/gallery/page.tsx(7,54): error TS2305: Module '"lucide-react"' has no exported member 'Grid'.
+src/app/(dashboard)/gallery/page.tsx(7,60): error TS2305: Module '"lucide-react"' has no exported member 'LayoutList'.
+src/app/(dashboard)/goals/page.tsx(7,72): error TS2724: '"lucide-react"' has no exported member named 'Edit2'. Did you mean 'Edit'?
+src/app/(dashboard)/portfolio/page.tsx(7,33): error TS2724: '"lucide-react"' has no exported member named 'Edit2'. Did you mean 'Edit'?
+src/app/(dashboard)/portfolio/page.tsx(7,48): error TS2724: '"lucide-react"' has no exported member named 'Link'. Did you mean 'Link2'?
+src/app/(dashboard)/portfolio/page.tsx(7,74): error TS2305: Module '"lucide-react"' has no exported member 'Linkedin'.
+src/app/(dashboard)/portfolio/page.tsx(7,84): error TS2305: Module '"lucide-react"' has no exported member 'Twitter'.
+src/app/(dashboard)/portfolio/page.tsx(7,111): error TS2305: Module '"lucide-react"' has no exported member 'Code'.
+src/app/(dashboard)/portfolio/page.tsx(7,117): error TS2305: Module '"lucide-react"' has no exported member 'Gamepad2'.
+src/app/(dashboard)/wishlist/page.tsx(7,33): error TS2724: '"lucide-react"' has no exported member named 'Edit2'. Did you mean 'Edit'?
+src/app/(dashboard)/wishlist/page.tsx(7,55): error TS2305: Module '"lucide-react"' has no exported member 'ShoppingCart'.

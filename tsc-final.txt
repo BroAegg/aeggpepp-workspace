@@ -1,0 +1,64 @@
+src/app/(dashboard)/calendar/page.tsx(104,24): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'SetStateAction<string>'.
+  Type 'null' is not assignable to type 'SetStateAction<string>'.
+src/app/(dashboard)/calendar/page.tsx(490,99): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | null' is not assignable to parameter of type 'string | number | Date'.
+      Type 'null' is not assignable to type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | null' is not assignable to parameter of type 'string | number'.
+      Type 'null' is not assignable to type 'string | number'.
+src/app/(dashboard)/finance/page.tsx(8,46): error TS2305: Module '"lucide-react"' has no exported member 'PiggyBank'.
+src/app/(dashboard)/finance/page.tsx(9,3): error TS2305: Module '"lucide-react"' has no exported member 'ShoppingCart'.
+src/app/(dashboard)/finance/page.tsx(9,17): error TS2305: Module '"lucide-react"' has no exported member 'Coffee'.
+src/app/(dashboard)/finance/page.tsx(9,25): error TS2305: Module '"lucide-react"' has no exported member 'Car'.
+src/app/(dashboard)/finance/page.tsx(9,36): error TS2305: Module '"lucide-react"' has no exported member 'Gamepad2'.
+src/app/(dashboard)/finance/page.tsx(10,3): error TS2305: Module '"lucide-react"' has no exported member 'Receipt'.
+src/app/(dashboard)/finance/page.tsx(10,12): error TS2724: '"lucide-react"' has no exported member named 'Edit2'. Did you mean 'Edit'?
+src/app/(dashboard)/finance/page.tsx(10,27): error TS2724: '"lucide-react"' has no exported member named 'ArrowUpRight'. Did you mean 'ArrowRight'?
+src/app/(dashboard)/finance/page.tsx(10,41): error TS2724: '"lucide-react"' has no exported member named 'ArrowDownRight'. Did you mean 'ArrowRight'?
+src/app/(dashboard)/finance/page.tsx(640,21): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/app/(dashboard)/gallery/page.tsx(7,54): error TS2305: Module '"lucide-react"' has no exported member 'Grid'.
+src/app/(dashboard)/gallery/page.tsx(7,60): error TS2305: Module '"lucide-react"' has no exported member 'LayoutList'.
+src/app/(dashboard)/goals/page.tsx(89,21): error TS2339: Property 'tag' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(91,23): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(124,42): error TS2339: Property 'id' does not exist on type '{ error: string; success?: undefined; } | { success: boolean; error?: undefined; }'.
+  Property 'id' does not exist on type '{ error: string; success?: undefined; }'.
+src/app/(dashboard)/goals/page.tsx(153,19): error TS2322: Type 'GoalTask | { id: string; title: string; completed: false; }' is not assignable to type 'GoalTask'.
+  Type '{ id: string; title: string; completed: false; }' is missing the following properties from type 'GoalTask': goal_id, position
+src/app/(dashboard)/goals/page.tsx(153,33): error TS2739: Type '{ id: string; title: string; completed: false; }' is missing the following properties from type 'GoalTask': goal_id, position
+src/app/(dashboard)/goals/page.tsx(175,24): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(175,41): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/app/(dashboard)/goals/page.tsx(245,31): error TS2339: Property 'tag' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(248,44): error TS2339: Property 'tag' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(250,35): error TS2339: Property 'tag' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(271,29): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(271,48): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(278,58): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(278,76): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/app/(dashboard)/goals/page.tsx(278,108): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(282,37): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(282,55): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/app/(dashboard)/goals/page.tsx(282,87): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(287,33): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(287,61): error TS7006: Parameter 'task' implicitly has an 'any' type.
+src/app/(dashboard)/goals/page.tsx(309,33): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/goals/page.tsx(311,38): error TS2339: Property 'goal_tasks' does not exist on type 'Goal'.
+src/app/(dashboard)/portfolio/page.tsx(7,33): error TS2724: '"lucide-react"' has no exported member named 'Edit2'. Did you mean 'Edit'?
+src/app/(dashboard)/portfolio/page.tsx(7,48): error TS2724: '"lucide-react"' has no exported member named 'Link'. Did you mean 'Link2'?
+src/app/(dashboard)/portfolio/page.tsx(7,74): error TS2305: Module '"lucide-react"' has no exported member 'Linkedin'.
+src/app/(dashboard)/portfolio/page.tsx(7,84): error TS2305: Module '"lucide-react"' has no exported member 'Twitter'.
+src/app/(dashboard)/portfolio/page.tsx(7,111): error TS2305: Module '"lucide-react"' has no exported member 'Code'.
+src/app/(dashboard)/portfolio/page.tsx(7,117): error TS2305: Module '"lucide-react"' has no exported member 'Gamepad2'.
+src/app/(dashboard)/wishlist/page.tsx(7,33): error TS2724: '"lucide-react"' has no exported member named 'Edit2'. Did you mean 'Edit'?
+src/app/(dashboard)/wishlist/page.tsx(7,55): error TS2305: Module '"lucide-react"' has no exported member 'ShoppingCart'.
+src/app/(dashboard)/wishlist/page.tsx(100,84): error TS18047: 'i.price' is possibly 'null'.
+src/app/(dashboard)/wishlist/page.tsx(101,85): error TS18047: 'i.price' is possibly 'null'.
+src/app/(dashboard)/wishlist/page.tsx(277,24): error TS2339: Property 'user' does not exist on type 'WishlistItem'.
+src/app/(dashboard)/wishlist/page.tsx(281,25): error TS2339: Property 'user' does not exist on type 'WishlistItem'.
+src/app/(dashboard)/wishlist/page.tsx(286,35): error TS2345: Argument of type 'number | null' is not assignable to parameter of type 'number'.
+  Type 'null' is not assignable to type 'number'.
+src/app/(dashboard)/wishlist/page.tsx(311,23): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/app/(dashboard)/wishlist/page.tsx(407,23): error TS2322: Type 'number | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
