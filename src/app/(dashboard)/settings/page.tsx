@@ -22,11 +22,10 @@ import {
   CheckCircle,
   Loader2,
   LogOut,
-  Shield,
   Heart,
-  Save,
   Eye,
   EyeOff,
+  Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -257,7 +256,7 @@ export default function SettingsPage() {
                 {savingProfile ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : (
-                  <Save className="w-4 h-4 mr-2" />
+                  <Check className="w-4 h-4 mr-2" />
                 )}
                 Save Profile
               </Button>
@@ -309,7 +308,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5" />
+              <Lock className="w-5 h-5" />
               Change Password
             </CardTitle>
             <CardDescription>

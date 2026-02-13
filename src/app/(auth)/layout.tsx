@@ -36,7 +36,7 @@ export default function AuthLayout({
         <div className="space-y-8 relative z-10">
           <blockquote className="border-l-2 border-white/30 pl-6 italic">
             <p className="text-white/90 text-lg font-light leading-relaxed">
-              "Love does not consist in gazing at each other, but in looking outward together in the same direction."
+              &ldquo;Love does not consist in gazing at each other, but in looking outward together in the same direction.&rdquo;
             </p>
             <footer className="mt-2 text-white/60 text-sm font-medium">— Antoine de Saint-Exupéry</footer>
           </blockquote>
