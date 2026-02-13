@@ -105,7 +105,7 @@ export default function LoginPage() {
 
           <Button 
             type="submit" 
-            className="w-full text-base font-bold py-7 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:brightness-110 transition-all duration-300 shadow-lg shadow-purple-500/25 text-white border-0" 
+            className="group w-full text-base font-bold py-7 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 transition-all duration-300 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/50 hover:scale-[1.02] active:scale-[0.98] text-white border-0" 
             disabled={loading}
           >
             {loading ? (
@@ -116,7 +116,7 @@ export default function LoginPage() {
             ) : (
               <>
                 Enter Workspace
-                <LogIn className="w-5 h-5 ml-2" />
+                <LogIn className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
               </>
             )}
           </Button>
