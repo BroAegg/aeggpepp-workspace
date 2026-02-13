@@ -6,51 +6,84 @@ Jika Anda mendapatkan error ini saat mencoba login, kemungkinan besar karena **e
 
 ### Solusi: Confirm Email di Supabase Dashboard
 
-#### Opsi 1: Manual Confirm (Recommended untuk Development)
+#### ⚡ Solusi Tercepat: Disable Email Confirmation
+
+**RECOMMENDED** untuk development - fix dalam 30 detik!
 
 1. **Buka Supabase Dashboard**
    - Login ke [supabase.com/dashboard](https://supabase.com/dashboard)
    - Pilih project Anda
 
-2. **Akses Authentication**
-   - Klik menu **"Authentication"** di sidebar kiri
-   - Klik **"Users"**
+2. **Masuk ke Authentication Settings**
+   - Di sidebar kiri, klik **"Authentication"**
+   - Klik tab **"Providers"** di bagian atas
+   - Scroll ke bawah cari **"Email"**
 
-3. **Confirm Email untuk Setiap User**
-   - Cari user dengan email: `aegneru@gmail.com`
-   - Klik tombol **"..."** (3 titik) di sebelah kanan
-   - Pilih **"Confirm email"**
-   - Ulangi untuk user: `mevani2015@gmail.com`
+3. **Disable Email Confirmation**
+   - Klik **"Email"** untuk expand
+   - Cari setting **"Confirm email"**
+   - **Toggle OFF** (matikan) switch **"Confirm email"**
+   - Klik **"Save"** di bagian bawah
 
-4. **Verifikasi**
+4. **Hapus User Lama & Buat Ulang**
+   
+   Karena user lama masih dalam status "unconfirmed", kita perlu buat ulang:
+   
    ```bash
-   # Run script untuk cek status login
+   # Di terminal, jalankan:
+   cd "d:\Peppakuu\Our Project\aeggpepp-workspace"
+   node scripts/recreate-users.mjs
+   ```
+
+5. **Test Login**
+   - Buka http://localhost:3000/login
+   - Email: `aegneru@gmail.com`
+   - Password: `aeggpeppa2024`
+   - **Seharusnya langsung masuk tanpa confirm email!** ✅
+
+⚠️ **Note**: Untuk production nanti, sebaiknya enable kembali email confirmation untuk keamanan.
+
+---
+
+#### 🔄 Alternatif: Manual Confirm via SQL (Jika Tidak Bisa Akses UI)
+
+Jika tombol "..." tidak muncul di UI atau ada rate limit, gunakan SQL langsung:
+
+1. **Buka Supabase Dashboard** → **SQL Editor**
+
+2. **Jalankan query ini untuk confirm semua user**:
+
+```sql
+-- Update auth.users to mark email as confirmed
+UPDATE auth.users
+SET 
+  email_confirmed_at = NOW(),
+  confirmed_at = NOW()
+WHERE email IN ('aegneru@gmail.com', 'mevani2015@gmail.com')
+  AND email_confirmed_at IS NULL;
+
+-- Verify the update
+SELECT 
+  id,
+  email,
+  email_confirmed_at,
+  created_at
+FROM auth.users
+WHERE email IN ('aegneru@gmail.com', 'mevani2015@gmail.com');
+```
+
+3. **Cek hasil query** - Jika `email_confirmed_at` sudah ada timestamp (bukan null), berarti berhasil!
+
+4. **Test login**
+   ```bash
    node scripts/confirm-users.mjs
    ```
    
-   Jika berhasil, output akan menampilkan:
+   Output seharusnya:
    ```
    ✅ aegneru@gmail.com: Login successful!
    ✅ mevani2015@gmail.com: Login successful!
    ```
-
-5. **Login ke Aplikasi**
-   - Buka http://localhost:3000/login
-   - Email: `aegneru@gmail.com`
-   - Password: `aeggpeppa2024`
-
-#### Opsi 2: Disable Email Confirmation (Untuk Development)
-
-Jika Anda ingin auto-confirm semua user baru tanpa manual:
-
-1. **Buka Supabase Dashboard** → **Authentication** → **Settings**
-2. Scroll ke **"Email Auth"** section
-3. **Uncheck** opsi **"Confirm email"**
-4. Klik **"Save"**
-
-Setelah ini, semua user baru akan langsung bisa login tanpa perlu confirm email.
-
-⚠️ **Note**: Untuk production, sebaiknya tetap enable email confirmation untuk keamanan.
 
 ---
 
