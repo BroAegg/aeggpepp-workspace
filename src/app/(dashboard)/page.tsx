@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/header'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import {
-  Calendar, Clock, Plus, ArrowRight, FileText, Search,
+  Calendar, Clock, Plus, ArrowRight, Search,
   Target, CheckSquare, Wallet, Gift,
 } from 'lucide-react'
 import { getUser } from '@/lib/actions/auth'
@@ -325,7 +325,7 @@ export default function DashboardPage() {
                           ? "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
                           : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
                       )}>
-                        {item.user === 'aegg' ? '🥚 Aegg' : '🌶️ Peppaa'}
+                        {item.user === 'aegg' ? '🍌 Aegg' : '🍈 Peppaa'}
                       </span>
 
                       <ArrowRight className="w-4 h-4 text-muted-foreground md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0" />

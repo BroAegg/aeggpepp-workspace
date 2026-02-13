@@ -339,6 +339,15 @@ export default function FinancePage() {
                               <span className="capitalize">{transaction.category}</span>
                               <span>•</span>
                               <span>{new Date(transaction.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
+                              <span>•</span>
+                              <span className={cn(
+                                "inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium",
+                                (transaction as any).profiles?.role === 'aegg'
+                                  ? "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+                                  : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
+                              )}>
+                                {(transaction as any).profiles?.role === 'aegg' ? '🍌' : '🍈'} {(transaction as any).profiles?.display_name?.split(' ')[0] || 'Unknown'}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -532,7 +541,7 @@ export default function FinancePage() {
                 <div className="flex-1 flex flex-col items-center">
                   <motion.div
                     initial={{ height: 0 }}
-                    animate={{ height: `${(totals.income / Math.max(totals.income, totals.expense)) * 100}%` }}
+                    animate={{ height: `${(Math.max(totals.income, totals.expense) > 0 ? (totals.income / Math.max(totals.income, totals.expense)) * 100 : 0)}%` }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
                     className="w-full max-w-[80px] bg-emerald-500 rounded-t-lg"
                   />
@@ -542,7 +551,7 @@ export default function FinancePage() {
                 <div className="flex-1 flex flex-col items-center">
                   <motion.div
                     initial={{ height: 0 }}
-                    animate={{ height: `${(totals.expense / Math.max(totals.income, totals.expense)) * 100}%` }}
+                    animate={{ height: `${(Math.max(totals.income, totals.expense) > 0 ? (totals.expense / Math.max(totals.income, totals.expense)) * 100 : 0)}%` }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
                     className="w-full max-w-[80px] bg-red-500 rounded-t-lg"
                   />

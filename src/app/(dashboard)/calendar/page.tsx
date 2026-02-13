@@ -17,8 +17,6 @@ import {
   subMonths,
   isToday,
   addDays,
-  isBefore,
-  isAfter,
 } from 'date-fns'
 import {
   ChevronLeft,
@@ -716,7 +714,7 @@ function ScheduleItem({
   onEditEvent?: () => void
   compact?: boolean
 }) {
-  const ownerEmoji = item.owner.role === 'aegg' ? '🥚' : item.owner.role === 'peppaa' ? '🌶️' : '👤'
+  const ownerEmoji = item.owner.role === 'aegg' ? '🍌' : item.owner.role === 'peppaa' ? '🍈' : '👤'
 
   const typeIcon =
     item.type === 'event' ? (

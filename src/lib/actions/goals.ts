@@ -213,23 +213,13 @@ export async function toggleGoalTask(taskId: string, completed: boolean) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // Verify ownership via parent goal
-  const { data: task } = await supabase
-    .from('goal_tasks')
-    .select('goal_id, goals!inner(user_id)')
-    .eq('id', taskId)
-    .single()
-
-  if (!task || (task as any).goals?.user_id !== user.id) {
-    return { error: 'Task not found or not authorized' }
-  }
-
   const { error } = await supabase
     .from('goal_tasks')
     .update({ completed })
     .eq('id', taskId)
 
   if (error) {
+    console.error('Toggle task error:', error)
     return { error: error.message }
   }
 

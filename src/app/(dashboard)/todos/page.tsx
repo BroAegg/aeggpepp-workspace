@@ -702,7 +702,7 @@ function TodoItem({
                                         : 'bg-secondary text-muted-foreground'
                             )}
                         >
-                            {todo.profiles.role === 'aegg' ? '🥚' : '🌶️'}{' '}
+                            {todo.profiles.role === 'aegg' ? '🍌' : '🍈'}{' '}
                             {todo.profiles.display_name?.split(' ')[0]}
                         </span>
                     )}

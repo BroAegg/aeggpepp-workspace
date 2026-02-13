@@ -108,7 +108,11 @@ export default function GoalsPage() {
 
     try {
       if (editingGoal) {
-        await updateGoal(editingGoal.id, formData)
+        const result = await updateGoal(editingGoal.id, formData)
+        if (result && 'error' in result) {
+          alert(`Failed to update goal: ${result.error}`)
+          return
+        }
         // Handle tasks - add new tasks, toggle existing
         for (const task of formTasks) {
           if (task.id.startsWith('task-')) {
@@ -119,6 +123,10 @@ export default function GoalsPage() {
       } else {
         // Create goal, then add tasks
         const newGoal = await createGoal(formData)
+        if (newGoal && 'error' in newGoal) {
+          alert(`Failed to create goal: ${newGoal.error}`)
+          return
+        }
         if (newGoal && 'id' in newGoal && newGoal.id) {
           for (const task of formTasks) {
             await createGoalTask(newGoal.id, task.title)
@@ -130,6 +138,7 @@ export default function GoalsPage() {
       setEditingGoal(null)
     } catch (error) {
       console.error('Error saving goal:', error)
+      alert('An unexpected error occurred. Check the console for details.')
     } finally {
       setSaving(false)
     }
@@ -178,10 +187,15 @@ export default function GoalsPage() {
     if (!task) return
 
     try {
-      await toggleGoalTask(taskId, !task.completed)
+      const result = await toggleGoalTask(taskId, !task.completed)
+      if (result && 'error' in result) {
+        alert(`Failed to toggle task: ${result.error}`)
+        return
+      }
       await fetchGoals()
     } catch (error) {
       console.error('Error toggling task:', error)
+      alert('An error occurred while toggling the task')
     }
   }
 
@@ -273,46 +287,43 @@ export default function GoalsPage() {
                       {goal.goal_tasks && goal.goal_tasks.length > 0 && (
                         <div className="mt-3 space-y-1.5">
                           {/* Progress bar */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 mb-2">
                             <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-primary rounded-full transition-all duration-300"
                                 style={{ width: `${(goal.goal_tasks.filter((t: GoalTask) => t.completed).length / goal.goal_tasks.length) * 100}%` }}
                               />
                             </div>
-                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                            <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
                               {goal.goal_tasks.filter((t: GoalTask) => t.completed).length}/{goal.goal_tasks.length}
                             </span>
                           </div>
 
-                          {/* Task items (show first 3) */}
-                          {goal.goal_tasks.slice(0, 3).map((task: GoalTask) => (
-                            <div
-                              key={task.id}
-                              className="flex items-center gap-2"
-                              onClick={(e) => { e.stopPropagation(); toggleCardTask(goal.id, task.id) }}
-                            >
-                              <div className={cn(
-                                "w-3.5 h-3.5 rounded-sm border flex items-center justify-center cursor-pointer transition-colors",
-                                task.completed
-                                  ? "bg-primary border-primary text-white"
-                                  : "border-border hover:border-primary"
-                              )}>
-                                {task.completed && <CheckCircle2 className="w-2.5 h-2.5" />}
+                          {/* Task items (show ALL) */}
+                          <div className="space-y-1">
+                            {goal.goal_tasks.map((task: GoalTask) => (
+                              <div
+                                key={task.id}
+                                className="flex items-center gap-2 hover:bg-secondary/30 -mx-1 px-1 py-0.5 rounded transition-colors"
+                                onClick={(e) => { e.stopPropagation(); toggleCardTask(goal.id, task.id) }}
+                              >
+                                <div className={cn(
+                                  "w-3.5 h-3.5 rounded-sm border-2 flex items-center justify-center cursor-pointer transition-all",
+                                  task.completed
+                                    ? "bg-primary border-primary scale-100"
+                                    : "border-muted-foreground/30 hover:border-primary hover:scale-110"
+                                )}>
+                                  {task.completed && <CheckCircle2 className="w-3 h-3 text-white" />}
+                                </div>
+                                <span className={cn(
+                                  "text-[11px] flex-1 cursor-pointer select-none transition-all",
+                                  task.completed ? "line-through text-muted-foreground" : "text-foreground"
+                                )}>
+                                  {task.title}
+                                </span>
                               </div>
-                              <span className={cn(
-                                "text-[11px]",
-                                task.completed ? "line-through text-muted-foreground" : "text-foreground"
-                              )}>
-                                {task.title}
-                              </span>
-                            </div>
-                          ))}
-                          {goal.goal_tasks.length > 3 && (
-                            <span className="text-[10px] text-muted-foreground pl-5">
-                              +{goal.goal_tasks.length - 3} more
-                            </span>
-                          )}
+                            ))}
+                          </div>
                         </div>
                       )}
 

@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, ExternalLink, Edit2, Trash2, Check, ShoppingCart, Gift, Sparkles, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Plus, X, ExternalLink, Edit2, Trash2, Check, ShoppingCart, Gift, Sparkles, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getWishlistItems, createWishlistItem, updateWishlistItem, deleteWishlistItem, toggleWishlistPurchased, toggleWishlistShared } from '@/lib/actions/wishlist'
+import { getWishlistItems, createWishlistItem, updateWishlistItem, deleteWishlistItem, toggleWishlistPurchased } from '@/lib/actions/wishlist'
 import type { WishlistItem } from '@/types'
 
 type Priority = 'all' | 'high' | 'medium' | 'low'
@@ -69,15 +69,6 @@ export default function WishlistPage() {
       await fetchItems()
     } catch (error) {
       console.error('Error toggling purchased:', error)
-    }
-  }
-
-  const handleToggleShared = async (id: string, currentStatus: boolean) => {
-    try {
-      await toggleWishlistShared(id, !currentStatus)
-      await fetchItems()
-    } catch (error) {
-      console.error('Error toggling shared:', error)
     }
   }
 
@@ -253,20 +244,7 @@ export default function WishlistPage() {
                       {item.priority}
                     </span>
                   </div>
-                  <div className="absolute top-2 right-2">
-                    <button
-                      onClick={() => handleToggleShared(item.id, item.is_shared)}
-                      className={cn(
-                        "p-2 rounded-full transition-colors",
-                        item.is_shared
-                          ? "bg-white text-foreground"
-                          : "bg-black/50 text-white"
-                      )}
-                      title={item.is_shared ? "Shared with partner" : "Private"}
-                    >
-                      {item.is_shared ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    </button>
-                  </div>
+
                 </div>
 
                 {/* Content */}
@@ -278,7 +256,7 @@ export default function WishlistPage() {
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                       : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
                   )}>
-                    {(item.profiles?.role) === 'aegg' ? '👨 Aegg' : '👩 Peppaa'}
+                    {(item.profiles?.role) === 'aegg' ? '🍌 Aegg' : '🍈 Peppaa'}
                   </div>
 
                   <h3 className="font-semibold text-foreground mb-1 line-clamp-1">{item.title}</h3>
@@ -452,24 +430,7 @@ export default function WishlistPage() {
                     <option value="low">🟢 Low</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-3 pt-2">
-                  <input
-                    type="hidden"
-                    name="is_shared"
-                    value="false"
-                  />
-                  <input
-                    type="checkbox"
-                    id="is_shared"
-                    name="is_shared"
-                    value="true"
-                    defaultChecked={editingItem?.is_shared ?? true}
-                    className="w-4 h-4 rounded border-border"
-                  />
-                  <label htmlFor="is_shared" className="text-sm text-foreground">
-                    Share with partner (visible to both)
-                  </label>
-                </div>
+                <input type="hidden" name="is_shared" value="true" />
 
                 {/* Actions */}
                 <div className="flex gap-3 mt-6">

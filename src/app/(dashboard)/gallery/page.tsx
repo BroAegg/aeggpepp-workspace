@@ -83,14 +83,25 @@ export default function GalleryPage() {
     setUploading(true)
     formData.append('file', selectedFile)
 
-    const result = await createGalleryItem(formData)
+    try {
+      const result = await createGalleryItem(formData)
 
-    if (result.success) {
-      await fetchPhotos()
-      setShowUploadModal(false)
-      setSelectedFile(null)
-      setPreviewUrl(null)
-      formRef.current?.reset()
+      if (result && 'error' in result) {
+        alert(`Upload failed: ${result.error}`)
+        setUploading(false)
+        return
+      }
+
+      if (result.success) {
+        await fetchPhotos()
+        setShowUploadModal(false)
+        setSelectedFile(null)
+        setPreviewUrl(null)
+        formRef.current?.reset()
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Upload failed. Make sure the "gallery" storage bucket exists in Supabase and has proper policies.')
     }
     setUploading(false)
   }

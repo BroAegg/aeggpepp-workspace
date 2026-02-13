@@ -12,7 +12,7 @@ export function OwnerBadge({ role, className, compact = false }: OwnerBadgeProps
     if (!role) return null
 
     const isAegg = role === 'aegg'
-    const emoji = isAegg ? '🥚' : '🌶️'
+    const emoji = isAegg ? '🍌' : '🍈'
     const name = isAegg ? 'Aegg' : 'Peppaa'
 
     if (compact) {

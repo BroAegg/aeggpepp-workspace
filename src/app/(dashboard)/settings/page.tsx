@@ -228,7 +228,7 @@ export default function SettingsPage() {
                         : 'border-border hover:border-teal-300 hover:bg-secondary/50'
                     )}
                   >
-                    <span className="text-2xl">🥚</span>
+                    <span className="text-2xl">🍌</span>
                     <div className="text-left">
                       <p className="text-sm font-semibold text-foreground">Aegg</p>
                       <p className="text-xs text-muted-foreground">Fullstack Engineer</p>
@@ -244,7 +244,7 @@ export default function SettingsPage() {
                         : 'border-border hover:border-pink-300 hover:bg-secondary/50'
                     )}
                   >
-                    <span className="text-2xl">🌶️</span>
+                    <span className="text-2xl">🍈</span>
                     <div className="text-left">
                       <p className="text-sm font-semibold text-foreground">Peppaa</p>
                       <p className="text-xs text-muted-foreground">PM Game Developer</p>
@@ -285,7 +285,7 @@ export default function SettingsPage() {
                     ? 'bg-teal-100 dark:bg-teal-900/30'
                     : 'bg-pink-100 dark:bg-pink-900/30'
                 )}>
-                  {partner.role === 'aegg' ? '🥚' : '🌶️'}
+                  {partner.role === 'aegg' ? '🍌' : '🍈'}
                 </div>
                 <div>
                   <p className="font-semibold text-foreground">{partner.display_name}</p>

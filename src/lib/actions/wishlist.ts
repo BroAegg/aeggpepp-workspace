@@ -37,8 +37,6 @@ export async function createWishlistItem(formData: FormData) {
   const url = formData.get('url') as string
   const imageUrl = formData.get('image_url') as string
   const priority = (formData.get('priority') as Priority) || 'medium'
-  const isShared = formData.get('is_shared') === 'true'
-
   if (!title) {
     return { error: 'Title is required' }
   }
@@ -52,7 +50,7 @@ export async function createWishlistItem(formData: FormData) {
     image_url: imageUrl || null,
     priority,
     is_purchased: false,
-    is_shared: isShared,
+    is_shared: true,
   })
 
   if (error) {
@@ -75,8 +73,6 @@ export async function updateWishlistItem(id: string, formData: FormData) {
   const url = formData.get('url') as string
   const imageUrl = formData.get('image_url') as string
   const priority = (formData.get('priority') as Priority) || 'medium'
-  const isShared = formData.get('is_shared') === 'true'
-
   const { error } = await supabase
     .from('wishlist')
     .update({
@@ -86,7 +82,7 @@ export async function updateWishlistItem(id: string, formData: FormData) {
       url: url || null,
       image_url: imageUrl || null,
       priority,
-      is_shared: isShared,
+      is_shared: true,
     })
     .eq('id', id)
     .eq('user_id', user.id)

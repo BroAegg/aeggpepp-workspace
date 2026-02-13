@@ -7,7 +7,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar />
       <main className="flex-1 w-full flex flex-col min-w-0 overflow-hidden">
         {/* Children will include the Header for each page */}

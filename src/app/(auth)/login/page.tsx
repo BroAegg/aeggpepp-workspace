@@ -7,12 +7,13 @@ import { login } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
+import { LogIn, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -35,15 +36,18 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="shadow-xl">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Welcome Back! 👋</CardTitle>
-        <CardDescription>
-          Sign in to your AeggPepp Workspace
+    <Card className="shadow-2xl border-0 bg-white/50 backdrop-blur-xl dark:bg-zinc-900/50">
+      <CardHeader className="space-y-2 pb-6 text-center">
+        <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+          <LogIn className="w-6 h-6 text-primary" />
+        </div>
+        <CardTitle className="text-2xl font-bold tracking-tight">Welcome Home</CardTitle>
+        <CardDescription className="text-base">
+          Step back into our shared universe.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md">
               <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
@@ -51,63 +55,78 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-foreground">
+          <div className="space-y-4">
+            <label htmlFor="email" className="text-sm font-semibold text-foreground/80 dark:text-foreground/90">
               Email
             </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="relative group">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="aegg@example.com"
-                className="pl-10"
+                placeholder="your.email@example.com"
+                className="pl-12 bg-background/50 border-input/60 focus:border-primary/50 focus:ring-primary/20 h-12"
                 required
                 disabled={loading}
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-foreground">
+          <div className="space-y-4">
+            <label htmlFor="password" className="text-sm font-semibold text-foreground/80 dark:text-foreground/90 flex justify-between">
               Password
             </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="relative group">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
-                className="pl-10"
+                className="pl-12 pr-12 bg-background/50 border-input/60 focus:border-primary/50 focus:ring-primary/20 h-12"
                 required
                 disabled={loading}
                 minLength={6}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
+              </button>
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button 
+            type="submit" 
+            className="w-full text-base font-bold py-7 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:scale-[1.02] transition-all duration-300 shadow-lg shadow-purple-500/25 text-white border-0" 
+            disabled={loading}
+          >
             {loading ? (
               <>
                 <span className="animate-spin mr-2">⏳</span>
-                Signing in...
+                Connecting...
               </>
             ) : (
               <>
-                <LogIn className="w-4 h-4 mr-2" />
-                Sign In
+                Enter Our Space
+                <LogIn className="w-5 h-5 ml-2" />
               </>
             )}
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex flex-col space-y-4">
-        <div className="text-sm text-center text-muted-foreground">
-          Don't have an account?{' '}
-          <Link href="/register" className="text-primary hover:underline font-medium">
-            Create one
+      <CardFooter className="flex flex-col space-y-4 pt-2">
+        <div className="text-sm text-center text-muted-foreground w-full">
+          <p className="mb-2">New to our story?</p>
+          <Link href="/register" className="text-primary hover:text-primary/80 font-semibold hover:underline decoration-2 underline-offset-4 transition-colors">
+            Begin our journey here
           </Link>
         </div>
       </CardFooter>
