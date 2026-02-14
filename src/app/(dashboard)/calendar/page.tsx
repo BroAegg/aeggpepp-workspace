@@ -129,7 +129,7 @@ export default function CalendarPage() {
     const nextWeekStr = format(nextWeek, 'yyyy-MM-dd')
 
     return calendarItems
-      .filter((item) => item.date > todayStr && item.date <= nextWeekStr && !item.completed)
+      .filter((item) => item.date >= todayStr && item.date <= nextWeekStr && !item.completed)
       .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
   }, [calendarItems])
 
@@ -514,7 +514,7 @@ export default function CalendarPage() {
                 <Clock className="w-5 h-5 text-muted-foreground" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground">Upcoming</h3>
+                <h3 className="font-semibold text-foreground">Upcoming Agenda</h3>
                 <p className="text-xs text-muted-foreground">
                   Next 7 days · {upcomingItems.length} item{upcomingItems.length > 1 ? 's' : ''}
                 </p>
@@ -730,16 +730,22 @@ function ScheduleItem({
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       className={cn(
-        'flex items-center gap-3 rounded-lg transition-colors group',
-        compact ? 'px-2.5 py-1.5' : 'px-3 py-2.5',
+        'relative flex items-stretch gap-3 rounded-lg transition-colors group',
+        compact ? 'px-2.5 py-2' : 'px-3 py-3',
         'hover:bg-secondary/50',
         item.completed && 'opacity-50'
       )}
       onClick={onEditEvent}
       style={{ cursor: onEditEvent ? 'pointer' : 'default' }}
     >
-      {/* Time column */}
-      <div className="w-14 flex-shrink-0 text-right">
+      {/* Mobile Indicator Bar */}
+      <div 
+        className="absolute left-0 top-2 bottom-2 w-1 rounded-r-md sm:hidden"
+        style={{ backgroundColor: item.color }}
+      />
+
+      {/* Time column (Desktop) */}
+      <div className="hidden sm:block w-14 flex-shrink-0 text-right">
         {item.time ? (
           <span className="text-xs font-mono font-medium text-foreground">{item.time}</span>
         ) : (
@@ -747,49 +753,61 @@ function ScheduleItem({
         )}
       </div>
 
-      {/* Color bar */}
+      {/* Color bar (Desktop) */}
       <div
-        className="w-1 self-stretch rounded-full flex-shrink-0"
+        className="hidden sm:block w-1 self-stretch rounded-full flex-shrink-0"
         style={{ backgroundColor: item.color }}
       />
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          {typeIcon}
-          <p
+      <div className="flex-1 min-w-0 pl-2 sm:pl-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+          
+          {/* Top Row: Icon + Title */}
+          <div className="flex items-start sm:items-center gap-1.5 min-w-0">
+             {/* Mobile Time Inline */}
+            <div className="sm:hidden flex-shrink-0 mr-1">
+                {item.time ? (
+                  <span className="text-[10px] font-mono font-bold text-foreground bg-secondary/50 px-1 rounded">{item.time}</span>
+                ) : null}
+            </div>
+
+            {typeIcon}
+            <p
+              className={cn(
+                'text-sm font-medium leading-tight', // Wrapped text
+                item.completed ? 'line-through text-muted-foreground' : 'text-foreground'
+              )}
+            >
+              {item.title}
+            </p>
+          </div>
+
+          {/* Badge (Right or Bottom) */}
+          <div
             className={cn(
-              'text-sm font-medium truncate',
-              item.completed ? 'line-through text-muted-foreground' : 'text-foreground'
+              'flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium w-fit sm:ml-0',
+              item.owner.role === 'aegg'
+                ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+                : item.owner.role === 'peppaa'
+                  ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
+                  : 'bg-secondary text-muted-foreground'
             )}
           >
-            {item.title}
-          </p>
+            {ownerEmoji} {item.owner.display_name?.split(' ')[0] || 'User'}
+          </div>
         </div>
+
         {!compact && item.description && (
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 ml-5">
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-2 ml-0 sm:ml-5">
             {item.description}
           </p>
         )}
         {item.time && item.endTime && !compact && (
-          <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">
+          <p className="text-[10px] text-muted-foreground mt-0.5 ml-0 sm:ml-5">
             {item.time} — {item.endTime}
           </p>
         )}
-      </div>
-
-      {/* Owner badge */}
-      <div
-        className={cn(
-          'flex-shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium',
-          item.owner.role === 'aegg'
-            ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-            : item.owner.role === 'peppaa'
-              ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
-              : 'bg-secondary text-muted-foreground'
-        )}
-      >
-        {ownerEmoji} {item.owner.display_name?.split(' ')[0] || 'User'}
       </div>
 
       {/* Edit button for events */}
@@ -799,7 +817,7 @@ function ScheduleItem({
             e.stopPropagation()
             onEditEvent()
           }}
-          className="md:opacity-0 md:group-hover:opacity-100 p-1 hover:bg-secondary rounded transition-opacity flex-shrink-0"
+          className="md:opacity-0 md:group-hover:opacity-100 p-1 hover:bg-secondary rounded transition-opacity flex-shrink-0 h-fit"
         >
           <Edit className="w-3.5 h-3.5 text-muted-foreground" />
         </button>

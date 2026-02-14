@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { MobileMenuButton } from './sidebar'
 import { Bell } from 'lucide-react'
 import { getUser } from '@/lib/actions/auth'
+import { StatusIndicator } from '../status-indicator'
 
 interface HeaderProps {
   title?: string
@@ -32,6 +33,9 @@ export function Header({ title, emoji }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Active Status */}
+        <StatusIndicator />
+
         {/* Notifications */}
         <button className="relative flex items-center justify-center w-9 h-9 rounded-md hover:bg-secondary transition-colors">
           <Bell className="w-5 h-5 text-muted-foreground" />
