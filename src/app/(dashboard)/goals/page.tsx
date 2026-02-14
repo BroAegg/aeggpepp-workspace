@@ -15,7 +15,7 @@ type Priority = 'low' | 'medium' | 'high'
 
 const columns: { status: GoalStatus; label: string; icon: React.ReactNode; headerColor: string }[] = [
   { status: 'backlog', label: 'Backlog', icon: <Circle className="w-4 h-4" />, headerColor: 'text-gray-500' },
-  { status: 'in_progress', label: 'In Progress', icon: <Clock className="w-4 h-4" />, headerColor: 'text-blue-500' },
+  { status: 'in_progress', label: 'In Progress', icon: <Clock className="w-4 h-4" />, headerColor: 'text-primary-500' },
   { status: 'completed', label: 'Completed', icon: <CheckCircle2 className="w-4 h-4" />, headerColor: 'text-green-500' },
 ]
 
@@ -26,7 +26,7 @@ const priorityColors: Record<Priority, string> = {
 }
 
 const tagColors: Record<string, string> = {
-  Dev: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  Dev: 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300',
   Design: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
   Finance: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
   Personal: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',

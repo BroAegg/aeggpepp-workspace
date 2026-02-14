@@ -223,8 +223,8 @@ export default function SettingsPage() {
                     className={cn(
                       'flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all',
                       role === 'aegg'
-                        ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20'
-                        : 'border-border hover:border-teal-300 hover:bg-secondary/50'
+                        ? 'border-primary bg-primary-50 dark:bg-primary-900/20'
+                        : 'border-border hover:border-primary/50 hover:bg-secondary/50'
                     )}
                   >
                     <span className="text-2xl">🍌</span>
@@ -281,7 +281,7 @@ export default function SettingsPage() {
                 <div className={cn(
                   'w-12 h-12 rounded-full flex items-center justify-center text-2xl',
                   partner.role === 'aegg'
-                    ? 'bg-teal-100 dark:bg-teal-900/30'
+                    ? 'bg-primary-100 dark:bg-primary-900/30'
                     : 'bg-pink-100 dark:bg-pink-900/30'
                 )}>
                   {partner.role === 'aegg' ? '🍌' : '🍈'}

@@ -336,7 +336,7 @@ export default function TodosPage() {
                     <div className="mb-6">
                         {statusFilter !== 'completed' && (
                             <div className="flex items-center gap-2 mb-3">
-                                <Circle className="w-4 h-4 text-blue-500" />
+                                <Circle className="w-4 h-4 text-primary-500" />
                                 <span className="text-sm font-semibold text-foreground">
                                     Active ({activeTodos.length})
                                 </span>
@@ -696,7 +696,7 @@ function TodoItem({
                             className={cn(
                                 'px-1.5 py-0.5 rounded-full text-[10px] font-medium',
                                 todo.profiles.role === 'aegg'
-                                    ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
+                                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
                                     : todo.profiles.role === 'peppaa'
                                         ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
                                         : 'bg-secondary text-muted-foreground'

@@ -11,29 +11,29 @@
     --card-foreground: 0 0% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
-    --primary: 210 100% 50%; /* Notion Blue-ish */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%; /* Very light grey for hovers */
-    --secondary-foreground: 0 0% 20%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 20%;
+    --primary: 317 100% 74.5%; /* Pink #ff7dda */
+    --primary-foreground: 0 0% 20%;
+    --secondary: 317 100% 96%; /* Very light pink for hovers */
+    --secondary-foreground: 317 50% 30%;
+    --muted: 317 20% 96%;
+    --muted-foreground: 317 10% 45%;
+    --accent: 317 100% 94%;
+    --accent-foreground: 317 50% 30%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 90%; /* Light grey borders */
     --input: 0 0% 90%;
-    --ring: 210 100% 50%;
+    --ring: 317 100% 74.5%;
     --radius: 0.3rem;
     
     /* Sidebar Light */
-    --sidebar: 40 14% 96%; /* #f7f6f3 warm light grey */
-    --sidebar-foreground: 0 0% 40%;
-    --sidebar-muted: 0 0% 55%;
-    --sidebar-active: 0 0% 0% / 0.05;
-    --sidebar-hover: 0 0% 0% / 0.03;
-    --sidebar-active-text: 0 0% 15%;
-    --sidebar-border: 0 0% 88%;
+    --sidebar: 317 30% 99%; /* Very faint pinkish white */
+    --sidebar-foreground: 317 10% 40%;
+    --sidebar-muted: 317 10% 60%;
+    --sidebar-active: 317 100% 92%; /* Pink active state */
+    --sidebar-hover: 317 100% 96%; /* Pink hover state */
+    --sidebar-active-text: 317 80% 40%;
+    --sidebar-border: 317 20% 94%;
   }
 
   .dark {

@@ -134,7 +134,7 @@ export const EVENT_COLORS = [
 
 // Todo Categories
 export const TODO_CATEGORIES = [
-  { value: 'work', label: 'Work', icon: '💼', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+  { value: 'work', label: 'Work', icon: '💼', color: 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300' },
   { value: 'personal', label: 'Personal', icon: '🏠', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
   { value: 'shopping', label: 'Shopping', icon: '🛒', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
   { value: 'other', label: 'Other', icon: '📌', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-300' },

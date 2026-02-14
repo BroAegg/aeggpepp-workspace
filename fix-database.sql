@@ -41,35 +41,3 @@ CREATE POLICY "Users can delete their own photos"
   ON gallery FOR DELETE
   USING ( auth.uid() = user_id );
 
--- =====================================================
--- 3. FIX GOAL_TASKS RLS - Allow partner to toggle tasks
--- =====================================================
-
-DROP POLICY IF EXISTS "Users can view goal tasks" ON goal_tasks;
-DROP POLICY IF EXISTS "Users can create goal tasks for their goals" ON goal_tasks;
-DROP POLICY IF EXISTS "Users can update goal tasks for their goals" ON goal_tasks;
-DROP POLICY IF EXISTS "Users can delete goal tasks for their goals" ON goal_tasks;
-
--- Everyone can view all tasks (couple app)
-CREATE POLICY "Anyone can view goal tasks"
-  ON goal_tasks FOR SELECT
-  USING ( true );
-
--- Authenticated users can create tasks
-CREATE POLICY "Authenticated can create goal tasks"
-  ON goal_tasks FOR INSERT
-  WITH CHECK ( true );
-
--- Anyone authenticated can toggle/update tasks
-CREATE POLICY "Authenticated can update goal tasks"
-  ON goal_tasks FOR UPDATE
-  USING ( true );
-
--- Anyone authenticated can delete tasks
-CREATE POLICY "Authenticated can delete goal tasks"
-  ON goal_tasks FOR DELETE
-  USING ( true );
-
--- =====================================================
--- DONE!
--- =====================================================

@@ -153,7 +153,7 @@ export default function CalendarPage() {
     setFormStartTime('09:00')
     setFormEndTime('10:00')
     setFormAllDay(false)
-    setFormColor('#2563EB')
+    setFormColor('#ff7dda')
     setShowModal(true)
   }
 
@@ -361,7 +361,7 @@ export default function CalendarPage() {
                   {(dayItems.length > 0 || hasHoliday) && (
                     <div className="flex items-center gap-0.5 mt-0.5 justify-center">
                       {hasHoliday && <div className="w-1.5 h-1.5 rounded-full bg-red-500" />}
-                      {hasEvents && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                      {hasEvents && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
                       {hasTodos && <div className="w-1.5 h-1.5 rounded-full bg-green-500" />}
                       {hasGoals && <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />}
                     </div>
@@ -783,7 +783,7 @@ function ScheduleItem({
         className={cn(
           'flex-shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium',
           item.owner.role === 'aegg'
-            ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
+            ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
             : item.owner.role === 'peppaa'
               ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
               : 'bg-secondary text-muted-foreground'

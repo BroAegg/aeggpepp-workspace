@@ -253,7 +253,7 @@ export default function WishlistPage() {
                   <div className={cn(
                     "inline-block px-2 py-0.5 rounded-full text-xs font-medium mb-2",
                     (item.profiles?.role) === 'aegg'
-                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                      ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
                       : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
                   )}>
                     {(item.profiles?.role) === 'aegg' ? '🍌 Aegg' : '🍈 Peppaa'}

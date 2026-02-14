@@ -98,7 +98,7 @@ export default function DashboardPage() {
             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
             : todo.priority === 'high'
               ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-              : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+              : 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300',
         })
       }
 
@@ -124,7 +124,7 @@ export default function DashboardPage() {
           statusColor: goal.status === 'completed'
             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
             : goal.status === 'in_progress'
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
               : 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300',
         })
       }
@@ -199,7 +199,7 @@ export default function DashboardPage() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Link href="/calendar" className="block bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors shadow-sm">
               <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-4 h-4 text-blue-500" />
+                <Calendar className="w-4 h-4 text-primary-500" />
                 <span className="text-xs text-muted-foreground font-medium">Upcoming</span>
               </div>
               <p className="text-2xl md:text-3xl font-bold text-foreground">{loading ? '—' : stats.upcomingEvents}</p>
@@ -229,7 +229,7 @@ export default function DashboardPage() {
               { title: 'Todos', icon: '✅', href: '/todos', desc: 'Task List', color: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' },
               { title: 'Goals Board', icon: '🎯', href: '/goals', desc: 'Track Progress', color: 'bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300' },
               { title: 'Gallery', icon: '📸', href: '/gallery', desc: 'Our Memories', color: 'bg-pink-50 text-pink-700 dark:bg-pink-900/20 dark:text-pink-300' },
-              { title: 'Finance', icon: '💰', href: '/finance', desc: 'Budget & Expenses', color: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' },
+              { title: 'Finance', icon: '💰', href: '/finance', desc: 'Budget & Expenses', color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300' },
             ].map((item, i) => (
               <motion.div
                 key={item.title}
@@ -322,7 +322,7 @@ export default function DashboardPage() {
                       <span className={cn(
                         "hidden sm:inline-block px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0",
                         item.user === 'aegg'
-                          ? "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+                          ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
                           : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
                       )}>
                         {item.user === 'aegg' ? '🍌 Aegg' : '🍈 Peppaa'}
