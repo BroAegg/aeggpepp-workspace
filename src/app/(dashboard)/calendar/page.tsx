@@ -28,6 +28,7 @@ import {
   Edit,
   Loader2,
   Target,
+  Calendar as CalendarIcon,
   CheckCircle2,
   CalendarDays,
   CircleDot,
@@ -224,7 +225,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <Header title="Calendar" emoji="📅" />
+      <Header title="Calendar" icon={CalendarIcon} />
 
       <div className="p-4 md:p-8 w-full max-w-[1600px] mx-auto">
         {/* ============ TOOLBAR ============ */}

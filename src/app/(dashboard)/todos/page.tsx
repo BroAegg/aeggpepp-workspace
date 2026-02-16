@@ -51,27 +51,27 @@ import type { Todo, TodoCategory, TodoStatus, TodoTask, Priority } from '@/types
 const COLUMNS: { id: TodoStatus; title: string; icon: React.ReactNode; color: string; bgColor: string; borderColor: string }[] = [
     {
         id: 'todo',
-        title: 'Todo',
+        title: 'To Do',
         icon: <Circle className="w-4 h-4" />,
-        color: 'text-slate-500',
-        bgColor: 'bg-gradient-to-b from-slate-50 to-white/50 dark:from-slate-900/30 dark:to-slate-900/10',
-        borderColor: 'border-slate-200/60 dark:border-slate-800',
+        color: 'text-violet-600 dark:text-violet-400',
+        bgColor: 'bg-gradient-to-br from-violet-100/50 via-white/80 to-violet-50/30 dark:from-violet-900/20 dark:via-slate-900/50 dark:to-violet-900/10',
+        borderColor: 'border-violet-200 dark:border-violet-900/30',
     },
     {
         id: 'in_progress',
         title: 'In Progress',
         icon: <Clock className="w-4 h-4" />,
         color: 'text-pink-600 dark:text-pink-400',
-        bgColor: 'bg-gradient-to-b from-pink-50/80 to-pink-50/20 dark:from-pink-900/20 dark:to-pink-900/5',
-        borderColor: 'border-pink-200/60 dark:border-pink-900/30',
+        bgColor: 'bg-gradient-to-br from-pink-100/50 via-white/80 to-pink-50/30 dark:from-pink-900/20 dark:via-slate-900/50 dark:to-pink-900/10',
+        borderColor: 'border-pink-200 dark:border-pink-900/30',
     },
     {
         id: 'completed',
         title: 'Completed',
         icon: <CheckCircle2 className="w-4 h-4" />,
         color: 'text-emerald-600 dark:text-emerald-400',
-        bgColor: 'bg-gradient-to-b from-emerald-50/80 to-emerald-50/20 dark:from-emerald-900/20 dark:to-emerald-900/5',
-        borderColor: 'border-emerald-200/60 dark:border-emerald-900/30',
+        bgColor: 'bg-gradient-to-br from-emerald-100/50 via-white/80 to-emerald-50/30 dark:from-emerald-900/20 dark:via-slate-900/50 dark:to-emerald-900/10',
+        borderColor: 'border-emerald-200 dark:border-emerald-900/30',
     },
 ]
 
@@ -452,7 +452,7 @@ export default function TodosPage() {
 
     return (
         <>
-            <Header title="Todos" emoji="✅" />
+            <Header title="Todos" icon={CheckSquare} />
 
             <div className="p-4 md:p-6 lg:p-8">
                 {/* Header */}

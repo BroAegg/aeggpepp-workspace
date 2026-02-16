@@ -88,7 +88,7 @@ export default function PortfolioPage() {
 
   return (
     <>
-      <Header title="Portfolio Links" emoji="💼" />
+      <Header title="Portfolio Links" icon={Briefcase} />
 
       <div className="p-6 max-w-6xl mx-auto">
         {/* Filters & Actions */}

@@ -262,7 +262,7 @@ export default function FinancePage() {
 
     return (
         <>
-            <Header title="Finance" emoji="💰" />
+            <Header title="Finance" icon={Wallet} />
 
             <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
                 {/* Summary Cards */}

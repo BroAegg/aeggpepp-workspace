@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Clock, CheckCircle2, Circle, X, Trash2, Calendar, AlertTriangle, Loader2 } from 'lucide-react'
+import { Plus, Clock, CheckCircle2, Circle, X, Trash2, Calendar, AlertTriangle, Loader2, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { GOAL_STATUSES, PRIORITIES } from '@/lib/constants'
 import { getGoals, createGoal, updateGoal, deleteGoal as deleteGoalAction, createGoalTask, toggleGoalTask, deleteGoalTask } from '@/lib/actions/goals'
@@ -201,7 +201,7 @@ export default function GoalsPage() {
 
   return (
     <>
-      <Header title="Goals" emoji="🎯" />
+      <Header title="Goals" icon={Target} />
 
       <div className="p-4 md:p-8 h-[calc(100vh-64px)] flex flex-col">
         {/* Toolbar */}

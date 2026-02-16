@@ -156,7 +156,7 @@ export default function GalleryPage() {
 
   return (
     <>
-      <Header title="Gallery Timeline" emoji="📸" />
+      <Header title="Gallery Timeline" icon={ImageIcon} />
 
       <div className="p-6 max-w-6xl mx-auto">
         {/* Toolbar */}

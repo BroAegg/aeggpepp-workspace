@@ -104,7 +104,7 @@ export default function WishlistPage() {
 
   return (
     <>
-      <Header title="Wishlist" emoji="🎁" />
+      <Header title="Wishlist" icon={Gift} />
 
       <div className="p-6 max-w-6xl mx-auto">
         {/* Stats Cards */}

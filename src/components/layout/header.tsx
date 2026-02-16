@@ -6,29 +6,27 @@ import { Bell } from 'lucide-react'
 import { getUser } from '@/lib/actions/auth'
 import { StatusIndicator } from '../status-indicator'
 
+import { LucideIcon } from 'lucide-react'
+
 interface HeaderProps {
   title?: string
   emoji?: string
+  icon?: LucideIcon
 }
 
-export function Header({ title, emoji }: HeaderProps) {
-  const [userInitial, setUserInitial] = useState('U')
+export function Header({ title, emoji, icon: Icon }: HeaderProps) {
+  const [userInitial, setUserInitial] = useState('U') // ... existing state
 
-  useEffect(() => {
-    getUser().then(user => {
-      if (user) {
-        setUserInitial((user.display_name || 'U').charAt(0).toUpperCase())
-      }
-    })
-  }, [])
+  // ... existing useEffect
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-2 bg-background/80 backdrop-blur-sm border-b border-border transition-colors duration-300">
+    <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-md border-b border-border/40 transition-all duration-300 shadow-sm">
       <div className="flex items-center gap-3">
         <MobileMenuButton />
-        {emoji && <span className="text-xl">{emoji}</span>}
+        {Icon && <Icon className="w-5 h-5 text-primary" />}
+        {!Icon && emoji && <span className="text-xl">{emoji}</span>}
         {title && (
-          <h1 className="text-lg font-semibold text-foreground tracking-wide">{title}</h1>
+          <h1 className="text-lg font-bold text-foreground tracking-tight">{title}</h1>
         )}
       </div>
 

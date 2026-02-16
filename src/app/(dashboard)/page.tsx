@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import {
   Calendar, Clock, Plus, ArrowRight, Search,
-  Target, CheckSquare, Wallet, Gift,
+  Target, CheckSquare, Wallet, Gift, Home,
 } from 'lucide-react'
 import { getUser } from '@/lib/actions/auth'
 import { getTodos } from '@/lib/actions/todos'
@@ -163,7 +163,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Header title="Home" emoji="🏠" />
+      <Header title="Home" icon={Home} />
 
       <div className="p-6 md:p-12 max-w-5xl mx-auto space-y-12">
         {/* 1. Hero Greeting */}

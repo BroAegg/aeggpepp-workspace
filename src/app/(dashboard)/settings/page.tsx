@@ -26,6 +26,7 @@ import {
   Eye,
   EyeOff,
   Check,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -167,7 +168,7 @@ export default function SettingsPage() {
   if (loadingProfile) {
     return (
       <>
-        <Header title="Settings" emoji="⚙️" />
+        <Header title="Settings" icon={Settings} />
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
@@ -177,7 +178,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Header title="Settings" emoji="⚙️" />
+      <Header title="Settings" icon={Settings} />
       <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6">
 
         {/* Profile Card */}
