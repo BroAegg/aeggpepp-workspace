@@ -256,7 +256,7 @@ export default function WishlistPage() {
                       ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
                       : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
                   )}>
-                    {(item.profiles?.role) === 'aegg' ? '🍌 Aegg' : '🍈 Peppaa'}
+                    {(item.profiles?.role) === 'aegg' ? '⭐ Aegg' : '🌙 Peppaa'}
                   </div>
 
                   <h3 className="font-semibold text-foreground mb-1 line-clamp-1">{item.title}</h3>

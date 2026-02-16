@@ -325,7 +325,7 @@ export default function DashboardPage() {
                           ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
                           : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
                       )}>
-                        {item.user === 'aegg' ? '🍌 Aegg' : '🍈 Peppaa'}
+                        {item.user === 'aegg' ? '⭐ Aegg' : '🌙 Peppaa'}
                       </span>
 
                       <ArrowRight className="w-4 h-4 text-muted-foreground md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0" />

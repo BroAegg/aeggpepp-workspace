@@ -60,7 +60,7 @@ export function StatusIndicator() {
 
   const isAegg = currentUser.display_name?.toLowerCase().includes('aegg') || currentUser.role === 'aegg'
   const partnerName = isAegg ? 'Peppaa' : 'Aegg'
-  const partnerEmoji = isAegg ? '🍈' : '🍌' // Aegg sees Peppaa(Melon), Peppaa sees Aegg(Banana)
+  const partnerEmoji = isAegg ? '�' : '⭐' // Aegg sees Peppaa(Moon), Peppaa sees Aegg(Star)
 
   return (
     <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-full animate-in fade-in duration-300">

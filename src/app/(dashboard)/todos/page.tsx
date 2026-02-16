@@ -90,37 +90,12 @@ export default function TodosPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
     const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
-    // Filters - Load from localStorage
-    const [personFilter, setPersonFilter] = useState<string>(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('todos_personFilter') || 'all'
-        }
-        return 'all'
-    })
-    const [priorityFilter, setPriorityFilter] = useState<string>(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('todos_priorityFilter') || 'all'
-        }
-        return 'all'
-    })
-    const [categoryFilter, setCategoryFilter] = useState<string>(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('todos_categoryFilter') || 'all'
-        }
-        return 'all'
-    })
-    const [dueDateFilter, setDueDateFilter] = useState<string>(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('todos_dueDateFilter') || 'all'
-        }
-        return 'all'
-    })
-    const [sortBy, setSortBy] = useState<string>(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('todos_sortBy') || 'none'
-        }
-        return 'none'
-    })
+    // Filters - Initialize with static defaults to prevent hydration errors
+    const [personFilter, setPersonFilter] = useState<string>('all')
+    const [priorityFilter, setPriorityFilter] = useState<string>('all')
+    const [categoryFilter, setCategoryFilter] = useState<string>('all')
+    const [dueDateFilter, setDueDateFilter] = useState<string>('all')
+    const [sortBy, setSortBy] = useState<string>('none')
 
     // Form state
     const [formTitle, setFormTitle] = useState('')
@@ -144,6 +119,23 @@ export default function TodosPage() {
 
     useEffect(() => {
         fetchTodos()
+    }, [])
+
+    // Load filters from localStorage after mount (prevents hydration errors)
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedPersonFilter = localStorage.getItem('todos_personFilter')
+            const savedPriorityFilter = localStorage.getItem('todos_priorityFilter')
+            const savedCategoryFilter = localStorage.getItem('todos_categoryFilter')
+            const savedDueDateFilter = localStorage.getItem('todos_dueDateFilter')
+            const savedSortBy = localStorage.getItem('todos_sortBy')
+            
+            if (savedPersonFilter) setPersonFilter(savedPersonFilter)
+            if (savedPriorityFilter) setPriorityFilter(savedPriorityFilter)
+            if (savedCategoryFilter) setCategoryFilter(savedCategoryFilter)
+            if (savedDueDateFilter) setDueDateFilter(savedDueDateFilter)
+            if (savedSortBy) setSortBy(savedSortBy)
+        }
     }, [])
 
     // Save filters to localStorage whenever they change
@@ -485,8 +477,8 @@ export default function TodosPage() {
                         className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
                         <option value="all">All People</option>
-                        <option value="aegg">🍌 Aegg</option>
-                        <option value="peppaa">🍈 Peppaa</option>
+                        <option value="aegg">⭐ Aegg</option>
+                        <option value="peppaa">🌙 Peppaa</option>
                     </select>
 
                     <select
@@ -629,7 +621,7 @@ export default function TodosPage() {
                                         </span>
                                         {draggedTodo.profiles && (
                                             <span className="text-[10px] text-muted-foreground">
-                                                {draggedTodo.profiles.role === 'aegg' ? '🍌' : '🍈'}
+                                                {draggedTodo.profiles.role === 'aegg' ? '⭐' : '🌙'}
                                             </span>
                                         )}
                                     </div>
@@ -1117,7 +1109,7 @@ function KanbanCard({
 
                             {todo.profiles && (
                                 <span className="text-[10px] ml-auto">
-                                    {todo.profiles.role === 'aegg' ? '🍌' : '🍈'}
+                                    {todo.profiles.role === 'aegg' ? '⭐' : '🌙'}
                                 </span>
                             )}
                         </div>

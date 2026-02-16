@@ -445,8 +445,8 @@ export default function FinancePage() {
                                     className="px-2.5 py-1.5 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 >
                                     <option value="all">All People</option>
-                                    <option value="aegg">🍌 Aegg</option>
-                                    <option value="peppaa">🍈 Peppaa</option>
+                                    <option value="aegg">⭐ Aegg</option>
+                                    <option value="peppaa">🌙 Peppaa</option>
                                 </select>
                             </div>
 
@@ -491,7 +491,7 @@ export default function FinancePage() {
                                                         {(transaction as any).profiles && (
                                                             <>
                                                                 <span>·</span>
-                                                                <span>{(transaction as any).profiles.role === 'aegg' ? '🍌' : '🍈'}</span>
+                                                                <span>{(transaction as any).profiles.role === 'aegg' ? '⭐' : '🌙'}</span>
                                                             </>
                                                         )}
                                                     </div>
@@ -601,7 +601,7 @@ export default function FinancePage() {
                                             {/* Owner badge */}
                                             {account.profiles && (
                                                 <p className="text-xs text-muted-foreground mb-3">
-                                                    {account.profiles.role === 'aegg' ? '🍌' : '🍈'} {account.profiles.display_name}
+                                                    {account.profiles.role === 'aegg' ? '⭐' : '🌙'} {account.profiles.display_name}
                                                 </p>
                                             )}
 
