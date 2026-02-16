@@ -366,14 +366,15 @@ export default function TodosPage() {
             <div className="p-4 md:p-6 lg:p-8">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-foreground">Kanban Board</h2>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            {totalTodo} todo · {totalInProgress} in progress · {totalCompleted} done
-                            {overdueTodos > 0 && (
-                                <span className="text-red-500 ml-1">· {overdueTodos} overdue</span>
-                            )}
-                        </p>
+                    <div className="flex items-center gap-3">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                {totalTodo} todo · {totalInProgress} in progress · {totalCompleted} done
+                                {overdueTodos > 0 && (
+                                    <span className="text-red-500 ml-1">· {overdueTodos} overdue</span>
+                                )}
+                            </p>
+                        </div>
                     </div>
                     <Button onClick={openAddModal}>
                         <Plus className="w-4 h-4 mr-2" /> Add Todo

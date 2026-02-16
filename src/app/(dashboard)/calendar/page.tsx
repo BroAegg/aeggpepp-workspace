@@ -31,6 +31,7 @@ import {
   CheckCircle2,
   CalendarDays,
   CircleDot,
+  CheckSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EVENT_COLORS } from '@/lib/constants'
@@ -723,8 +724,10 @@ function ScheduleItem({
   const typeIcon =
     item.type === 'event' ? (
       <CircleDot className="w-3.5 h-3.5" style={{ color: item.color }} />
-    ) : (
+    ) : item.type === 'goal' ? (
       <Target className="w-3.5 h-3.5 text-purple-500" />
+    ) : (
+      <CheckSquare className="w-3.5 h-3.5 text-slate-500" />
     )
 
   return (

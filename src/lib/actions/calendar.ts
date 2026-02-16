@@ -30,8 +30,8 @@ export async function getCalendarItems(): Promise<CalendarItem[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
-  // Fetch events and goals in parallel (todos removed - they are tasks, not scheduled)
-  const [eventsRes, goalsRes] = await Promise.all([
+  // Fetch events, goals, and todos in parallel
+  const [eventsRes, goalsRes, todosRes] = await Promise.all([
     supabase
       .from('events')
       .select('*, profiles:user_id(display_name, role)')
@@ -40,6 +40,12 @@ export async function getCalendarItems(): Promise<CalendarItem[]> {
       .from('goals')
       .select('*, profiles:user_id(display_name, role)')
       .not('due_date', 'is', null)
+      .order('due_date', { ascending: true }),
+    supabase
+      .from('todos')
+      .select('*, profiles:user_id(display_name, role)')
+      .not('due_date', 'is', null)
+      .eq('status', 'todo')
       .order('due_date', { ascending: true }),
   ])
 
@@ -83,6 +89,26 @@ export async function getCalendarItems(): Promise<CalendarItem[]> {
         completed: g.status === 'completed',
         priority: g.priority,
         owner: g.profiles || { display_name: 'Unknown', role: null },
+      })
+    }
+  }
+
+  // Map todos with due_date (only 'todo' status - not completed)
+  if (todosRes.data) {
+    for (const t of todosRes.data) {
+      items.push({
+        id: t.id,
+        type: 'todo',
+        title: t.title,
+        description: t.description,
+        date: t.due_date!,
+        time: null,
+        endTime: null,
+        allDay: true,
+        color: '#64748B', // slate gray
+        completed: t.completed || t.status === 'completed',
+        priority: t.priority,
+        owner: t.profiles || { display_name: 'Unknown', role: null },
       })
     }
   }
