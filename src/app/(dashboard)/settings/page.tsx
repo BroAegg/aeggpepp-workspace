@@ -12,6 +12,8 @@ import {
   inviteUser,
   getPartnerProfile,
   logout,
+  updateAvatar,
+  deleteAvatar,
 } from '@/lib/actions/auth'
 import {
   UserPlus,
@@ -27,6 +29,9 @@ import {
   EyeOff,
   Check,
   Settings,
+  Upload,
+  Camera,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -41,6 +46,11 @@ export default function SettingsPage() {
   const [role, setRole] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Avatar state
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
   // Password form
   const [newPassword, setNewPassword] = useState('')
@@ -58,6 +68,59 @@ export default function SettingsPage() {
     loadData()
   }, [])
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleAvatarUpload = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setUploadingAvatar(true)
+    setProfileMsg(null)
+
+    const formData = new FormData(e.currentTarget)
+    const result = await updateAvatar(formData)
+
+    if (result.error) {
+      setProfileMsg({ type: 'error', text: result.error })
+    } else {
+      setProfileMsg({ type: 'success', text: 'Avatar updated successfully!' })
+      setAvatarUrl(result.avatarUrl || null)
+      setAvatarPreview(null)
+      // Refresh profile data
+      loadData()
+    }
+
+    setUploadingAvatar(false)
+  }
+
+  const handleDeleteAvatar = async () => {
+    if (!confirm('Are you sure you want to delete your avatar?')) return
+
+    setUploadingAvatar(true)
+    setProfileMsg(null)
+
+    const result = await deleteAvatar()
+
+    if (result.error) {
+      setProfileMsg({ type: 'error', text: result.error })
+    } else {
+      setProfileMsg({ type: 'success', text: 'Avatar deleted successfully!' })
+      setAvatarUrl(null)
+      setAvatarPreview(null)
+      loadData()
+    }
+
+    setUploadingAvatar(false)
+  }
+
   const loadData = async () => {
     try {
       const [userData, partnerData] = await Promise.all([
@@ -69,6 +132,7 @@ export default function SettingsPage() {
         setProfile(userData)
         setDisplayName(userData.display_name || '')
         setRole(userData.role || '')
+        setAvatarUrl(userData.avatar_url || null)
       }
 
       if (partnerData) {
@@ -197,6 +261,100 @@ export default function SettingsPage() {
               {profileMsg && (
                 <StatusMessage type={profileMsg.type} text={profileMsg.text} />
               )}
+
+              {/* Avatar Upload */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">Profile Picture</label>
+                <div className="flex items-center gap-4">
+                  {/* Avatar Display */}
+                  <div className="relative">
+                    {avatarPreview || avatarUrl ? (
+                      <img
+                        src={avatarPreview || avatarUrl || ''}
+                        alt="Avatar"
+                        className="w-20 h-20 rounded-full object-cover border-2 border-border"
+                      />
+                    ) : (
+                      <div className={cn(
+                        "w-20 h-20 rounded-full flex items-center justify-center text-2xl font bold",
+                        role === 'aegg' 
+                          ? 'bg-primary-100 dark:bg-primary-900/30' 
+                          : 'bg-pink-100 dark:bg-pink-900/30'
+                      )}>
+                        {role === 'aegg' ? '⭐' : '🌙'}
+                      </div>
+                    )}
+                    {(avatarUrl || avatarPreview) && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteAvatar}
+                        disabled={uploadingAvatar}
+                        className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Upload Button */}
+                  <div className="flex-1">
+                    <form onSubmit={handleAvatarUpload} className="space-y-2">
+                      <input
+                        type="file"
+                        name="avatar"
+                        id="avatar-upload"
+                        accept="image/*"
+                        onChange={handleAvatarChange}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="avatar-upload"
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 text-sm rounded-md cursor-pointer transition-colors"
+                      >
+                        <Camera className="w-4 h-4" />
+                        Choose Photo
+                      </label>
+                      {avatarPreview && (
+                        <div className="flex gap-2">
+                          <Button
+                            type="submit"
+                            size="sm"
+                            disabled={uploadingAvatar}
+                            className="flex-1"
+                          >
+                            {uploadingAvatar ? (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-3 h-3 mr-1" />
+                                Upload
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setAvatarPreview(null)
+                              const input = document.getElementById('avatar-upload') as HTMLInputElement
+                              if (input) input.value = ''
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </form>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      JPG, PNG, GIF or WebP. Max 2MB.
+                    </p>
+                  </div>
+                </div>
+              </div>
 
               {/* Display Name */}
               <div className="space-y-2">

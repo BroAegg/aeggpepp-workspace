@@ -15,9 +15,19 @@ interface HeaderProps {
 }
 
 export function Header({ title, emoji, icon: Icon }: HeaderProps) {
-  const [userInitial, setUserInitial] = useState('U') // ... existing state
+  const [userInitial, setUserInitial] = useState('U')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState('')
 
-  // ... existing useEffect
+  useEffect(() => {
+    getUser().then(user => {
+      if (user) {
+        setUserInitial((user.display_name || 'U').charAt(0).toUpperCase())
+        setAvatarUrl(user.avatar_url || null)
+        setUserRole(user.role || '')
+      }
+    })
+  }, [])
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-background/80 backdrop-blur-md border-b border-border/40 transition-all duration-300 shadow-sm">
@@ -40,9 +50,17 @@ export function Header({ title, emoji, icon: Icon }: HeaderProps) {
         </button>
 
         {/* User avatar */}
-        <button className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 hover:bg-primary/20 transition-colors border border-primary/20">
-          <span className="text-sm font-medium text-primary">{userInitial}</span>
-        </button>
+        {avatarUrl ? (
+          <img 
+            src={avatarUrl} 
+            alt="Profile"
+            className="w-8 h-8 rounded-full object-cover border border-primary/20 hover:border-primary/40 transition-all cursor-pointer"
+          />
+        ) : (
+          <button className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 hover:bg-primary/20 transition-colors border border-primary/20">
+            <span className="text-sm font-medium text-primary">{userInitial}</span>
+          </button>
+        )}
       </div>
     </header>
   )

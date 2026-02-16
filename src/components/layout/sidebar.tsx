@@ -44,12 +44,16 @@ export function Sidebar() {
   const { isOpen, isCollapsed, toggle, setCollapsed } = useSidebarStore()
   const [userName, setUserName] = useState('')
   const [userInitial, setUserInitial] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState('')
 
   useEffect(() => {
     getUser().then(user => {
       if (user) {
         setUserName(user.display_name || 'User')
         setUserInitial((user.display_name || 'U').charAt(0).toUpperCase())
+        setAvatarUrl(user.avatar_url || null)
+        setUserRole(user.role || '')
       }
     })
   }, [])
@@ -191,9 +195,17 @@ export function Sidebar() {
           {!isCollapsed && (
             <Link href="/settings" className="block mt-1 px-2 py-2 rounded-md hover:bg-sidebar-hover cursor-pointer transition-colors">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center shrink-0">
-                  <span className="text-[10px] font-bold text-white">{userInitial || 'U'}</span>
-                </div>
+                {avatarUrl ? (
+                  <img 
+                    src={avatarUrl} 
+                    alt={userName}
+                    className="w-6 h-6 rounded-full object-cover shrink-0"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center shrink-0">
+                    <span className="text-[10px] font-bold text-white">{userInitial || 'U'}</span>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-medium text-sidebar-active-text truncate">
                     {userName || 'Loading...'}
