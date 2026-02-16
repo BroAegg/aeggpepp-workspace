@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { CalendarEvent, CalendarItem, Todo, Goal } from '@/types'
+import type { CalendarEvent, CalendarItem, Goal } from '@/types'
 
 // ============== FETCH EVENTS ==============
 
@@ -30,17 +30,12 @@ export async function getCalendarItems(): Promise<CalendarItem[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
-  // Fetch all three sources in parallel
-  const [eventsRes, todosRes, goalsRes] = await Promise.all([
+  // Fetch events and goals in parallel (todos removed - they are tasks, not scheduled)
+  const [eventsRes, goalsRes] = await Promise.all([
     supabase
       .from('events')
       .select('*, profiles:user_id(display_name, role)')
       .order('start_date', { ascending: true }),
-    supabase
-      .from('todos')
-      .select('*, profiles:user_id(display_name, role)')
-      .not('due_date', 'is', null)
-      .order('due_date', { ascending: true }),
     supabase
       .from('goals')
       .select('*, profiles:user_id(display_name, role)')
@@ -68,26 +63,6 @@ export async function getCalendarItems(): Promise<CalendarItem[]> {
         completed: false,
         priority: null,
         owner: e.profiles || { display_name: 'Unknown', role: null },
-      })
-    }
-  }
-
-  // Map todos with due_date
-  if (todosRes.data) {
-    for (const t of todosRes.data) {
-      items.push({
-        id: t.id,
-        type: 'todo',
-        title: t.title,
-        description: t.description,
-        date: t.due_date!,
-        time: null,
-        endTime: null,
-        allDay: true,
-        color: '#22C55E', // green
-        completed: t.completed,
-        priority: t.priority,
-        owner: t.profiles || { display_name: 'Unknown', role: null },
       })
     }
   }

@@ -115,8 +115,8 @@ export default function CalendarPage() {
       if (a.time && !b.time) return -1
       if (!a.time && b.time) return 1
       if (a.time && b.time) return a.time.localeCompare(b.time)
-      // For all-day: events first, then todos, then goals
-      const typeOrder = { event: 0, todo: 1, goal: 2 }
+      // For all-day: events first, then goals
+      const typeOrder: Record<string, number> = { event: 0, goal: 1 }
       return typeOrder[a.type] - typeOrder[b.type]
     })
   }, [calendarItems, selectedDate])
@@ -284,7 +284,6 @@ export default function CalendarPage() {
 
               // Group indicators by type
               const hasEvents = dayItems.some((i) => i.type === 'event')
-              const hasTodos = dayItems.some((i) => i.type === 'todo')
               const hasGoals = dayItems.some((i) => i.type === 'goal')
               const hasHoliday = dayHolidays.length > 0
 
@@ -345,7 +344,6 @@ export default function CalendarPage() {
                           color: item.color,
                         }}
                       >
-                        {item.type === 'todo' && '☑ '}
                         {item.type === 'goal' && '🎯 '}
                         {item.title}
                       </div>
@@ -362,7 +360,6 @@ export default function CalendarPage() {
                     <div className="flex items-center gap-0.5 mt-0.5 justify-center">
                       {hasHoliday && <div className="w-1.5 h-1.5 rounded-full bg-red-500" />}
                       {hasEvents && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
-                      {hasTodos && <div className="w-1.5 h-1.5 rounded-full bg-green-500" />}
                       {hasGoals && <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />}
                     </div>
                   )}
@@ -726,8 +723,6 @@ function ScheduleItem({
   const typeIcon =
     item.type === 'event' ? (
       <CircleDot className="w-3.5 h-3.5" style={{ color: item.color }} />
-    ) : item.type === 'todo' ? (
-      <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
     ) : (
       <Target className="w-3.5 h-3.5 text-purple-500" />
     )
