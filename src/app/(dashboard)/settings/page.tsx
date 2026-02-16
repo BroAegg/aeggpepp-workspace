@@ -103,6 +103,39 @@ export default function SettingsPage() {
     }
   }
 
+  const handleAvatarUploadClick = async () => {
+    setUploadingAvatar(true)
+    setProfileMsg(null)
+
+    const input = document.getElementById('avatar-upload') as HTMLInputElement
+    const file = input?.files?.[0]
+    
+    if (!file) {
+      setProfileMsg({ type: 'error', text: 'No file selected' })
+      setUploadingAvatar(false)
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('avatar', file)
+    
+    const result = await updateAvatar(formData)
+
+    if (result.error) {
+      console.error('Avatar upload error:', result.error)
+      setProfileMsg({ type: 'error', text: result.error })
+      setUploadingAvatar(false)
+    } else {
+      console.log('Avatar uploaded successfully:', result.avatarUrl)
+      setProfileMsg({ type: 'success', text: 'Avatar updated! Refreshing...' })
+      
+      // Wait a bit for success message to show, then refresh page
+      setTimeout(() => {
+        window.location.reload()
+      }, 800)
+    }
+  }
+
   const handleDeleteAvatar = async () => {
     if (!confirm('Are you sure you want to delete your avatar?')) return
 
@@ -303,7 +336,7 @@ export default function SettingsPage() {
                   
                   {/* Upload Button */}
                   <div className="flex-1">
-                    <form onSubmit={handleAvatarUpload} className="space-y-2">
+                    <div className="space-y-2">
                       <input
                         type="file"
                         name="avatar"
@@ -322,9 +355,10 @@ export default function SettingsPage() {
                       {avatarPreview && (
                         <div className="flex gap-2">
                           <Button
-                            type="submit"
+                            type="button"
                             size="sm"
                             disabled={uploadingAvatar}
+                            onClick={handleAvatarUploadClick}
                             className="flex-1"
                           >
                             {uploadingAvatar ? (
@@ -353,7 +387,7 @@ export default function SettingsPage() {
                           </Button>
                         </div>
                       )}
-                    </form>
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       JPG, PNG, GIF or WebP. Max 2MB.
                     </p>
