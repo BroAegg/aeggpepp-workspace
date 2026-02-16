@@ -118,6 +118,8 @@ declare module 'lucide-react' {
   export const GripVertical: Icon
   export const CalendarDays: Icon
   export const CircleDot: Icon
+  export const ListTodo: Icon
+  export const Square: Icon
 
   // Finance & Shopping
   export const PiggyBank: Icon

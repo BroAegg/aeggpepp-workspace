@@ -100,6 +100,38 @@ export interface Transaction {
   amount: number
   description: string | null
   date: string
+  is_split: boolean
+  split_with: string | null
+  paid_by: string | null
+  is_settled: boolean
+  created_at: string
+  profiles?: ItemOwner
+}
+
+// Savings Types
+export type SavingsAccountType = 'cash' | 'digital'
+
+export interface SavingsAccount {
+  id: string
+  user_id: string
+  name: string
+  type: SavingsAccountType
+  bank_code: string | null
+  balance: number
+  icon: string | null
+  created_at: string
+  updated_at: string
+  profiles?: ItemOwner
+}
+
+export interface SavingsTransaction {
+  id: string
+  account_id: string
+  user_id: string
+  amount: number
+  type: 'deposit' | 'withdraw'
+  description: string | null
+  date: string
   created_at: string
 }
 
@@ -114,6 +146,7 @@ export interface Budget {
 
 // Todo Types
 export type TodoCategory = 'work' | 'personal' | 'shopping' | 'other'
+export type TodoStatus = 'todo' | 'in_progress' | 'completed'
 
 export interface Todo {
   id: string
@@ -121,6 +154,7 @@ export interface Todo {
   title: string
   description: string | null
   completed: boolean
+  status: TodoStatus
   priority: Priority
   category: TodoCategory | null
   due_date: string | null
@@ -128,6 +162,15 @@ export interface Todo {
   created_at: string
   updated_at: string
   profiles?: ItemOwner
+  todo_tasks?: TodoTask[]
+}
+
+export interface TodoTask {
+  id: string
+  todo_id: string
+  title: string
+  completed: boolean
+  position: number
 }
 
 // Owner info (from profiles join)

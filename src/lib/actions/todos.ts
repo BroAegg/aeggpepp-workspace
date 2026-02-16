@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { Todo, TodoCategory, Priority } from '@/types'
+import type { Todo, TodoCategory, TodoStatus, Priority } from '@/types'
 
 // ============== TODOS ==============
 
@@ -14,7 +14,7 @@ export async function getTodos(): Promise<Todo[]> {
 
     const { data, error } = await supabase
         .from('todos')
-        .select('*, profiles:user_id(display_name, role)')
+        .select('*, profiles:user_id(display_name, role), todo_tasks(*)')
         .order('created_at', { ascending: false })
 
     if (error) {
@@ -22,7 +22,12 @@ export async function getTodos(): Promise<Todo[]> {
         return []
     }
 
-    return data || []
+    // Sort todo_tasks by position
+    return (data || []).map(todo => ({
+        ...todo,
+        status: todo.status || 'todo',
+        todo_tasks: (todo.todo_tasks || []).sort((a: any, b: any) => a.position - b.position),
+    }))
 }
 
 export async function createTodo(formData: FormData) {
@@ -46,6 +51,7 @@ export async function createTodo(formData: FormData) {
         title: title.trim(),
         description: description?.trim() || null,
         completed: false,
+        status: 'todo',
         priority,
         category: category || null,
         due_date: dueDate || null,
@@ -97,6 +103,33 @@ export async function updateTodo(id: string, formData: FormData) {
     return { success: true }
 }
 
+export async function updateTodoStatus(id: string, status: TodoStatus) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const completed = status === 'completed'
+
+    const { error } = await supabase
+        .from('todos')
+        .update({
+            status,
+            completed,
+            completed_at: completed ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('user_id', user.id)
+
+    if (error) {
+        return { error: error.message }
+    }
+
+    revalidatePath('/todos')
+    return { success: true }
+}
+
 export async function toggleTodo(id: string, completed: boolean) {
     const supabase = await createClient()
 
@@ -107,6 +140,7 @@ export async function toggleTodo(id: string, completed: boolean) {
         .from('todos')
         .update({
             completed,
+            status: completed ? 'completed' : 'todo',
             completed_at: completed ? new Date().toISOString() : null,
             updated_at: new Date().toISOString(),
         })
@@ -132,6 +166,81 @@ export async function deleteTodo(id: string) {
         .delete()
         .eq('id', id)
         .eq('user_id', user.id)
+
+    if (error) {
+        return { error: error.message }
+    }
+
+    revalidatePath('/todos')
+    return { success: true }
+}
+
+// ============== TODO TASKS (Sub-tasks) ==============
+
+export async function createTodoTask(todoId: string, title: string) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    if (!title?.trim()) {
+        return { error: 'Title is required' }
+    }
+
+    // Get the max position for this todo
+    const { data: existing } = await supabase
+        .from('todo_tasks')
+        .select('position')
+        .eq('todo_id', todoId)
+        .order('position', { ascending: false })
+        .limit(1)
+
+    const nextPosition = existing && existing.length > 0 ? existing[0].position + 1 : 0
+
+    const { error } = await supabase.from('todo_tasks').insert({
+        todo_id: todoId,
+        title: title.trim(),
+        completed: false,
+        position: nextPosition,
+    })
+
+    if (error) {
+        return { error: error.message }
+    }
+
+    revalidatePath('/todos')
+    return { success: true }
+}
+
+export async function toggleTodoTask(taskId: string, completed: boolean) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+        .from('todo_tasks')
+        .update({ completed })
+        .eq('id', taskId)
+
+    if (error) {
+        return { error: error.message }
+    }
+
+    revalidatePath('/todos')
+    return { success: true }
+}
+
+export async function deleteTodoTask(taskId: string) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { error } = await supabase
+        .from('todo_tasks')
+        .delete()
+        .eq('id', taskId)
 
     if (error) {
         return { error: error.message }

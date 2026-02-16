@@ -225,7 +225,7 @@ export default function CalendarPage() {
     <>
       <Header title="Calendar" emoji="📅" />
 
-      <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <div className="p-4 md:p-8 w-full max-w-[1600px] mx-auto">
         {/* ============ TOOLBAR ============ */}
         <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
           <div className="flex items-center gap-4">
@@ -274,7 +274,7 @@ export default function CalendarPage() {
           </div>
 
           {/* Days Grid */}
-          <div className="grid grid-cols-7 divide-x divide-border divide-y">
+          <div className="grid grid-cols-7 divide-x divide-border divide-y auto-rows-fr">
             {calendarDays.map((day) => {
               const today = isToday(day)
               const sameMonth = isSameMonth(day, monthStart)
@@ -292,7 +292,7 @@ export default function CalendarPage() {
                 <div
                   key={day.toString()}
                   className={cn(
-                    'relative min-h-[85px] p-1.5 transition-colors cursor-pointer group flex flex-col',
+                    'relative min-h-[110px] lg:min-h-[130px] p-2 transition-colors cursor-pointer group flex flex-col',
                     !sameMonth && 'bg-secondary/20 opacity-50',
                     selected && 'bg-primary/5 ring-1 ring-inset ring-primary/20',
                     !selected && 'hover:bg-secondary/40'
@@ -331,17 +331,17 @@ export default function CalendarPage() {
                   )}
 
                   {/* Event items (max 2 shown) */}
-                  <div className="flex flex-col gap-0.5 overflow-hidden flex-1">
+                  <div className="flex flex-col gap-1 overflow-hidden flex-1 mt-1">
                     {dayItems.slice(0, 2).map((item) => (
                       <div
                         key={`${item.type}-${item.id}`}
                         className={cn(
-                          'px-1 py-0.5 rounded-sm truncate text-[10px] font-medium',
+                          'px-1.5 py-0.5 rounded-sm truncate text-[10px] font-medium',
                           item.completed && 'opacity-40 line-through'
                         )}
                         style={{
                           backgroundColor: `${item.color}15`,
-                          borderLeft: `2px solid ${item.color}`,
+                          borderLeft: `3px solid ${item.color}`,
                           color: item.color,
                         }}
                       >
@@ -351,7 +351,7 @@ export default function CalendarPage() {
                       </div>
                     ))}
                     {dayItems.length > 2 && (
-                      <span className="text-[10px] text-muted-foreground pl-1">
+                      <span className="text-[10px] text-muted-foreground pl-1 font-medium">
                         +{dayItems.length - 2} more
                       </span>
                     )}
@@ -620,26 +620,33 @@ export default function CalendarPage() {
                   </label>
                 </div>
 
+
                 {/* Time */}
                 {!formAllDay && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">Start Time</label>
-                      <input
-                        type="time"
-                        value={formStartTime}
-                        onChange={(e) => setFormStartTime(e.target.value)}
-                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      />
+                      <div className="relative">
+                        <input
+                          type="time"
+                          value={formStartTime}
+                          onChange={(e) => setFormStartTime(e.target.value)}
+                          className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none tracking-widest text-lg font-mono"
+                        />
+                        <Clock className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">End Time</label>
-                      <input
-                        type="time"
-                        value={formEndTime}
-                        onChange={(e) => setFormEndTime(e.target.value)}
-                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                      />
+                       <div className="relative">
+                        <input
+                          type="time"
+                          value={formEndTime}
+                          onChange={(e) => setFormEndTime(e.target.value)}
+                          className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none tracking-widest text-lg font-mono"
+                        />
+                         <Clock className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -745,9 +752,14 @@ function ScheduleItem({
       />
 
       {/* Time column (Desktop) */}
-      <div className="hidden sm:block w-14 flex-shrink-0 text-right">
+      <div className="hidden sm:flex flex-col items-end w-16 flex-shrink-0 text-right pr-2">
         {item.time ? (
-          <span className="text-xs font-mono font-medium text-foreground">{item.time}</span>
+          <>
+            <span className="text-sm font-mono font-medium text-foreground">{item.time}</span>
+             {item.endTime && (
+              <span className="text-[10px] text-muted-foreground mt-0.5">{item.endTime}</span>
+             )}
+          </>
         ) : (
           <span className="text-[10px] text-muted-foreground">—</span>
         )}
@@ -755,7 +767,7 @@ function ScheduleItem({
 
       {/* Color bar (Desktop) */}
       <div
-        className="hidden sm:block w-1 self-stretch rounded-full flex-shrink-0"
+        className="hidden sm:block w-1.5 self-stretch rounded-full flex-shrink-0 opacity-80"
         style={{ backgroundColor: item.color }}
       />
 
@@ -799,13 +811,8 @@ function ScheduleItem({
         </div>
 
         {!compact && item.description && (
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2 ml-0 sm:ml-5">
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-2 ml-0">
             {item.description}
-          </p>
-        )}
-        {item.time && item.endTime && !compact && (
-          <p className="text-[10px] text-muted-foreground mt-0.5 ml-0 sm:ml-5">
-            {item.time} — {item.endTime}
           </p>
         )}
       </div>

@@ -5,6 +5,19 @@ import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
+    DndContext,
+    DragOverlay,
+    useDroppable,
+    useDraggable,
+    closestCorners,
+    PointerSensor,
+    TouchSensor,
+    useSensor,
+    useSensors,
+    type DragStartEvent,
+    type DragEndEvent,
+} from '@dnd-kit/core'
+import {
     Plus,
     CheckCircle2,
     Circle,
@@ -14,10 +27,12 @@ import {
     AlertTriangle,
     Loader2,
     Filter,
-    SortAsc,
-    SquareCheck,
+    GripVertical,
+    Inbox,
     Clock,
-    Edit,
+    ArrowRight,
+    CheckSquare,
+    SquareCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PRIORITIES, TODO_CATEGORIES } from '@/lib/constants'
@@ -25,15 +40,38 @@ import {
     getTodos,
     createTodo,
     updateTodo,
-    toggleTodo,
     deleteTodo as deleteTodoAction,
+    updateTodoStatus,
+    createTodoTask,
+    toggleTodoTask,
+    deleteTodoTask,
 } from '@/lib/actions/todos'
-import type { Todo, TodoCategory, Priority } from '@/types'
+import type { Todo, TodoCategory, TodoStatus, TodoTask, Priority } from '@/types'
 
-type StatusFilter = 'all' | 'active' | 'completed'
-type SortBy = 'created_at' | 'due_date' | 'priority'
+const COLUMNS: { id: TodoStatus; title: string; icon: React.ReactNode; color: string; bgColor: string }[] = [
+    {
+        id: 'todo',
+        title: 'Todo',
+        icon: <Circle className="w-4 h-4" />,
+        color: 'text-slate-500',
+        bgColor: 'bg-slate-100 dark:bg-slate-800/50',
+    },
+    {
+        id: 'in_progress',
+        title: 'In Progress',
+        icon: <Clock className="w-4 h-4" />,
+        color: 'text-blue-500',
+        bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+    },
+    {
+        id: 'completed',
+        title: 'Completed',
+        icon: <CheckCircle2 className="w-4 h-4" />,
+        color: 'text-green-500',
+        bgColor: 'bg-green-50 dark:bg-green-900/20',
+    },
+]
 
-const priorityOrder: Record<Priority, number> = { high: 0, medium: 1, low: 2 }
 const priorityColors: Record<Priority, string> = {
     low: 'bg-secondary text-muted-foreground',
     medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
@@ -47,12 +85,12 @@ export default function TodosPage() {
     const [showModal, setShowModal] = useState(false)
     const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+    const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
     // Filters
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-    const [categoryFilter, setCategoryFilter] = useState<string>('all')
+    const [personFilter, setPersonFilter] = useState<string>('all')
     const [priorityFilter, setPriorityFilter] = useState<string>('all')
-    const [sortBy, setSortBy] = useState<SortBy>('created_at')
+    const [categoryFilter, setCategoryFilter] = useState<string>('all')
 
     // Form state
     const [formTitle, setFormTitle] = useState('')
@@ -60,6 +98,19 @@ export default function TodosPage() {
     const [formPriority, setFormPriority] = useState<Priority>('medium')
     const [formCategory, setFormCategory] = useState<string>('')
     const [formDueDate, setFormDueDate] = useState('')
+
+    // Sub-task form
+    const [newTaskTitle, setNewTaskTitle] = useState('')
+    const [addingTask, setAddingTask] = useState(false)
+
+    // DnD sensors
+    const pointerSensor = useSensor(PointerSensor, {
+        activationConstraint: { distance: 8 },
+    })
+    const touchSensor = useSensor(TouchSensor, {
+        activationConstraint: { delay: 200, tolerance: 5 },
+    })
+    const sensors = useSensors(pointerSensor, touchSensor)
 
     useEffect(() => {
         fetchTodos()
@@ -76,51 +127,92 @@ export default function TodosPage() {
         }
     }
 
-    // Filtered + Sorted todos
+    // Filter todos
     const filteredTodos = useMemo(() => {
         let result = [...todos]
 
-        // Status filter
-        if (statusFilter === 'active') result = result.filter((t) => !t.completed)
-        if (statusFilter === 'completed') result = result.filter((t) => t.completed)
-
-        // Category filter
+        if (personFilter !== 'all') {
+            result = result.filter((t) => t.profiles?.role === personFilter)
+        }
+        if (priorityFilter !== 'all') {
+            result = result.filter((t) => t.priority === priorityFilter)
+        }
         if (categoryFilter !== 'all') {
             result = result.filter((t) => t.category === categoryFilter)
         }
 
-        // Priority filter
-        if (priorityFilter !== 'all') {
-            result = result.filter((t) => t.priority === priorityFilter)
-        }
-
-        // Sort
-        result.sort((a, b) => {
-            if (sortBy === 'due_date') {
-                if (!a.due_date && !b.due_date) return 0
-                if (!a.due_date) return 1
-                if (!b.due_date) return -1
-                return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-            }
-            if (sortBy === 'priority') {
-                return priorityOrder[a.priority] - priorityOrder[b.priority]
-            }
-            // Default: created_at desc
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        })
-
         return result
-    }, [todos, statusFilter, categoryFilter, priorityFilter, sortBy])
+    }, [todos, personFilter, priorityFilter, categoryFilter])
 
-    const activeTodos = filteredTodos.filter((t) => !t.completed)
-    const completedTodos = filteredTodos.filter((t) => t.completed)
+    // Group by status
+    const todosByStatus = useMemo(() => {
+        const grouped: Record<TodoStatus, Todo[]> = {
+            todo: [],
+            in_progress: [],
+            completed: [],
+        }
+        filteredTodos.forEach((t) => {
+            const status = t.status || 'todo'
+            if (grouped[status]) {
+                grouped[status].push(t)
+            }
+        })
+        return grouped
+    }, [filteredTodos])
 
     // Stats
-    const totalActive = todos.filter((t) => !t.completed).length
-    const totalCompleted = todos.filter((t) => t.completed).length
+    const totalTodo = todos.filter((t) => (t.status || 'todo') === 'todo').length
+    const totalInProgress = todos.filter((t) => t.status === 'in_progress').length
+    const totalCompleted = todos.filter((t) => t.status === 'completed').length
     const overdueTodos = todos.filter(
         (t) => !t.completed && t.due_date && new Date(t.due_date) < new Date(new Date().toDateString())
     ).length
+
+    // Drag handlers
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveDragId(event.active.id as string)
+    }
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event
+        setActiveDragId(null)
+
+        if (!over) return
+
+        const todoId = active.id as string
+        const newStatus = over.id as TodoStatus
+
+        if (!['todo', 'in_progress', 'completed'].includes(newStatus)) return
+
+        const todo = todos.find((t) => t.id === todoId)
+        if (!todo) return
+
+        const currentStatus = todo.status || 'todo'
+        if (currentStatus === newStatus) return
+
+        // Optimistic update
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === todoId
+                    ? {
+                          ...t,
+                          status: newStatus,
+                          completed: newStatus === 'completed',
+                          completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
+                      }
+                    : t
+            )
+        )
+
+        try {
+            await updateTodoStatus(todoId, newStatus)
+        } catch (error) {
+            console.error('Error updating status:', error)
+            await fetchTodos()
+        }
+    }
+
+    const draggedTodo = activeDragId ? todos.find((t) => t.id === activeDragId) : null
 
     // Modal handlers
     const openAddModal = () => {
@@ -130,6 +222,7 @@ export default function TodosPage() {
         setFormPriority('medium')
         setFormCategory('')
         setFormDueDate('')
+        setNewTaskTitle('')
         setShowModal(true)
     }
 
@@ -140,6 +233,7 @@ export default function TodosPage() {
         setFormPriority(todo.priority)
         setFormCategory(todo.category || '')
         setFormDueDate(todo.due_date || '')
+        setNewTaskTitle('')
         setShowModal(true)
     }
 
@@ -170,24 +264,6 @@ export default function TodosPage() {
         }
     }
 
-    const handleToggle = async (id: string, completed: boolean) => {
-        // Optimistic update
-        setTodos((prev) =>
-            prev.map((t) =>
-                t.id === id
-                    ? { ...t, completed, completed_at: completed ? new Date().toISOString() : null }
-                    : t
-            )
-        )
-        try {
-            await toggleTodo(id, completed)
-            await fetchTodos()
-        } catch (error) {
-            console.error('Error toggling todo:', error)
-            await fetchTodos() // Revert
-        }
-    }
-
     const handleDelete = async (id: string) => {
         try {
             await deleteTodoAction(id)
@@ -199,29 +275,104 @@ export default function TodosPage() {
         }
     }
 
+    // Sub-task handlers
+    const handleAddTask = async () => {
+        if (!editingTodo || !newTaskTitle.trim()) return
+        setAddingTask(true)
+        try {
+            await createTodoTask(editingTodo.id, newTaskTitle.trim())
+            setNewTaskTitle('')
+            await fetchTodos()
+            const updated = (await getTodos()).find((t) => t.id === editingTodo.id)
+            if (updated) setEditingTodo(updated)
+        } catch (error) {
+            console.error('Error adding task:', error)
+        } finally {
+            setAddingTask(false)
+        }
+    }
+
+    const handleToggleTask = async (taskId: string, completed: boolean) => {
+        try {
+            await toggleTodoTask(taskId, completed)
+            await fetchTodos()
+            if (editingTodo) {
+                const updated = (await getTodos()).find((t) => t.id === editingTodo.id)
+                if (updated) {
+                    setEditingTodo(updated)
+                    // Auto-move to completed when all sub-tasks done
+                    if (
+                        updated.todo_tasks &&
+                        updated.todo_tasks.length > 0 &&
+                        updated.todo_tasks.every((task) => task.completed) &&
+                        updated.status !== 'completed'
+                    ) {
+                        await updateTodoStatus(updated.id, 'completed')
+                        await fetchTodos()
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling task:', error)
+        }
+    }
+
+    const handleDeleteTask = async (taskId: string) => {
+        try {
+            await deleteTodoTask(taskId)
+            await fetchTodos()
+            if (editingTodo) {
+                const updated = (await getTodos()).find((t) => t.id === editingTodo.id)
+                if (updated) setEditingTodo(updated)
+            }
+        } catch (error) {
+            console.error('Error deleting task:', error)
+        }
+    }
+
+    // Quick status change
+    const handleQuickStatusChange = async (todoId: string, newStatus: TodoStatus) => {
+        setTodos((prev) =>
+            prev.map((t) =>
+                t.id === todoId
+                    ? {
+                          ...t,
+                          status: newStatus,
+                          completed: newStatus === 'completed',
+                          completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
+                      }
+                    : t
+            )
+        )
+        try {
+            await updateTodoStatus(todoId, newStatus)
+        } catch (error) {
+            await fetchTodos()
+        }
+    }
+
     const isOverdue = (todo: Todo): boolean =>
         !!(todo.due_date && !todo.completed && new Date(todo.due_date) < new Date(new Date().toDateString()))
 
-    const isDueToday = (todo: Todo): boolean =>
-        !!(!todo.completed &&
-            todo.due_date &&
-            new Date(todo.due_date).toDateString() === new Date().toDateString())
-
     const getCategoryInfo = (category: string | null) =>
         TODO_CATEGORIES.find((c) => c.value === category)
+
+    const hasActiveFilters = personFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all'
 
     return (
         <>
             <Header title="Todos" emoji="✅" />
 
-            <div className="p-4 md:p-8 max-w-4xl mx-auto">
+            <div className="p-4 md:p-6 lg:p-8">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h2 className="text-2xl font-bold text-foreground">Todos</h2>
+                        <h2 className="text-2xl font-bold text-foreground">Kanban Board</h2>
                         <p className="text-sm text-muted-foreground mt-0.5">
-                            {totalActive} active{overdueTodos > 0 && <span className="text-red-500 ml-1">· {overdueTodos} overdue</span>}
-                            {totalCompleted > 0 && <span> · {totalCompleted} completed</span>}
+                            {totalTodo} todo · {totalInProgress} in progress · {totalCompleted} done
+                            {overdueTodos > 0 && (
+                                <span className="text-red-500 ml-1">· {overdueTodos} overdue</span>
+                            )}
                         </p>
                     </div>
                     <Button onClick={openAddModal}>
@@ -229,46 +380,23 @@ export default function TodosPage() {
                     </Button>
                 </div>
 
-                {/* Status Tabs */}
-                <div className="flex items-center gap-1 mb-4 p-1 bg-secondary/50 rounded-lg w-fit">
-                    {(['all', 'active', 'completed'] as StatusFilter[]).map((status) => (
-                        <button
-                            key={status}
-                            onClick={() => setStatusFilter(status)}
-                            className={cn(
-                                'px-3 py-1.5 rounded-md text-sm font-medium transition-colors capitalize',
-                                statusFilter === status
-                                    ? 'bg-card text-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground'
-                            )}
-                        >
-                            {status === 'all' ? `All (${todos.length})` : status === 'active' ? `Active (${totalActive})` : `Completed (${totalCompleted})`}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Filters Row */}
-                <div className="flex flex-wrap items-center gap-2 mb-6">
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-2 mb-5">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Filter className="w-3.5 h-3.5" />
                         <span className="text-xs font-medium">Filters:</span>
                     </div>
 
-                    {/* Category Filter */}
                     <select
-                        value={categoryFilter}
-                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        value={personFilter}
+                        onChange={(e) => setPersonFilter(e.target.value)}
                         className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
-                        <option value="all">All Categories</option>
-                        {TODO_CATEGORIES.map((cat) => (
-                            <option key={cat.value} value={cat.value}>
-                                {cat.icon} {cat.label}
-                            </option>
-                        ))}
+                        <option value="all">All People</option>
+                        <option value="aegg">🍌 Aegg</option>
+                        <option value="peppaa">🍈 Peppaa</option>
                     </select>
 
-                    {/* Priority Filter */}
                     <select
                         value={priorityFilter}
                         onChange={(e) => setPriorityFilter(e.target.value)}
@@ -282,29 +410,41 @@ export default function TodosPage() {
                         ))}
                     </select>
 
-                    {/* Sort */}
-                    <div className="flex items-center gap-1.5 ml-auto">
-                        <SortAsc className="w-3.5 h-3.5 text-muted-foreground" />
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as SortBy)}
-                            className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    <select
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                        <option value="all">All Categories</option>
+                        {TODO_CATEGORIES.map((cat) => (
+                            <option key={cat.value} value={cat.value}>
+                                {cat.icon} {cat.label}
+                            </option>
+                        ))}
+                    </select>
+
+                    {hasActiveFilters && (
+                        <button
+                            onClick={() => {
+                                setPersonFilter('all')
+                                setPriorityFilter('all')
+                                setCategoryFilter('all')
+                            }}
+                            className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                         >
-                            <option value="created_at">Newest First</option>
-                            <option value="due_date">Due Date</option>
-                            <option value="priority">Priority</option>
-                        </select>
-                    </div>
+                            Clear filters
+                        </button>
+                    )}
                 </div>
 
-                {/* Loading State */}
+                {/* Loading */}
                 {loading && (
                     <div className="flex items-center justify-center py-20">
                         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                     </div>
                 )}
 
-                {/* Empty State */}
+                {/* Empty state */}
                 {!loading && todos.length === 0 && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -312,7 +452,7 @@ export default function TodosPage() {
                         className="text-center py-20"
                     >
                         <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-secondary/80 flex items-center justify-center">
-                            <SquareCheck className="w-8 h-8 text-muted-foreground" />
+                            <Inbox className="w-8 h-8 text-muted-foreground" />
                         </div>
                         <h3 className="text-lg font-semibold text-foreground mb-1">No todos yet</h3>
                         <p className="text-sm text-muted-foreground mb-4">
@@ -324,69 +464,55 @@ export default function TodosPage() {
                     </motion.div>
                 )}
 
-                {/* No filter results */}
-                {!loading && todos.length > 0 && filteredTodos.length === 0 && (
-                    <div className="text-center py-16">
-                        <p className="text-muted-foreground">No todos match the current filters.</p>
-                    </div>
-                )}
-
-                {/* Active Todos */}
-                {!loading && activeTodos.length > 0 && (
-                    <div className="mb-6">
-                        {statusFilter !== 'completed' && (
-                            <div className="flex items-center gap-2 mb-3">
-                                <Circle className="w-4 h-4 text-primary-500" />
-                                <span className="text-sm font-semibold text-foreground">
-                                    Active ({activeTodos.length})
-                                </span>
-                            </div>
-                        )}
-                        <div className="space-y-1">
-                            {activeTodos.map((todo, index) => (
-                                <TodoItem
-                                    key={todo.id}
-                                    todo={todo}
-                                    index={index}
-                                    isOverdue={isOverdue(todo)}
-                                    isDueToday={isDueToday(todo)}
-                                    getCategoryInfo={getCategoryInfo}
-                                    onToggle={handleToggle}
+                {/* Kanban Board */}
+                {!loading && todos.length > 0 && (
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCorners}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+                            {COLUMNS.map((column) => (
+                                <KanbanColumn
+                                    key={column.id}
+                                    column={column}
+                                    todos={todosByStatus[column.id] || []}
                                     onEdit={openEditModal}
-                                    onDelete={(id) => setShowDeleteConfirm(id)}
+                                    onQuickStatusChange={handleQuickStatusChange}
+                                    isOverdue={isOverdue}
+                                    getCategoryInfo={getCategoryInfo}
+                                    onToggleTask={handleToggleTask}
                                 />
                             ))}
                         </div>
-                    </div>
-                )}
 
-                {/* Completed Todos */}
-                {!loading && completedTodos.length > 0 && (
-                    <div>
-                        {statusFilter !== 'active' && (
-                            <div className="flex items-center gap-2 mb-3">
-                                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                <span className="text-sm font-semibold text-foreground">
-                                    Completed ({completedTodos.length})
-                                </span>
-                            </div>
-                        )}
-                        <div className="space-y-1">
-                            {completedTodos.map((todo, index) => (
-                                <TodoItem
-                                    key={todo.id}
-                                    todo={todo}
-                                    index={index}
-                                    isOverdue={false}
-                                    isDueToday={false}
-                                    getCategoryInfo={getCategoryInfo}
-                                    onToggle={handleToggle}
-                                    onEdit={openEditModal}
-                                    onDelete={(id) => setShowDeleteConfirm(id)}
-                                />
-                            ))}
-                        </div>
-                    </div>
+                        {/* Drag Overlay */}
+                        <DragOverlay>
+                            {draggedTodo ? (
+                                <div className="bg-card rounded-xl border border-primary/30 shadow-xl p-3 max-w-[320px] opacity-90 rotate-2">
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                        {draggedTodo.title}
+                                    </p>
+                                    <div className="flex items-center gap-1.5 mt-1.5">
+                                        <span
+                                            className={cn(
+                                                'px-1.5 py-0.5 rounded text-[10px] font-semibold',
+                                                priorityColors[draggedTodo.priority]
+                                            )}
+                                        >
+                                            {draggedTodo.priority.toUpperCase()}
+                                        </span>
+                                        {draggedTodo.profiles && (
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {draggedTodo.profiles.role === 'aegg' ? '🍌' : '🍈'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : null}
+                        </DragOverlay>
+                    </DndContext>
                 )}
             </div>
 
@@ -422,7 +548,9 @@ export default function TodosPage() {
                             <div className="space-y-4">
                                 {/* Title */}
                                 <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">Title</label>
+                                    <label className="block text-sm font-medium text-foreground mb-2">
+                                        Title
+                                    </label>
                                     <input
                                         type="text"
                                         placeholder="What needs to be done?"
@@ -443,7 +571,7 @@ export default function TodosPage() {
                                         placeholder="Add details..."
                                         value={formDescription}
                                         onChange={(e) => setFormDescription(e.target.value)}
-                                        rows={3}
+                                        rows={2}
                                         className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
                                     />
                                 </div>
@@ -456,7 +584,9 @@ export default function TodosPage() {
                                         </label>
                                         <select
                                             value={formPriority}
-                                            onChange={(e) => setFormPriority(e.target.value as Priority)}
+                                            onChange={(e) =>
+                                                setFormPriority(e.target.value as Priority)
+                                            }
                                             className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                         >
                                             {Object.entries(PRIORITIES).map(([key, val]) => (
@@ -487,7 +617,9 @@ export default function TodosPage() {
 
                                 {/* Due Date */}
                                 <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">Due Date</label>
+                                    <label className="block text-sm font-medium text-foreground mb-2">
+                                        Due Date
+                                    </label>
                                     <input
                                         type="date"
                                         value={formDueDate}
@@ -495,6 +627,80 @@ export default function TodosPage() {
                                         className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                     />
                                 </div>
+
+                                {/* Sub-tasks (only in edit mode) */}
+                                {editingTodo && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-2">
+                                            Sub-tasks
+                                        </label>
+                                        <div className="space-y-1.5 mb-2">
+                                            {editingTodo.todo_tasks &&
+                                                editingTodo.todo_tasks.map((task) => (
+                                                    <div
+                                                        key={task.id}
+                                                        className="flex items-center gap-2 group"
+                                                    >
+                                                        <button
+                                                            onClick={() =>
+                                                                handleToggleTask(
+                                                                    task.id,
+                                                                    !task.completed
+                                                                )
+                                                            }
+                                                            className="flex-shrink-0"
+                                                        >
+                                                            {task.completed ? (
+                                                                <CheckSquare className="w-4 h-4 text-green-500" />
+                                                            ) : (
+                                                                <SquareCheck className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                                                            )}
+                                                        </button>
+                                                        <span
+                                                            className={cn(
+                                                                'text-sm flex-1',
+                                                                task.completed &&
+                                                                    'line-through text-muted-foreground'
+                                                            )}
+                                                        >
+                                                            {task.title}
+                                                        </span>
+                                                        <button
+                                                            onClick={() =>
+                                                                handleDeleteTask(task.id)
+                                                            }
+                                                            className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all"
+                                                        >
+                                                            <X className="w-3 h-3 text-red-500" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Add a sub-task..."
+                                                value={newTaskTitle}
+                                                onChange={(e) => setNewTaskTitle(e.target.value)}
+                                                onKeyDown={(e) =>
+                                                    e.key === 'Enter' && handleAddTask()
+                                                }
+                                                className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            />
+                                            <Button
+                                                size="sm"
+                                                onClick={handleAddTask}
+                                                disabled={!newTaskTitle.trim() || addingTask}
+                                            >
+                                                {addingTask ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    <Plus className="w-3 h-3" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Actions */}
@@ -509,7 +715,11 @@ export default function TodosPage() {
                                         Delete
                                     </Button>
                                 )}
-                                <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)}>
+                                <Button
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => setShowModal(false)}
+                                >
                                     Cancel
                                 </Button>
                                 <Button
@@ -554,7 +764,9 @@ export default function TodosPage() {
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-foreground">Delete Todo?</h3>
-                                    <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        This action cannot be undone.
+                                    </p>
                                 </div>
                             </div>
                             <div className="flex gap-3">
@@ -580,151 +792,260 @@ export default function TodosPage() {
     )
 }
 
-// ============== Todo Item Component ==============
+// ============== Kanban Column ==============
 
-function TodoItem({
-    todo,
-    index,
-    isOverdue,
-    isDueToday,
-    getCategoryInfo,
-    onToggle,
+function KanbanColumn({
+    column,
+    todos,
     onEdit,
-    onDelete,
+    onQuickStatusChange,
+    isOverdue,
+    getCategoryInfo,
+    onToggleTask,
 }: {
-    todo: Todo
-    index: number
-    isOverdue: boolean
-    isDueToday: boolean
-    getCategoryInfo: (category: string | null) => (typeof TODO_CATEGORIES)[number] | undefined
-    onToggle: (id: string, completed: boolean) => void
+    column: (typeof COLUMNS)[number]
+    todos: Todo[]
     onEdit: (todo: Todo) => void
-    onDelete: (id: string) => void
+    onQuickStatusChange: (todoId: string, status: TodoStatus) => void
+    isOverdue: (todo: Todo) => boolean
+    getCategoryInfo: (category: string | null) => (typeof TODO_CATEGORIES)[number] | undefined
+    onToggleTask: (taskId: string, completed: boolean) => void
 }) {
-    const category = getCategoryInfo(todo.category)
+    const { setNodeRef, isOver } = useDroppable({ id: column.id })
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.03 }}
+        <div
+            ref={setNodeRef}
             className={cn(
-                'group flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                'hover:bg-secondary/50',
-                isOverdue && !todo.completed && 'bg-red-50/50 dark:bg-red-950/10'
+                'rounded-xl border border-border/50 transition-all duration-200 min-h-[300px]',
+                column.bgColor,
+                isOver && 'ring-2 ring-primary/40 border-primary/30 scale-[1.01]'
             )}
         >
-            {/* Checkbox */}
-            <button
-                onClick={() => onToggle(todo.id, !todo.completed)}
-                className={cn(
-                    'mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0',
-                    todo.completed
-                        ? 'bg-green-500 border-green-500 text-white scale-100'
-                        : 'border-border hover:border-primary hover:scale-110'
-                )}
-            >
-                {todo.completed && <CheckCircle2 className="w-3 h-3" />}
-            </button>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0" onClick={() => onEdit(todo)}>
-                <div className="flex items-center gap-2 cursor-pointer">
-                    <p
-                        className={cn(
-                            'text-sm font-medium transition-all duration-200',
-                            todo.completed
-                                ? 'line-through text-muted-foreground'
-                                : 'text-foreground group-hover:text-primary'
-                        )}
-                    >
-                        {todo.title}
-                    </p>
-                </div>
-
-                {/* Description */}
-                {todo.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{todo.description}</p>
-                )}
-
-                {/* Metadata row */}
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    {/* Priority badge */}
-                    <span
-                        className={cn(
-                            'px-1.5 py-0.5 rounded text-[10px] font-semibold',
-                            priorityColors[todo.priority]
-                        )}
-                    >
-                        {todo.priority.toUpperCase()}
+            {/* Column Header */}
+            <div className="px-4 py-3 border-b border-border/30">
+                <div className="flex items-center gap-2">
+                    <span className={column.color}>{column.icon}</span>
+                    <h3 className="font-semibold text-sm text-foreground">{column.title}</h3>
+                    <span className="px-1.5 py-0.5 rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
+                        {todos.length}
                     </span>
-
-                    {/* Category badge */}
-                    {category && (
-                        <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-semibold', category.color)}>
-                            {category.icon} {category.label}
-                        </span>
-                    )}
-
-                    {/* Due date */}
-                    {todo.due_date && (
-                        <span
-                            className={cn(
-                                'flex items-center gap-1 text-[10px]',
-                                isOverdue
-                                    ? 'text-red-500 font-semibold'
-                                    : isDueToday
-                                        ? 'text-amber-500 font-semibold'
-                                        : 'text-muted-foreground'
-                            )}
-                        >
-                            <Calendar className="w-3 h-3" />
-                            {isOverdue
-                                ? 'Overdue'
-                                : isDueToday
-                                    ? 'Today'
-                                    : new Date(todo.due_date).toLocaleDateString('en-US', {
-                                        month: 'short',
-                                        day: 'numeric',
-                                    })}
-                        </span>
-                    )}
-
-                    {/* Owner badge */}
-                    {todo.profiles && (
-                        <span
-                            className={cn(
-                                'px-1.5 py-0.5 rounded-full text-[10px] font-medium',
-                                todo.profiles.role === 'aegg'
-                                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-                                    : todo.profiles.role === 'peppaa'
-                                        ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
-                                        : 'bg-secondary text-muted-foreground'
-                            )}
-                        >
-                            {todo.profiles.role === 'aegg' ? '🍌' : '🍈'}{' '}
-                            {todo.profiles.display_name?.split(' ')[0]}
-                        </span>
-                    )}
                 </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <button
-                    onClick={() => onEdit(todo)}
-                    className="p-1 hover:bg-secondary rounded transition-colors"
-                    title="Edit"
-                >
-                    <Edit className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
-                <button
-                    onClick={() => onDelete(todo.id)}
-                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
-                    title="Delete"
-                >
-                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                </button>
+            {/* Cards */}
+            <div className="p-2 space-y-2">
+                <AnimatePresence mode="popLayout">
+                    {todos.map((todo) => (
+                        <KanbanCard
+                            key={todo.id}
+                            todo={todo}
+                            columnId={column.id}
+                            onEdit={onEdit}
+                            onQuickStatusChange={onQuickStatusChange}
+                            isOverdue={isOverdue(todo)}
+                            getCategoryInfo={getCategoryInfo}
+                            onToggleTask={onToggleTask}
+                        />
+                    ))}
+                </AnimatePresence>
+
+                {todos.length === 0 && (
+                    <div className="py-8 text-center">
+                        <p className="text-xs text-muted-foreground">
+                            {isOver ? 'Drop here' : 'No items'}
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
+// ============== Kanban Card ==============
+
+function KanbanCard({
+    todo,
+    columnId,
+    onEdit,
+    onQuickStatusChange,
+    isOverdue,
+    getCategoryInfo,
+    onToggleTask,
+}: {
+    todo: Todo
+    columnId: TodoStatus
+    onEdit: (todo: Todo) => void
+    onQuickStatusChange: (todoId: string, status: TodoStatus) => void
+    isOverdue: boolean
+    getCategoryInfo: (category: string | null) => (typeof TODO_CATEGORIES)[number] | undefined
+    onToggleTask: (taskId: string, completed: boolean) => void
+}) {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+        id: todo.id,
+    })
+
+    const style = transform
+        ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+        : undefined
+
+    const category = getCategoryInfo(todo.category)
+    const tasks = todo.todo_tasks || []
+    const completedTasks = tasks.filter((t) => t.completed).length
+    const showSubTasks = columnId === 'in_progress' && tasks.length > 0
+
+    const nextStatus: TodoStatus | null =
+        columnId === 'todo' ? 'in_progress' : columnId === 'in_progress' ? 'completed' : null
+
+    return (
+        <motion.div
+            ref={setNodeRef}
+            style={style}
+            layout
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: isDragging ? 0.5 : 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className={cn(
+                'bg-card rounded-lg border border-border/60 shadow-sm hover:shadow-md transition-shadow cursor-pointer group',
+                isOverdue && 'border-red-300 dark:border-red-800',
+                isDragging && 'shadow-xl z-50'
+            )}
+        >
+            <div className="p-3">
+                <div className="flex items-start gap-2">
+                    {/* Drag handle */}
+                    <button
+                        {...listeners}
+                        {...attributes}
+                        className="mt-0.5 p-0.5 rounded hover:bg-secondary cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+                    >
+                        <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50" />
+                    </button>
+
+                    {/* Card content */}
+                    <div className="flex-1 min-w-0" onClick={() => onEdit(todo)}>
+                        <p
+                            className={cn(
+                                'text-sm font-medium leading-tight',
+                                todo.completed
+                                    ? 'line-through text-muted-foreground'
+                                    : 'text-foreground'
+                            )}
+                        >
+                            {todo.title}
+                        </p>
+
+                        {todo.description && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {todo.description}
+                            </p>
+                        )}
+
+                        {/* Metadata */}
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            <span
+                                className={cn(
+                                    'px-1.5 py-0.5 rounded text-[10px] font-semibold',
+                                    priorityColors[todo.priority]
+                                )}
+                            >
+                                {todo.priority.toUpperCase()}
+                            </span>
+
+                            {category && (
+                                <span
+                                    className={cn(
+                                        'px-1.5 py-0.5 rounded text-[10px] font-semibold',
+                                        category.color
+                                    )}
+                                >
+                                    {category.icon}
+                                </span>
+                            )}
+
+                            {todo.due_date && (
+                                <span
+                                    className={cn(
+                                        'flex items-center gap-0.5 text-[10px]',
+                                        isOverdue
+                                            ? 'text-red-500 font-semibold'
+                                            : 'text-muted-foreground'
+                                    )}
+                                >
+                                    <Calendar className="w-2.5 h-2.5" />
+                                    {isOverdue
+                                        ? 'Overdue'
+                                        : new Date(todo.due_date).toLocaleDateString('en-US', {
+                                              month: 'short',
+                                              day: 'numeric',
+                                          })}
+                                </span>
+                            )}
+
+                            {tasks.length > 0 && (
+                                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                    <CheckSquare className="w-2.5 h-2.5" />
+                                    {completedTasks}/{tasks.length}
+                                </span>
+                            )}
+
+                            {todo.profiles && (
+                                <span className="text-[10px] ml-auto">
+                                    {todo.profiles.role === 'aegg' ? '🍌' : '🍈'}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sub-tasks (visible only in In Progress) */}
+                {showSubTasks && (
+                    <div className="mt-2.5 ml-6 space-y-1 border-t border-border/30 pt-2">
+                        {tasks.map((task) => (
+                            <button
+                                key={task.id}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    onToggleTask(task.id, !task.completed)
+                                }}
+                                className="flex items-center gap-2 w-full text-left group/task hover:bg-secondary/50 rounded px-1 py-0.5 transition-colors"
+                            >
+                                {task.completed ? (
+                                    <CheckSquare className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                                ) : (
+                                    <SquareCheck className="w-3.5 h-3.5 text-muted-foreground group-hover/task:text-primary flex-shrink-0" />
+                                )}
+                                <span
+                                    className={cn(
+                                        'text-xs',
+                                        task.completed
+                                            ? 'line-through text-muted-foreground'
+                                            : 'text-foreground'
+                                    )}
+                                >
+                                    {task.title}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Quick move button */}
+                {nextStatus && (
+                    <div className="mt-2 ml-6">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onQuickStatusChange(todo.id, nextStatus)
+                            }}
+                            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                            <ArrowRight className="w-3 h-3" />
+                            Move to {COLUMNS.find((c) => c.id === nextStatus)?.title}
+                        </button>
+                    </div>
+                )}
             </div>
         </motion.div>
     )
