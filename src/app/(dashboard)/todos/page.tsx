@@ -48,27 +48,30 @@ import {
 } from '@/lib/actions/todos'
 import type { Todo, TodoCategory, TodoStatus, TodoTask, Priority } from '@/types'
 
-const COLUMNS: { id: TodoStatus; title: string; icon: React.ReactNode; color: string; bgColor: string }[] = [
+const COLUMNS: { id: TodoStatus; title: string; icon: React.ReactNode; color: string; bgColor: string; borderColor: string }[] = [
     {
         id: 'todo',
         title: 'Todo',
         icon: <Circle className="w-4 h-4" />,
         color: 'text-slate-500',
-        bgColor: 'bg-slate-100 dark:bg-slate-800/50',
+        bgColor: 'bg-gradient-to-b from-slate-50 to-white/50 dark:from-slate-900/30 dark:to-slate-900/10',
+        borderColor: 'border-slate-200/60 dark:border-slate-800',
     },
     {
         id: 'in_progress',
         title: 'In Progress',
         icon: <Clock className="w-4 h-4" />,
-        color: 'text-blue-500',
-        bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+        color: 'text-pink-600 dark:text-pink-400',
+        bgColor: 'bg-gradient-to-b from-pink-50/80 to-pink-50/20 dark:from-pink-900/20 dark:to-pink-900/5',
+        borderColor: 'border-pink-200/60 dark:border-pink-900/30',
     },
     {
         id: 'completed',
         title: 'Completed',
         icon: <CheckCircle2 className="w-4 h-4" />,
-        color: 'text-green-500',
-        bgColor: 'bg-green-50 dark:bg-green-900/20',
+        color: 'text-emerald-600 dark:text-emerald-400',
+        bgColor: 'bg-gradient-to-b from-emerald-50/80 to-emerald-50/20 dark:from-emerald-900/20 dark:to-emerald-900/5',
+        borderColor: 'border-emerald-200/60 dark:border-emerald-900/30',
     },
 ]
 
@@ -818,17 +821,18 @@ function KanbanColumn({
         <div
             ref={setNodeRef}
             className={cn(
-                'rounded-xl border border-border/50 transition-all duration-200 min-h-[300px]',
+                'rounded-xl border transition-all duration-200 min-h-[300px] backdrop-blur-[2px]',
                 column.bgColor,
+                column.borderColor,
                 isOver && 'ring-2 ring-primary/40 border-primary/30 scale-[1.01]'
             )}
         >
             {/* Column Header */}
-            <div className="px-4 py-3 border-b border-border/30">
+            <div className={cn("px-4 py-3 border-b border-black/5 dark:border-white/5")}>
                 <div className="flex items-center gap-2">
                     <span className={column.color}>{column.icon}</span>
                     <h3 className="font-semibold text-sm text-foreground">{column.title}</h3>
-                    <span className="px-1.5 py-0.5 rounded-full bg-secondary text-[11px] font-medium text-muted-foreground">
+                    <span className="px-1.5 py-0.5 rounded-full bg-white/50 dark:bg-black/20 text-[11px] font-medium text-muted-foreground shadow-sm">
                         {todos.length}
                     </span>
                 </div>
