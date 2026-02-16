@@ -89,16 +89,18 @@ export default function SettingsPage() {
     const result = await updateAvatar(formData)
 
     if (result.error) {
+      console.error('Avatar upload error:', result.error)
       setProfileMsg({ type: 'error', text: result.error })
+      setUploadingAvatar(false)
     } else {
-      setProfileMsg({ type: 'success', text: 'Avatar updated successfully!' })
-      setAvatarUrl(result.avatarUrl || null)
-      setAvatarPreview(null)
-      // Refresh profile data
-      loadData()
+      console.log('Avatar uploaded successfully:', result.avatarUrl)
+      setProfileMsg({ type: 'success', text: 'Avatar updated! Refreshing...' })
+      
+      // Wait a bit for success message to show, then refresh page
+      setTimeout(() => {
+        window.location.reload()
+      }, 800)
     }
-
-    setUploadingAvatar(false)
   }
 
   const handleDeleteAvatar = async () => {
@@ -110,15 +112,18 @@ export default function SettingsPage() {
     const result = await deleteAvatar()
 
     if (result.error) {
+      console.error('Avatar delete error:', result.error)
       setProfileMsg({ type: 'error', text: result.error })
+      setUploadingAvatar(false)
     } else {
-      setProfileMsg({ type: 'success', text: 'Avatar deleted successfully!' })
-      setAvatarUrl(null)
-      setAvatarPreview(null)
-      loadData()
+      console.log('Avatar deleted successfully')
+      setProfileMsg({ type: 'success', text: 'Avatar deleted! Refreshing...' })
+      
+      // Wait a bit for success message to show, then refresh page
+      setTimeout(() => {
+        window.location.reload()
+      }, 800)
     }
-
-    setUploadingAvatar(false)
   }
 
   const loadData = async () => {

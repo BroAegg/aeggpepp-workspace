@@ -230,6 +230,9 @@ export async function updateAvatar(formData: FormData) {
   if (!user) return { error: 'Not authenticated' }
 
   const file = formData.get('avatar') as File
+  
+  console.log('Upload avatar - File:', file?.name, 'Size:', file?.size, 'Type:', file?.type)
+  
   if (!file || file.size === 0) {
     return { error: 'No file provided' }
   }
@@ -254,9 +257,12 @@ export async function updateAvatar(formData: FormData) {
       .eq('id', user.id)
       .single()
 
+    console.log('Current profile:', profile)
+
     if (profile?.avatar_url) {
       const oldPath = profile.avatar_url.split('/').pop()
       if (oldPath) {
+        console.log('Deleting old avatar:', oldPath)
         await supabase.storage.from('avatars').remove([oldPath])
       }
     }
@@ -265,7 +271,9 @@ export async function updateAvatar(formData: FormData) {
     const fileExt = file.name.split('.').pop()
     const fileName = `${user.id}-${Date.now()}.${fileExt}`
 
-    const { error: uploadError } = await supabase.storage
+    console.log('Uploading file:', fileName)
+
+    const { error: uploadError, data: uploadData } = await supabase.storage
       .from('avatars')
       .upload(fileName, file, {
         cacheControl: '3600',
@@ -273,27 +281,36 @@ export async function updateAvatar(formData: FormData) {
       })
 
     if (uploadError) {
+      console.error('Upload error:', uploadError)
       return { error: uploadError.message }
     }
+
+    console.log('Upload success:', uploadData)
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('avatars')
       .getPublicUrl(fileName)
 
+    console.log('Public URL:', publicUrl)
+
     // Update profile with new avatar URL
-    const { error: updateError } = await supabase
+    const { error: updateError, data: updateData } = await supabase
       .from('profiles')
       .update({ avatar_url: publicUrl })
       .eq('id', user.id)
 
     if (updateError) {
+      console.error('Profile update error:', updateError)
       return { error: updateError.message }
     }
+
+    console.log('Profile updated:', updateData)
 
     revalidatePath('/', 'layout')
     return { success: true, avatarUrl: publicUrl }
   } catch (error: any) {
+    console.error('Avatar upload error:', error)
     return { error: error.message || 'Failed to upload avatar' }
   }
 }
