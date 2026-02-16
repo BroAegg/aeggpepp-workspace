@@ -1,7 +1,8 @@
 # 🎯 AeggPepp Workspace - Roadmap Selanjutnya
 
-**Status Saat Ini**: ✅ Phase 1-17 COMPLETED + Phase 18 DONE → Ready for Vercel Deploy!  
-**Last Updated**: February 13, 2026
+**Status Saat Ini**: ✅ Phase 1-19 COMPLETED + Phase 20 (Feature Overhaul) DONE  
+**Last Updated**: June 2025  
+**Deployed**: Vercel (production)
 
 ---
 
@@ -68,31 +69,52 @@
 
 ---
 
-## 📌 PHASE 19: Deploy ke Vercel — 🔄 READY TO DEPLOY
+## 📌 PHASE 19: Deploy ke Vercel — ✅ DONE
 
-### Steps:
-1. **Connect GitHub to Vercel**
-   - Login ke [vercel.com](https://vercel.com)
-   - Import Project → pilih GitHub repo `BroAegg/aeggpepp-workspace`
-   - Framework preset: Next.js (auto-detect)
-
-2. **Set Environment Variables**
-   - `NEXT_PUBLIC_SUPABASE_URL` = https://isgefvbsvzllqfmxelod.supabase.co
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = (copy dari .env.local)
-
-3. **Deploy**
-   - Klik "Deploy"
-   - Tunggu ~2-3 menit
-   - Dapat production URL: `https://aeggpepp-workspace.vercel.app` (atau custom domain)
-
-4. **Test Production**
-   - Login dengan akun real
-   - Test semua fitur di production
-   - Check console errors di browser DevTools
+- [x] Connected GitHub to Vercel
+- [x] Set environment variables
+- [x] Deployed successfully
+- [x] Production URL active
 
 ---
 
-## 📌 PHASE 20: PWA & Mobile Optimization
+## 📌 PHASE 20: Feature Overhaul — ✅ DONE
+
+### 1. ✅ Theme Overhaul
+- [x] Changed app theme from Blue to Pink (#ff7dda)
+- [x] Updated tailwind.config.ts, globals.css, and all component styles
+
+### 2. ✅ Todos → Kanban Board
+- [x] Rebuilt todos page as 3-column Kanban (Todo | In Progress | Completed)
+- [x] Drag & drop with @dnd-kit/core + useDroppable/useDraggable
+- [x] Sub-tasks visible in "In Progress" column with inline toggle
+- [x] Auto-move to Completed when all sub-tasks done
+- [x] Quick move buttons on hover
+- [x] Filters: person, priority, category
+- [x] DragOverlay with card preview
+- [x] Edit modal with sub-task management
+
+### 3. ✅ Calendar Cleanup
+- [x] Removed todos from calendar schedule view
+- [x] Calendar now only shows events + goals
+
+### 4. ✅ Finance Overhaul
+- [x] Recharts integration (BarChart monthly trends, PieChart spending by category)
+- [x] 4 tabs: Overview | Transactions | Tabungan | Budgets
+- [x] Savings/Tabungan: account cards with deposit/withdraw, support cash + digital wallets (BCA, BNI, Mandiri, DANA, GoPay, OVO, ShopeePay)
+- [x] Partner view filter (🍌 Aegg / 🍈 Peppaa)
+- [x] Split bill badge on transactions
+- [x] Summary cards: Income, Expenses, Balance, Total Tabungan
+- [x] Budget progress bars with overspend warnings
+
+### 5. ✅ Database Migration
+- [x] `migration-v2.sql` created: todo_tasks, savings_accounts, savings_transactions, split bill columns
+- [x] Types updated: TodoTask, TodoStatus, SavingsAccount, SavingsTransaction
+- [x] Server actions: sub-task CRUD, savings CRUD, updateTodoStatus
+
+---
+
+## 📌 PHASE 21: PWA & Mobile Optimization
 
 ### PWA Setup
 - [ ] **Service Worker**: review `public/sw.js`
@@ -108,7 +130,7 @@
 
 ---
 
-## 📌 PHASE 21: Content & Data Seeding
+## 📌 PHASE 22: Content & Data Seeding
 
 ### Real Data
 - [ ] **Calendar**: tambah 5-10 events real (ulang tahun, anniversary, rapat, dll)
@@ -121,7 +143,7 @@
 
 ---
 
-## 📌 PHASE 22: Documentation & Handoff
+## 📌 PHASE 23: Documentation & Handoff
 
 ### User Guide
 - [ ] **README.md Update**: tambah section "How to Use" untuk pasangan
@@ -135,7 +157,7 @@
 
 ---
 
-## 📌 PHASE 23: Post-Launch Monitoring
+## 📌 PHASE 24: Post-Launch Monitoring
 
 ### Analytics (Optional)
 - [ ] **Vercel Analytics**: enable di Vercel dashboard
@@ -215,5 +237,5 @@
 ---
 
 *Created: February 13, 2026*
-*Last Updated: February 13, 2026*
-*Status: Phase 17-18 DONE → Ready for Phase 19 (Vercel Deploy)! Build ✅ Success*
+*Last Updated: June 2025*
+*Status: Phase 1-20 ALL DONE. Deployed on Vercel. ✅*
