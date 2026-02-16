@@ -6,12 +6,10 @@ import { Bell } from 'lucide-react'
 import { getUser } from '@/lib/actions/auth'
 import { StatusIndicator } from '../status-indicator'
 
-import { LucideIcon } from 'lucide-react'
-
 interface HeaderProps {
   title?: string
   emoji?: string
-  icon?: LucideIcon
+  icon?: React.ComponentType<{ className?: string }>
 }
 
 export function Header({ title, emoji, icon: Icon }: HeaderProps) {
