@@ -90,10 +90,37 @@ export default function TodosPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
     const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
-    // Filters
-    const [personFilter, setPersonFilter] = useState<string>('all')
-    const [priorityFilter, setPriorityFilter] = useState<string>('all')
-    const [categoryFilter, setCategoryFilter] = useState<string>('all')
+    // Filters - Load from localStorage
+    const [personFilter, setPersonFilter] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('todos_personFilter') || 'all'
+        }
+        return 'all'
+    })
+    const [priorityFilter, setPriorityFilter] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('todos_priorityFilter') || 'all'
+        }
+        return 'all'
+    })
+    const [categoryFilter, setCategoryFilter] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('todos_categoryFilter') || 'all'
+        }
+        return 'all'
+    })
+    const [dueDateFilter, setDueDateFilter] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('todos_dueDateFilter') || 'all'
+        }
+        return 'all'
+    })
+    const [sortBy, setSortBy] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('todos_sortBy') || 'none'
+        }
+        return 'none'
+    })
 
     // Form state
     const [formTitle, setFormTitle] = useState('')
@@ -119,6 +146,17 @@ export default function TodosPage() {
         fetchTodos()
     }, [])
 
+    // Save filters to localStorage whenever they change
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('todos_personFilter', personFilter)
+            localStorage.setItem('todos_priorityFilter', priorityFilter)
+            localStorage.setItem('todos_categoryFilter', categoryFilter)
+            localStorage.setItem('todos_dueDateFilter', dueDateFilter)
+            localStorage.setItem('todos_sortBy', sortBy)
+        }
+    }, [personFilter, priorityFilter, categoryFilter, dueDateFilter, sortBy])
+
     const fetchTodos = async () => {
         try {
             const data = await getTodos()
@@ -134,18 +172,68 @@ export default function TodosPage() {
     const filteredTodos = useMemo(() => {
         let result = [...todos]
 
+        // Person filter
         if (personFilter !== 'all') {
             result = result.filter((t) => t.profiles?.role === personFilter)
         }
+        
+        // Priority filter
         if (priorityFilter !== 'all') {
             result = result.filter((t) => t.priority === priorityFilter)
         }
+        
+        // Category filter
         if (categoryFilter !== 'all') {
             result = result.filter((t) => t.category === categoryFilter)
         }
 
+        // Due date filter
+        if (dueDateFilter !== 'all') {
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            const todayStr = today.toISOString().split('T')[0]
+            const weekFromNow = new Date(today)
+            weekFromNow.setDate(weekFromNow.getDate() + 7)
+            const weekStr = weekFromNow.toISOString().split('T')[0]
+
+            if (dueDateFilter === 'today') {
+                result = result.filter((t) => t.due_date === todayStr)
+            } else if (dueDateFilter === 'this_week') {
+                result = result.filter((t) => t.due_date && t.due_date >= todayStr && t.due_date <= weekStr)
+            } else if (dueDateFilter === 'overdue') {
+                result = result.filter((t) => t.due_date && t.due_date < todayStr && t.status !== 'completed')
+            } else if (dueDateFilter === 'no_date') {
+                result = result.filter((t) => !t.due_date)
+            }
+        }
+
+        // Sorting
+        if (sortBy !== 'none') {
+            const priorityOrder = { high: 3, medium: 2, low: 1 }
+            
+            if (sortBy === 'priority_desc') {
+                result.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+            } else if (sortBy === 'priority_asc') {
+                result.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+            } else if (sortBy === 'due_date_asc') {
+                result.sort((a, b) => {
+                    if (!a.due_date && !b.due_date) return 0
+                    if (!a.due_date) return 1
+                    if (!b.due_date) return -1
+                    return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+                })
+            } else if (sortBy === 'due_date_desc') {
+                result.sort((a, b) => {
+                    if (!a.due_date && !b.due_date) return 0
+                    if (!a.due_date) return 1
+                    if (!b.due_date) return -1
+                    return new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+                })
+            }
+        }
+
         return result
-    }, [todos, personFilter, priorityFilter, categoryFilter])
+    }, [todos, personFilter, priorityFilter, categoryFilter, dueDateFilter, sortBy])
 
     // Group by status
     const todosByStatus = useMemo(() => {
@@ -360,7 +448,7 @@ export default function TodosPage() {
     const getCategoryInfo = (category: string | null) =>
         TODO_CATEGORIES.find((c) => c.value === category)
 
-    const hasActiveFilters = personFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all'
+    const hasActiveFilters = personFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all' || dueDateFilter !== 'all' || sortBy !== 'none'
 
     return (
         <>
@@ -427,16 +515,48 @@ export default function TodosPage() {
                         ))}
                     </select>
 
+                    <select
+                        value={dueDateFilter}
+                        onChange={(e) => setDueDateFilter(e.target.value)}
+                        className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                        <option value="all">All Due Dates</option>
+                        <option value="today">📅 Today</option>
+                        <option value="this_week">📆 This Week</option>
+                        <option value="overdue">⚠️ Overdue</option>
+                        <option value="no_date">— No Date</option>
+                    </select>
+
+                    <div className="h-4 w-px bg-border" />
+
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className="text-xs font-medium">Sort:</span>
+                    </div>
+
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                        <option value="none">Default</option>
+                        <option value="priority_desc">⬆️ Priority (High → Low)</option>
+                        <option value="priority_asc">⬇️ Priority (Low → High)</option>
+                        <option value="due_date_asc">📅 Due Date (Nearest)</option>
+                        <option value="due_date_desc">📅 Due Date (Farthest)</option>
+                    </select>
+
                     {hasActiveFilters && (
                         <button
                             onClick={() => {
                                 setPersonFilter('all')
                                 setPriorityFilter('all')
                                 setCategoryFilter('all')
+                                setDueDateFilter('all')
+                                setSortBy('none')
                             }}
                             className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                         >
-                            Clear filters
+                            Clear all
                         </button>
                     )}
                 </div>
