@@ -12,9 +12,8 @@ import {
     Tag, Search, FileText, Upload, ChevronDown,
 } from 'lucide-react'
 // Use require for icons missing from older @types/lucide-react but present at runtime
-/* eslint-disable @typescript-eslint/no-var-requires */
+// eslint-disable-next-line
 const { Smartphone, HandHeart, Activity, Building2, BookOpen, Sofa: SofaIcon, Droplets } = require('lucide-react') as typeof import('lucide-react') & { Smartphone: any; HandHeart: any; Activity: any; Building2: any; BookOpen: any; Sofa: any; Droplets: any }
-/* eslint-enable */
 import { cn } from '@/lib/utils'
 import { TRANSACTION_CATEGORIES } from '@/lib/constants'
 import {

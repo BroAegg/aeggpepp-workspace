@@ -350,7 +350,7 @@ export function RecapTab({ transactions, formatCurrency, onRefresh }: RecapTabPr
                 <div className="text-center py-16 bg-card border border-border rounded-xl">
                     <FileText className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
                     <p className="text-muted-foreground text-sm">Belum ada transaksi</p>
-                    <p className="text-xs text-muted-foreground mt-1">Gunakan "Upload Massal" atau tambah transaksi dengan Sub Judul</p>
+                    <p className="text-xs text-muted-foreground mt-1">Gunakan &ldquo;Upload Massal&rdquo; atau tambah transaksi dengan Sub Judul</p>
                 </div>
             ) : (
                 <div className="space-y-3">
