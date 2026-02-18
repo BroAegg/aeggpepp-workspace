@@ -18,12 +18,14 @@ import {
   ChevronRight,
   Menu,
   X,
+  Moon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
 import { APP_NAME } from '@/lib/constants'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { getUser } from '@/lib/actions/auth'
+import { isRamadan } from '@/lib/ramadan'
 
 const mainNavItems = [
   { title: 'Home', href: '/', icon: Home },
@@ -46,8 +48,10 @@ export function Sidebar() {
   const [userInitial, setUserInitial] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [userRole, setUserRole] = useState('')
+  const [showRamadan, setShowRamadan] = useState(false)
 
   useEffect(() => {
+    setShowRamadan(isRamadan())
     getUser().then(user => {
       if (user) {
         setUserName(user.display_name || 'User')
@@ -156,6 +160,9 @@ export function Sidebar() {
             {mainNavItems.map((item) => (
               <NavLink key={item.href} item={item} collapsed={isCollapsed} />
             ))}
+            {showRamadan && (
+              <NavLink item={{ title: 'Ramadan 🌙', href: '/ramadan', icon: Moon }} collapsed={isCollapsed} />
+            )}
           </nav>
 
           {/* Divider + Private Section */}
@@ -196,8 +203,8 @@ export function Sidebar() {
             <Link href="/settings" className="block mt-1 px-2 py-2 rounded-md hover:bg-sidebar-hover cursor-pointer transition-colors">
               <div className="flex items-center gap-2">
                 {avatarUrl ? (
-                  <img 
-                    src={avatarUrl} 
+                  <img
+                    src={avatarUrl}
                     alt={userName}
                     className="w-6 h-6 rounded-full object-cover shrink-0"
                   />

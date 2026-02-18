@@ -64,6 +64,8 @@ export async function getCalendarItems(): Promise<CalendarItem[]> {
         date: startDate.toISOString().split('T')[0],
         time: e.all_day ? null : startDate.toTimeString().slice(0, 5),
         endTime: e.all_day ? null : (endDate ? endDate.toTimeString().slice(0, 5) : null),
+        startIso: e.start_date, // Raw ISO string for client formatting
+        endIso: e.end_date,
         allDay: e.all_day,
         color: e.color || '#2563EB',
         completed: false,

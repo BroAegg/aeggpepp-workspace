@@ -97,6 +97,7 @@ export interface Transaction {
   user_id: string
   type: TransactionType
   category: string
+  sub_title: string | null
   amount: number
   description: string | null
   date: string
@@ -104,6 +105,7 @@ export interface Transaction {
   split_with: string | null
   paid_by: string | null
   is_settled: boolean
+  receipt_url?: string | null
   created_at: string
   profiles?: ItemOwner
 }
@@ -190,6 +192,8 @@ export interface CalendarItem {
   date: string
   time: string | null
   endTime: string | null
+  startIso?: string // ISO string for client-side time formatting
+  endIso?: string | null
   allDay: boolean
   color: string
   completed: boolean

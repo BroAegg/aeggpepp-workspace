@@ -78,7 +78,34 @@ export default function CalendarPage() {
         getCalendarItems(),
       ])
       setEvents(eventsData)
-      setCalendarItems(itemsData)
+
+      // Post-process items to fix time using browser timezone
+      const processedItems = itemsData.map((item) => {
+        if (item.startIso) {
+          const dateParams = new Date(item.startIso)
+          return {
+            ...item,
+            // Update time to local time (HH:MM)
+            time: dateParams.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            }),
+            // Update endTime if exists
+            endTime: item.endIso
+              ? new Date(item.endIso).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              })
+              : null,
+            // Also update date string to local date in case timezone shift changes the day
+            date: format(dateParams, 'yyyy-MM-dd'),
+          }
+        }
+        return item
+      })
+      setCalendarItems(processedItems)
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -637,14 +664,14 @@ export default function CalendarPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">End Time</label>
-                       <div className="relative">
+                      <div className="relative">
                         <input
                           type="time"
                           value={formEndTime}
                           onChange={(e) => setFormEndTime(e.target.value)}
                           className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none tracking-widest text-lg font-mono"
                         />
-                         <Clock className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <Clock className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
                     </div>
                   </div>
@@ -745,7 +772,7 @@ function ScheduleItem({
       style={{ cursor: onEditEvent ? 'pointer' : 'default' }}
     >
       {/* Mobile Indicator Bar */}
-      <div 
+      <div
         className="absolute left-0 top-2 bottom-2 w-1 rounded-r-md sm:hidden"
         style={{ backgroundColor: item.color }}
       />
@@ -755,9 +782,9 @@ function ScheduleItem({
         {item.time ? (
           <>
             <span className="text-sm font-mono font-medium text-foreground">{item.time}</span>
-             {item.endTime && (
+            {item.endTime && (
               <span className="text-[10px] text-muted-foreground mt-0.5">{item.endTime}</span>
-             )}
+            )}
           </>
         ) : (
           <span className="text-[10px] text-muted-foreground">—</span>
@@ -773,14 +800,14 @@ function ScheduleItem({
       {/* Content */}
       <div className="flex-1 min-w-0 pl-2 sm:pl-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
-          
+
           {/* Top Row: Icon + Title */}
           <div className="flex items-start sm:items-center gap-1.5 min-w-0">
-             {/* Mobile Time Inline */}
+            {/* Mobile Time Inline */}
             <div className="sm:hidden flex-shrink-0 mr-1">
-                {item.time ? (
-                  <span className="text-[10px] font-mono font-bold text-foreground bg-secondary/50 px-1 rounded">{item.time}</span>
-                ) : null}
+              {item.time ? (
+                <span className="text-[10px] font-mono font-bold text-foreground bg-secondary/50 px-1 rounded">{item.time}</span>
+              ) : null}
             </div>
 
             {typeIcon}
