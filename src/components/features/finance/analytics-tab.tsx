@@ -50,7 +50,7 @@ export function AnalyticsTab({ transactions, formatCurrency, formatShort }: Anal
             else grouped[t.category].expense += t.amount
         })
 
-        const allCats = TRANSACTION_CATEGORIES.income.map(c => c.value).concat(TRANSACTION_CATEGORIES.expense.map(c => c.value))
+        const allCats = ([...TRANSACTION_CATEGORIES.income.map(c => c.value), ...TRANSACTION_CATEGORIES.expense.map(c => c.value)] as string[])
         const catLabels: Record<string, string> = {}
         const catIcons: Record<string, string> = {}
         TRANSACTION_CATEGORIES.income.forEach(c => { catLabels[c.value] = c.label; catIcons[c.value] = c.icon })
