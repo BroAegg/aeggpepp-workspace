@@ -10,10 +10,8 @@ import {
     Receipt, Edit2, Trash2, ArrowUpRight, ArrowDownRight, DollarSign, Loader2,
     ShoppingCart, Globe, Settings, Gift, MapPin, Zap,
     Tag, Search, FileText, Upload, ChevronDown,
+    Smartphone, HandHeart, Activity, Building2, BookOpen, Sofa as SofaIcon, Droplets,
 } from 'lucide-react'
-// Use require for icons missing from older @types/lucide-react but present at runtime
-// eslint-disable-next-line
-const { Smartphone, HandHeart, Activity, Building2, BookOpen, Sofa: SofaIcon, Droplets } = require('lucide-react') as typeof import('lucide-react') & { Smartphone: any; HandHeart: any; Activity: any; Building2: any; BookOpen: any; Sofa: any; Droplets: any }
 import { cn } from '@/lib/utils'
 import { TRANSACTION_CATEGORIES } from '@/lib/constants'
 import {

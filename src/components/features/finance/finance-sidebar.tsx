@@ -3,11 +3,9 @@
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import {
-    LayoutDashboard, ArrowLeftRight, BarChart3,
+    LayoutDashboard, ArrowLeftRight, BookOpen, BarChart3,
     Target, PiggyBank, ChevronLeft, ChevronRight, FileText,
 } from 'lucide-react'
-// eslint-disable-next-line
-const { BookOpen } = require('lucide-react') as { BookOpen: any }
 import { useState } from 'react'
 
 export type FinanceTab = 'overview' | 'transactions' | 'ledger' | 'analytics' | 'budgets' | 'savings' | 'recap'
