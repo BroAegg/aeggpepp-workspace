@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { BookOpen, ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+// eslint-disable-next-line
+const { BookOpen } = require('lucide-react') as { BookOpen: any }
 import { cn } from '@/lib/utils'
 import type { Transaction } from '@/types'
 

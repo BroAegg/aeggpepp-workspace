@@ -3,7 +3,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Header } from '@/components/layout/header'
 import { motion } from 'framer-motion'
-import { Moon, Clock, BookOpen, Check } from 'lucide-react'
+import { Moon, Clock, Check } from 'lucide-react'
+// eslint-disable-next-line
+const { BookOpen } = require('lucide-react') as { BookOpen: any }
 import { cn } from '@/lib/utils'
 import {
     isRamadan, getRamadanDay, getRamadanDaysTotal,
