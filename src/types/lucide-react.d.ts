@@ -131,6 +131,16 @@ declare module 'lucide-react' {
   export const Edit2: Icon
   export const ArrowUpRight: Icon
   export const ArrowDownRight: Icon
+  export const Smartphone: Icon
+  export const HandHeart: Icon
+  export const Activity: Icon
+  export const Building2: Icon
+  export const BookOpen: Icon
+  export const Sofa: Icon
+  export const Droplets: Icon
+  export const Crown: Icon
+  export const LayoutDashboard: Icon
+  export const ArrowLeftRight: Icon
 
   // Gallery
   export const Grid: Icon
