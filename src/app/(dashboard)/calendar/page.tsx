@@ -35,6 +35,7 @@ import {
   CheckSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { TimePicker } from '@/components/ui/time-picker'
 import { EVENT_COLORS } from '@/lib/constants'
 import { getHolidaysByDate, type Holiday } from '@/lib/holidays'
 import {
@@ -652,27 +653,17 @@ export default function CalendarPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">Start Time</label>
-                      <div className="relative">
-                        <input
-                          type="time"
-                          value={formStartTime}
-                          onChange={(e) => setFormStartTime(e.target.value)}
-                          className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none tracking-widest text-lg font-mono"
-                        />
-                        <Clock className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      </div>
+                      <TimePicker
+                        value={formStartTime}
+                        onChange={setFormStartTime}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">End Time</label>
-                      <div className="relative">
-                        <input
-                          type="time"
-                          value={formEndTime}
-                          onChange={(e) => setFormEndTime(e.target.value)}
-                          className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none tracking-widest text-lg font-mono"
-                        />
-                        <Clock className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      </div>
+                      <TimePicker
+                        value={formEndTime}
+                        onChange={setFormEndTime}
+                      />
                     </div>
                   </div>
                 )}

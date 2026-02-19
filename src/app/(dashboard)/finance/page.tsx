@@ -180,7 +180,7 @@ export default function FinancePage() {
     const handleDeleteBudget = async (id: string) => {
         try {
             await deleteBudget(id)
-            await fetchData()
+            await fetchData(userProfile, viewMode)
         } catch (error) {
             console.error('Error deleting budget:', error)
         }
