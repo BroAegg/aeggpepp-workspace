@@ -15,7 +15,8 @@ import type { Transaction } from '@/types'
 interface RecapTabProps {
     transactions: Transaction[]
     formatCurrency: (amount: number) => string
-    onRefresh: () => Promise<void>
+    // Allow any function signature for refresh, as we wrap it or call it directly
+    onRefresh: (...args: any[]) => Promise<void>
 }
 
 interface BulkRow {
