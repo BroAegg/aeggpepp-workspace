@@ -1,3 +1,9 @@
 {
-  "installCommand": "npm ci"
+  "installCommand": "npm ci",
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-todos",
+      "schedule": "0 0 * * 0"
+    }
+  ]
 }
