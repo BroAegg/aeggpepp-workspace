@@ -54,24 +54,24 @@ const COLUMNS: { id: TodoStatus; title: string; icon: React.ReactNode; color: st
         title: 'To Do',
         icon: <Circle className="w-4 h-4" />,
         color: 'text-violet-600 dark:text-violet-400',
-        bgColor: 'bg-gradient-to-br from-violet-100/50 via-white/80 to-violet-50/30 dark:from-violet-900/20 dark:via-slate-900/50 dark:to-violet-900/10',
-        borderColor: 'border-violet-200 dark:border-violet-900/30',
+        bgColor: 'bg-violet-50 dark:bg-violet-900/10',
+        borderColor: 'border-violet-200 dark:border-violet-800/40',
     },
     {
         id: 'in_progress',
         title: 'In Progress',
         icon: <Clock className="w-4 h-4" />,
         color: 'text-pink-600 dark:text-pink-400',
-        bgColor: 'bg-gradient-to-br from-pink-100/50 via-white/80 to-pink-50/30 dark:from-pink-900/20 dark:via-slate-900/50 dark:to-pink-900/10',
-        borderColor: 'border-pink-200 dark:border-pink-900/30',
+        bgColor: 'bg-pink-50 dark:bg-pink-900/10',
+        borderColor: 'border-pink-200 dark:border-pink-800/40',
     },
     {
         id: 'completed',
         title: 'Completed',
         icon: <CheckCircle2 className="w-4 h-4" />,
         color: 'text-emerald-600 dark:text-emerald-400',
-        bgColor: 'bg-gradient-to-br from-emerald-100/50 via-white/80 to-emerald-50/30 dark:from-emerald-900/20 dark:via-slate-900/50 dark:to-emerald-900/10',
-        borderColor: 'border-emerald-200 dark:border-emerald-900/30',
+        bgColor: 'bg-emerald-50 dark:bg-emerald-900/10',
+        borderColor: 'border-emerald-200 dark:border-emerald-800/40',
     },
 ]
 
@@ -129,7 +129,7 @@ export default function TodosPage() {
             const savedCategoryFilter = localStorage.getItem('todos_categoryFilter')
             const savedDueDateFilter = localStorage.getItem('todos_dueDateFilter')
             const savedSortBy = localStorage.getItem('todos_sortBy')
-            
+
             if (savedPersonFilter) setPersonFilter(savedPersonFilter)
             if (savedPriorityFilter) setPriorityFilter(savedPriorityFilter)
             if (savedCategoryFilter) setCategoryFilter(savedCategoryFilter)
@@ -168,12 +168,12 @@ export default function TodosPage() {
         if (personFilter !== 'all') {
             result = result.filter((t) => t.profiles?.role === personFilter)
         }
-        
+
         // Priority filter
         if (priorityFilter !== 'all') {
             result = result.filter((t) => t.priority === priorityFilter)
         }
-        
+
         // Category filter
         if (categoryFilter !== 'all') {
             result = result.filter((t) => t.category === categoryFilter)
@@ -202,7 +202,7 @@ export default function TodosPage() {
         // Sorting
         if (sortBy !== 'none') {
             const priorityOrder = { high: 3, medium: 2, low: 1 }
-            
+
             if (sortBy === 'priority_desc') {
                 result.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
             } else if (sortBy === 'priority_asc') {
@@ -278,11 +278,11 @@ export default function TodosPage() {
             prev.map((t) =>
                 t.id === todoId
                     ? {
-                          ...t,
-                          status: newStatus,
-                          completed: newStatus === 'completed',
-                          completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
-                      }
+                        ...t,
+                        status: newStatus,
+                        completed: newStatus === 'completed',
+                        completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
+                    }
                     : t
             )
         )
@@ -419,11 +419,11 @@ export default function TodosPage() {
             prev.map((t) =>
                 t.id === todoId
                     ? {
-                          ...t,
-                          status: newStatus,
-                          completed: newStatus === 'completed',
-                          completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
-                      }
+                        ...t,
+                        status: newStatus,
+                        completed: newStatus === 'completed',
+                        completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
+                    }
                     : t
             )
         )
@@ -776,7 +776,7 @@ export default function TodosPage() {
                                                             className={cn(
                                                                 'text-sm flex-1',
                                                                 task.completed &&
-                                                                    'line-through text-muted-foreground'
+                                                                'line-through text-muted-foreground'
                                                             )}
                                                         >
                                                             {task.title}
@@ -1094,9 +1094,9 @@ function KanbanCard({
                                     {isOverdue
                                         ? 'Overdue'
                                         : new Date(todo.due_date).toLocaleDateString('en-US', {
-                                              month: 'short',
-                                              day: 'numeric',
-                                          })}
+                                            month: 'short',
+                                            day: 'numeric',
+                                        })}
                                 </span>
                             )}
 

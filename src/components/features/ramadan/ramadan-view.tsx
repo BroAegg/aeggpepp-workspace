@@ -7,7 +7,7 @@ import { Moon, Clock, BookOpen, Check, Users, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
     isRamadan, getRamadanDay, getRamadanDaysTotal,
-    fetchPrayerTimes, getTimeUntil, getNextPrayer, parseTimeToDate,
+    fetchPrayerTimes, getTimeUntil, getNextPrayer, parseTimeToDate, toLocalISOString,
     type PrayerTimes, type RamadanDayData, DEFAULT_DAY_DATA
 } from '@/lib/ramadan'
 import { logRamadanDay, getRamadanLogs, type RamadanLog } from '@/lib/actions/ramadan'
@@ -51,15 +51,9 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
     // Get data for selected day based on viewMode
     const activeLogs = viewMode === 'me' ? logs : partnerLogs
     const currentDayLog = activeLogs.find(l => {
-        // Date stored as YYYY-MM-DD. Need to match with selectedDay index
-        // But simplified: we just match by our "Ramadan Day" calculation if possible, 
-        // OR we just rely on the fact that we should store the Ramadan Day index or derive it.
-        // For now, let's assume we map selectedDay to a concrete Date.
-        // Since logs have `date`, and `getRamadanDay` calculates from `RAMADAN_START`.
-        // Let's reverse it: Day X -> Date String.
-        const date = new Date(2026, 1, 18) // Feb 18
+        const date = new Date(2026, 1, 18)
         date.setDate(date.getDate() + (selectedDay - 1))
-        const dateStr = date.toISOString().split('T')[0]
+        const dateStr = toLocalISOString(date) // Use local YYYY-MM-DD
         return l.date === dateStr
     })
 
@@ -106,7 +100,7 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
 
         // Optimistic update
         const date = new Date(2026, 1, 18); date.setDate(date.getDate() + (selectedDay - 1))
-        const dateStr = date.toISOString().split('T')[0]
+        const dateStr = toLocalISOString(date) // Use local YYYY-MM-DD
 
         setLogs(prev => {
             const existing = prev.findIndex(l => l.date === dateStr)
@@ -275,7 +269,7 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
                                     // Check status for this day
                                     // Map day to date
                                     const d = new Date(2026, 1, 18); d.setDate(d.getDate() + (day - 1))
-                                    const dStr = d.toISOString().split('T')[0]
+                                    const dStr = toLocalISOString(d) // Use local YYYY-MM-DD
                                     const log = activeLogs.find(l => l.date === dStr)
                                     const isFasted = log?.data.fasted
 
@@ -389,23 +383,57 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
                                     <h4 className="font-semibold text-sm flex items-center gap-2">
                                         <BookOpen className="w-4 h-4 text-purple-500" /> Quran Progress
                                     </h4>
-                                    <span className="text-sm font-bold bg-background px-2 py-1 rounded-md border border-border shadow-sm">
-                                        Juz {dayData.quranJuz}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground mr-1">Current:</span>
+                                        <span className="text-sm font-bold bg-background px-2 py-1 rounded-md border border-border shadow-sm">
+                                            Juz {dayData.quranJuz}
+                                        </span>
+                                    </div>
                                 </div>
-                                <input
-                                    type="range"
-                                    min={0}
-                                    max={30}
-                                    value={dayData.quranJuz}
-                                    disabled={viewMode === 'partner'}
-                                    onChange={(e) => updateDayData({ quranJuz: parseInt(e.target.value) })}
-                                    className="w-full h-2 bg-secondary rounded-full appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                                />
-                                <div className="flex justify-between text-[10px] text-muted-foreground mt-2 font-mono">
-                                    <span>Start</span>
-                                    <span>Juz 15</span>
-                                    <span>Juz 30</span>
+                                <div className="space-y-4">
+                                    {/* Juz Slider */}
+                                    <div>
+                                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5 font-medium">
+                                            <span>Juz 1</span>
+                                            <span>Juz 15</span>
+                                            <span>Juz 30</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min={0}
+                                            max={30}
+                                            value={dayData.quranJuz}
+                                            disabled={viewMode === 'partner'}
+                                            onChange={(e) => updateDayData({ quranJuz: parseInt(e.target.value) })}
+                                            className="w-full h-2 bg-secondary rounded-full appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                    </div>
+
+                                    {/* Last Read Input */}
+                                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
+                                        <div>
+                                            <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block font-medium">Last Surah</label>
+                                            <input
+                                                type="text"
+                                                value={dayData.lastSurah || ''}
+                                                disabled={viewMode === 'partner'}
+                                                onChange={(e) => updateDayData({ lastSurah: e.target.value })}
+                                                placeholder="e.g. Al-Baqarah"
+                                                className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-50"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block font-medium">Last Ayah</label>
+                                            <input
+                                                type="text"
+                                                value={dayData.lastAyah || ''}
+                                                disabled={viewMode === 'partner'}
+                                                onChange={(e) => updateDayData({ lastAyah: parseInt(e.target.value) || 0 })}
+                                                placeholder="e.g. 255"
+                                                className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-50"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -126,6 +126,14 @@ export function getNextPrayer(timings: PrayerTimes, now: Date = new Date()): { n
     return { name: 'Imsak (Besok)', time: timings.Imsak, nameId: 'Imsak', isTomorrow: true }
 }
 
+// Helper to get YYYY-MM-DD from local date (no UTC conversion)
+export function toLocalISOString(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
 // ========== Type Data ==========
 
 export interface RamadanDayData {
@@ -139,10 +147,14 @@ export interface RamadanDayData {
         tarawih: boolean
     }
     quranJuz: number // 0-30
+    lastSurah?: string
+    lastAyah?: number
 }
 
 export const DEFAULT_DAY_DATA: RamadanDayData = {
     fasted: false,
     prayers: { subuh: false, dzuhur: false, ashar: false, maghrib: false, isya: false, tarawih: false },
     quranJuz: 0,
+    lastSurah: '',
+    lastAyah: 0,
 }
