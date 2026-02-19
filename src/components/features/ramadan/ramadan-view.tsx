@@ -172,7 +172,7 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
                                 viewMode === 'partner' ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
-                            <Users className="w-4 h-4" /> Partner's View
+                            <Users className="w-4 h-4" /> Partner&apos;s View
                         </button>
                     </div>
                 </div>
@@ -305,7 +305,7 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
                         <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden">
                             {viewMode === 'partner' && (
                                 <div className="absolute top-0 right-0 p-2 bg-secondary/50 rounded-bl-xl text-xs text-muted-foreground flex items-center gap-1">
-                                    <Users className="w-3 h-3" /> Viewing Partner's Log
+                                    <Users className="w-3 h-3" /> Viewing Partner&apos;s Log
                                 </div>
                             )}
 
