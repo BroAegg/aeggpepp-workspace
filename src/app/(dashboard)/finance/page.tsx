@@ -323,7 +323,7 @@ export default function FinancePage() {
         <>
             <Header title="Finance" icon={Wallet} />
 
-            <div className="flex min-h-[calc(100vh-4rem)]">
+            <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
                 {/* Sub-Sidebar */}
                 <FinanceSidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -376,7 +376,7 @@ export default function FinancePage() {
                         {!loading && activeTab === 'overview' && (
                             <div className="space-y-6">
                                 {/* Top Row: Balance + Income/Expense Summary */}
-                                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                                     <SummaryCard label="Total Balance" value={formatCurrency(totals.balance + totalSavings)} icon={<Wallet className="w-5 h-5" />} color={totals.balance >= 0 ? 'primary' : 'red'} sub="Semua akun" />
                                     <SummaryCard label="Income" value={formatCurrency(totals.income)} icon={<TrendingUp className="w-5 h-5" />} color="emerald" sub="Bulan ini" />
                                     <SummaryCard label="Expenses" value={formatCurrency(totals.expense)} icon={<TrendingDown className="w-5 h-5" />} color="red" sub="Bulan ini" />
@@ -391,7 +391,7 @@ export default function FinancePage() {
                                             <h3 className="text-sm font-semibold text-foreground">💳 Saldo per Akun</h3>
                                             <button onClick={() => setActiveTab('savings')} className="text-xs text-primary hover:underline">Kelola →</button>
                                         </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                                             {savings.map((account) => {
                                                 const bankInfo = BANK_OPTIONS.find(b => b.code === account.bank_code)
                                                 return (

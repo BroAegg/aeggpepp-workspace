@@ -423,7 +423,7 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block font-medium">Last Ayah</label>
+                                            <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block font-medium">Last Ayat</label>
                                             <input
                                                 type="text"
                                                 value={dayData.lastAyah || ''}

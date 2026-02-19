@@ -89,7 +89,7 @@ export function BudgetsTab({ budgets, transactions, formatCurrency, onAddBudget,
 
             {/* Summary Cards */}
             {budgets.length > 0 && (
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                     <div className="bg-card border border-border rounded-xl p-3">
                         <p className="text-xs text-muted-foreground mb-0.5">Total Budget</p>
                         <p className="text-base font-bold text-foreground">{formatCurrency(budgetData.totalBudget)}</p>
@@ -111,7 +111,7 @@ export function BudgetsTab({ budgets, transactions, formatCurrency, onAddBudget,
             {budgets.length > 0 ? (
                 <div className="bg-card border border-border rounded-xl overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-sm min-w-[600px]">
                             <thead>
                                 <tr className="border-b border-border bg-secondary/50">
                                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kategori</th>
