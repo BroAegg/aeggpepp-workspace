@@ -189,7 +189,7 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
                         "relative overflow-hidden rounded-2xl p-6 md:p-8 text-white transition-colors",
                         viewMode === 'me'
                             ? "bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 dark:from-emerald-800 dark:via-teal-800 dark:to-cyan-900"
-                            : "bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-700 dark:from-violet-900 dark:via-purple-900 dark:to-fuchsia-900"
+                            : "bg-gradient-to-br from-pink-500 via-rose-500 to-amber-500 dark:from-pink-800 dark:via-rose-800 dark:to-amber-800"
                     )}
                 >
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -197,7 +197,7 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-2xl md:text-3xl font-bold mb-1">
-                                    {viewMode === 'me' ? "Ramadan Mubarak 🌙" : "Partner&apos;s Tracker 💜"}
+                                    {viewMode === 'me' ? "Ramadan Mubarak 🌙" : "Partner's Tracker �"}
                                 </h2>
                                 <p className="text-sm opacity-80">Hari ke-{ramadanDay}/{totalDays} · Bandung</p>
                             </div>

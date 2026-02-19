@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Plus, X, TrendingUp, TrendingDown, Wallet, PiggyBank,
@@ -841,8 +842,12 @@ export default function FinancePage() {
                                         <label className="block text-sm font-medium text-foreground mb-2">Amount</label>
                                         <div className="relative">
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
-                                            <input type="number" name="amount" required placeholder="0" defaultValue={editingTransaction?.amount}
-                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                                            <CurrencyInput
+                                                name="amount"
+                                                required
+                                                defaultValue={editingTransaction?.amount || 0}
+                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            />
                                         </div>
                                     </div>
                                     <div>
@@ -910,8 +915,12 @@ export default function FinancePage() {
                                         <label className="block text-sm font-medium text-foreground mb-2">Budget Amount</label>
                                         <div className="relative">
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
-                                            <input type="number" name="amount" required placeholder="0" defaultValue={editingBudget?.amount}
-                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                                            <CurrencyInput
+                                                name="amount"
+                                                required
+                                                defaultValue={editingBudget?.amount || 0}
+                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            />
                                         </div>
                                     </div>
                                     <div>
@@ -957,8 +966,11 @@ export default function FinancePage() {
                                         <label className="block text-sm font-medium text-foreground mb-2">Saldo Awal</label>
                                         <div className="relative">
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
-                                            <input type="number" name="balance" placeholder="0"
-                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                                            <CurrencyInput
+                                                name="balance"
+                                                placeholder="0"
+                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            />
                                         </div>
                                     </div>
                                     <div>
@@ -1002,8 +1014,12 @@ export default function FinancePage() {
                                         <label className="block text-sm font-medium text-foreground mb-2">Amount</label>
                                         <div className="relative">
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
-                                            <input type="number" name="amount" required placeholder="0"
-                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                                            <CurrencyInput
+                                                name="amount"
+                                                required
+                                                placeholder="0"
+                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            />
                                         </div>
                                     </div>
                                     <div>
