@@ -332,13 +332,15 @@ export default function FinancePage() {
                     <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
 
                         {/* View Mode Toggle */}
-                        <div className="flex justify-center mb-6">
-                            <div className="bg-secondary/50 p-1 rounded-xl flex items-center gap-1">
+                        <div className="flex justify-center mb-8">
+                            <div className="bg-secondary/30 p-1.5 rounded-full flex items-center gap-1 border border-border/50 backdrop-blur-sm">
                                 <button
                                     onClick={() => setViewMode('me')}
                                     className={cn(
-                                        "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-                                        viewMode === 'me' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                        "px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2",
+                                        viewMode === 'me'
+                                            ? "bg-background shadow-sm text-primary font-semibold ring-1 ring-black/5 dark:ring-white/10"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                                     )}
                                 >
                                     My Finance
@@ -347,8 +349,10 @@ export default function FinancePage() {
                                     <button
                                         onClick={() => setViewMode('partner')}
                                         className={cn(
-                                            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-                                            viewMode === 'partner' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                            "px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2",
+                                            viewMode === 'partner'
+                                                ? "bg-background shadow-sm text-primary font-semibold ring-1 ring-black/5 dark:ring-white/10"
+                                                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                                         )}
                                     >
                                         Partner
@@ -357,8 +361,10 @@ export default function FinancePage() {
                                 <button
                                     onClick={() => setViewMode('combined')}
                                     className={cn(
-                                        "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-                                        viewMode === 'combined' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                        "px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2",
+                                        viewMode === 'combined'
+                                            ? "bg-background shadow-sm text-primary font-semibold ring-1 ring-black/5 dark:ring-white/10"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                                     )}
                                 >
                                     Combined
@@ -376,7 +382,7 @@ export default function FinancePage() {
                         {!loading && activeTab === 'overview' && (
                             <div className="space-y-6">
                                 {/* Top Row: Balance + Income/Expense Summary */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                                     <SummaryCard label="Total Balance" value={formatCurrency(totals.balance + totalSavings)} icon={<Wallet className="w-5 h-5" />} color={totals.balance >= 0 ? 'primary' : 'red'} sub="Semua akun" />
                                     <SummaryCard label="Income" value={formatCurrency(totals.income)} icon={<TrendingUp className="w-5 h-5" />} color="emerald" sub="Bulan ini" />
                                     <SummaryCard label="Expenses" value={formatCurrency(totals.expense)} icon={<TrendingDown className="w-5 h-5" />} color="red" sub="Bulan ini" />
@@ -411,79 +417,98 @@ export default function FinancePage() {
                                 {/* Charts Row */}
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                                     {/* Donut Pie Chart with Percentage */}
-                                    <div className="bg-card border border-border rounded-xl p-5">
-                                        <h3 className="text-sm font-semibold text-foreground mb-4">🍩 Pengeluaran per Kategori</h3>
+                                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                                        <h3 className="text-base font-bold text-foreground mb-6 flex items-center gap-2">
+                                            <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">🍩</span>
+                                            Pengeluaran per Kategori
+                                        </h3>
                                         {categoryPieData.length > 0 ? (
-                                            <div className="flex flex-col md:flex-row items-center gap-4">
-                                                <div className="h-[220px] w-full md:w-1/2">
+                                            <div className="flex flex-col md:flex-row items-center gap-8">
+                                                <div className="h-[240px] w-full md:w-1/2 relative">
                                                     <ResponsiveContainer width="100%" height="100%">
                                                         <PieChart>
                                                             <Pie
                                                                 data={categoryPieData}
                                                                 cx="50%" cy="50%"
-                                                                innerRadius={50} outerRadius={85}
-                                                                paddingAngle={2}
+                                                                innerRadius={60} outerRadius={90}
+                                                                paddingAngle={3}
+                                                                cornerRadius={5}
                                                                 dataKey="value"
-                                                                label={({ percent }) => percent ? `${(percent * 100).toFixed(0)}%` : ''}
-                                                                labelLine={false}
+                                                                label={false}
                                                             >
                                                                 {categoryPieData.map((_, i) => (
-                                                                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                                                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={0} />
                                                                 ))}
                                                             </Pie>
                                                             <Tooltip
                                                                 formatter={(value) => formatCurrency(value as number)}
-                                                                contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                                                                contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                                itemStyle={{ color: 'var(--foreground)' }}
                                                             />
                                                         </PieChart>
                                                     </ResponsiveContainer>
+                                                    {/* Center Text */}
+                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                        <div className="text-center">
+                                                            <span className="text-xs text-muted-foreground block">Total</span>
+                                                            <span className="text-sm font-bold text-foreground">
+                                                                {formatShort(categoryPieData.reduce((a, b) => a + b.value, 0))}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 {/* Legend with percentages */}
-                                                <div className="w-full md:w-1/2 space-y-1.5">
+                                                <div className="w-full md:w-1/2 space-y-3">
                                                     {categoryPieData.map((item, i) => {
                                                         const catInfo = TRANSACTION_CATEGORIES.expense.find(c => c.value === item.name)
                                                         return (
-                                                            <div key={item.name} className="flex items-center gap-2">
+                                                            <div key={item.name} className="flex items-center gap-3">
                                                                 <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                                                                <span className="text-xs text-foreground capitalize flex-1 truncate">{catInfo?.icon} {catInfo?.label || item.name}</span>
-                                                                <span className="text-xs font-semibold text-foreground tabular-nums">{item.percentage}%</span>
-                                                                <span className="text-[10px] text-muted-foreground tabular-nums">{formatShort(item.value)}</span>
+                                                                <span className="text-sm text-foreground capitalize flex-1 truncate font-medium">{catInfo?.icon} {catInfo?.label || item.name}</span>
+                                                                <div className="flex flex-col items-end">
+                                                                    <span className="text-xs font-bold text-foreground tabular-nums">{item.percentage}%</span>
+                                                                    <span className="text-[10px] text-muted-foreground tabular-nums">{formatShort(item.value)}</span>
+                                                                </div>
                                                             </div>
                                                         )
                                                     })}
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">Belum ada data pengeluaran bulan ini</div>
+                                            <div className="h-[240px] flex items-center justify-center text-muted-foreground text-sm">Belum ada data pengeluaran bulan ini</div>
                                         )}
                                     </div>
 
                                     {/* Line Chart: Income vs Expense Trend */}
-                                    <div className="bg-card border border-border rounded-xl p-5">
-                                        <h3 className="text-sm font-semibold text-foreground mb-4">📈 Tren 6 Bulan Terakhir</h3>
-                                        <div className="h-[220px]">
+                                    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                                        <h3 className="text-base font-bold text-foreground mb-6 flex items-center gap-2">
+                                            <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">📈</span>
+                                            Tren 6 Bulan Terakhir
+                                        </h3>
+                                        <div className="h-[240px]">
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <AreaChart data={monthlyChartData}>
+                                                <AreaChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                                     <defs>
                                                         <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                                                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                                                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
                                                             <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                                                         </linearGradient>
                                                         <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                                                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                                                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
                                                             <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                                                         </linearGradient>
                                                     </defs>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                                    <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
-                                                    <YAxis tickFormatter={(v) => formatShort(v)} tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" width={45} />
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
+                                                    <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} dy={10} />
+                                                    <YAxis tickFormatter={(v) => formatShort(v)} tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} />
                                                     <Tooltip
                                                         formatter={(value) => formatCurrency(value as number)}
-                                                        contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                                                        contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                        itemStyle={{ color: 'var(--foreground)' }}
                                                     />
-                                                    <Area type="monotone" dataKey="income" stroke="#22c55e" strokeWidth={2} fill="url(#incomeGradient)" name="Income" dot={{ r: 3, fill: '#22c55e' }} />
-                                                    <Area type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2} fill="url(#expenseGradient)" name="Expense" dot={{ r: 3, fill: '#ef4444' }} />
-                                                    <Legend formatter={(value) => <span className="text-xs text-foreground">{value}</span>} />
+                                                    <Area type="monotone" dataKey="income" stroke="#22c55e" strokeWidth={3} fill="url(#incomeGradient)" name="Income" activeDot={{ r: 6, strokeWidth: 0 }} />
+                                                    <Area type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={3} fill="url(#expenseGradient)" name="Expense" activeDot={{ r: 6, strokeWidth: 0 }} />
+                                                    <Legend formatter={(value) => <span className="text-xs font-medium text-foreground ml-1">{value}</span>} iconType="circle" />
                                                 </AreaChart>
                                             </ResponsiveContainer>
                                         </div>
@@ -491,21 +516,26 @@ export default function FinancePage() {
                                 </div>
 
                                 {/* Bar Chart: Monthly Comparison */}
-                                <div className="bg-card border border-border rounded-xl p-5">
-                                    <h3 className="text-sm font-semibold text-foreground mb-4">📊 Perbandingan Bulanan</h3>
-                                    <div className="h-[250px]">
+                                <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                                    <h3 className="text-base font-bold text-foreground mb-6 flex items-center gap-2">
+                                        <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">📊</span>
+                                        Perbandingan Bulanan
+                                    </h3>
+                                    <div className="h-[280px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={monthlyChartData}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                                <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
-                                                <YAxis tickFormatter={(v) => formatShort(v)} tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+                                            <BarChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.5} />
+                                                <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} dy={10} />
+                                                <YAxis tickFormatter={(v) => formatShort(v)} tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" axisLine={false} tickLine={false} />
                                                 <Tooltip
                                                     formatter={(value) => formatCurrency(value as number)}
-                                                    contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                                                    contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                                    cursor={{ fill: 'var(--secondary)', opacity: 0.5 }}
+                                                    itemStyle={{ color: 'var(--foreground)' }}
                                                 />
-                                                <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} name="Income" />
-                                                <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} name="Expense" />
-                                                <Legend formatter={(value) => <span className="text-xs text-foreground">{value}</span>} />
+                                                <Bar dataKey="income" fill="#22c55e" radius={[6, 6, 0, 0]} name="Income" maxBarSize={50} />
+                                                <Bar dataKey="expense" fill="#ef4444" radius={[6, 6, 0, 0]} name="Expense" maxBarSize={50} />
+                                                <Legend formatter={(value) => <span className="text-xs font-medium text-foreground ml-1">{value}</span>} iconType="circle" />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -1009,15 +1039,21 @@ function SummaryCard({ label, value, icon, color, sub }: {
     const c = colorMap[color] || colorMap.primary
 
     return (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-3 md:p-4">
-            <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">{label}</p>
-                    <p className={cn('text-sm md:text-lg font-bold truncate', c.text)}>{value}</p>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+            <div className="relative z-10 flex flex-col h-full justify-between gap-4">
+                <div className="flex items-start justify-between">
+                    <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+                        <p className={cn('text-xl md:text-2xl font-bold tracking-tight', c.text)}>{value}</p>
+                    </div>
+                    <div className={cn('p-3 rounded-2xl flex-shrink-0 transition-colors', c.iconBg)}>{icon}</div>
                 </div>
-                <div className={cn('p-2 rounded-xl flex-shrink-0', c.iconBg)}>{icon}</div>
+                <div className="flex items-center gap-1.5 pt-2 border-t border-border/50">
+                    <span className="text-[10px] md:text-xs font-medium text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-full">{sub}</span>
+                </div>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1.5">{sub}</p>
+            {/* Background Blob Effect */}
+            <div className={cn("absolute -bottom-6 -right-6 w-24 h-24 rounded-full opacity-5 blur-2xl group-hover:opacity-10 transition-opacity", c.text.includes('emerald') ? 'bg-emerald-500' : c.text.includes('red') ? 'bg-red-500' : c.text.includes('primary') ? 'bg-primary' : 'bg-foreground')} />
         </motion.div>
     )
 }

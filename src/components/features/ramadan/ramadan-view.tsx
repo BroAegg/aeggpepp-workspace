@@ -197,7 +197,7 @@ export function RamadanView({ userData, initialLogs }: RamadanViewProps) {
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                             <div>
                                 <h2 className="text-2xl md:text-3xl font-bold mb-1">
-                                    {viewMode === 'me' ? "Ramadan Mubarak 🌙" : "Partner's Tracker 💜"}
+                                    {viewMode === 'me' ? "Ramadan Mubarak 🌙" : "Partner&apos;s Tracker 💜"}
                                 </h2>
                                 <p className="text-sm opacity-80">Hari ke-{ramadanDay}/{totalDays} · Bandung</p>
                             </div>
