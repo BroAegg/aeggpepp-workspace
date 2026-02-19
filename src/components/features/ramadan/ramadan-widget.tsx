@@ -45,7 +45,7 @@ export function RamadanWidget() {
                 setCountdown(iftarCountdown)
             } else {
                 // After maghrib, show countdown to next Imsak (sahur)
-                const imsak = getTimeUntil(prayerTimes.Imsak, now)
+                const imsak = getTimeUntil(prayerTimes.Imsak, now, true)
                 setCountdown(imsak)
             }
         }

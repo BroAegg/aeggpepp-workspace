@@ -18,6 +18,7 @@ import {
     getTransactions, createTransaction, updateTransaction, deleteTransaction as deleteTransactionAction,
     getBudgets, createBudget, updateBudget, deleteBudget,
     getSavingsAccounts, createSavingsAccount, updateSavingsBalance, deleteSavingsAccount,
+    getFinanceProfile
 } from '@/lib/actions/finance'
 import type { Transaction, Budget, SavingsAccount } from '@/types'
 import {
@@ -88,14 +89,38 @@ export default function FinancePage() {
     const [personFilter, setPersonFilter] = useState<string>('all')
     const [selectedSavingsAccount, setSelectedSavingsAccount] = useState<SavingsAccount | null>(null)
     const [savingsTxType, setSavingsTxType] = useState<'deposit' | 'withdraw'>('deposit')
+
+    // Partner View Stats
+    const [viewMode, setViewMode] = useState<'me' | 'partner' | 'combined'>('me')
+    const [userProfile, setUserProfile] = useState<{ id: string; role: string; partnerId?: string } | null>(null)
+
     const formRef = useRef<HTMLFormElement>(null)
 
-    useEffect(() => { fetchData() }, [])
+    useEffect(() => {
+        getFinanceProfile().then(p => {
+            setUserProfile(p)
+            fetchData(p, viewMode)
+        })
+    }, [])
 
-    const fetchData = async () => {
+    // Re-fetch when viewMode changes
+    useEffect(() => {
+        if (!userProfile) return
+        fetchData(userProfile, viewMode)
+    }, [viewMode])
+
+    const fetchData = async (profile: typeof userProfile, mode: typeof viewMode) => {
+        setLoading(true)
         try {
+            let targetId: string | 'all' | undefined = undefined
+            if (mode === 'combined') targetId = 'all'
+            else if (mode === 'partner' && profile?.partnerId) targetId = profile.partnerId
+            else if (mode === 'me' && profile?.id) targetId = profile.id
+
             const [txData, budgetsData, savingsData] = await Promise.all([
-                getTransactions(), getBudgets(), getSavingsAccounts()
+                getTransactions(targetId),
+                getBudgets(targetId),
+                getSavingsAccounts(targetId)
             ])
             setTransactions(txData)
             setBudgets(budgetsData)
@@ -117,7 +142,7 @@ export default function FinancePage() {
             } else {
                 await createTransaction(formData)
             }
-            await fetchData()
+            await fetchData(userProfile, viewMode)
             closeModal()
         } catch (error) {
             console.error('Error saving transaction:', error)
@@ -129,7 +154,7 @@ export default function FinancePage() {
     const handleDeleteTransaction = async (id: string) => {
         try {
             await deleteTransactionAction(id)
-            await fetchData()
+            await fetchData(userProfile, viewMode)
         } catch (error) {
             console.error('Error deleting transaction:', error)
         }
@@ -143,7 +168,7 @@ export default function FinancePage() {
             } else {
                 await createBudget(formData)
             }
-            await fetchData()
+            await fetchData(userProfile, viewMode)
             closeModal()
         } catch (error) {
             console.error('Error saving budget:', error)
@@ -165,7 +190,7 @@ export default function FinancePage() {
         setSaving(true)
         try {
             await createSavingsAccount(formData)
-            await fetchData()
+            await fetchData(userProfile, viewMode)
             closeModal()
         } catch (error) {
             console.error('Error creating savings:', error)
@@ -181,7 +206,7 @@ export default function FinancePage() {
             const amount = parseFloat(formData.get('amount') as string)
             const description = formData.get('description') as string
             await updateSavingsBalance(selectedSavingsAccount.id, amount, savingsTxType, description)
-            await fetchData()
+            await fetchData(userProfile, viewMode)
             closeModal()
         } catch (error) {
             console.error('Error:', error)
@@ -193,7 +218,7 @@ export default function FinancePage() {
     const handleDeleteSavings = async (id: string) => {
         try {
             await deleteSavingsAccount(id)
-            await fetchData()
+            await fetchData(userProfile, viewMode)
         } catch (error) {
             console.error('Error deleting savings:', error)
         }
@@ -305,6 +330,41 @@ export default function FinancePage() {
                 {/* Main Content */}
                 <div className="flex-1 overflow-y-auto">
                     <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
+
+                        {/* View Mode Toggle */}
+                        <div className="flex justify-center mb-6">
+                            <div className="bg-secondary/50 p-1 rounded-xl flex items-center gap-1">
+                                <button
+                                    onClick={() => setViewMode('me')}
+                                    className={cn(
+                                        "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                        viewMode === 'me' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    My Finance
+                                </button>
+                                {userProfile?.partnerId && (
+                                    <button
+                                        onClick={() => setViewMode('partner')}
+                                        className={cn(
+                                            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                            viewMode === 'partner' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        Partner
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setViewMode('combined')}
+                                    className={cn(
+                                        "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                        viewMode === 'combined' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    Combined
+                                </button>
+                            </div>
+                        </div>
 
                         {loading && (
                             <div className="flex items-center justify-center py-16">
@@ -632,59 +692,59 @@ export default function FinancePage() {
                         )}
 
                         {/* ========== SAVINGS ========== */}
-                        {!loading && activeTab === 'savings' && (                            <div>
-                                <div className="flex items-center justify-between mb-4">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-foreground">Tabungan</h3>
-                                        <p className="text-sm text-muted-foreground">Total: {formatCurrency(totalSavings)}</p>
-                                    </div>
-                                    <Button onClick={() => openAddModal('savings')}>
-                                        <Plus className="w-4 h-4 mr-2" /> Akun Baru
-                                    </Button>
+                        {!loading && activeTab === 'savings' && (<div>
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-foreground">Tabungan</h3>
+                                    <p className="text-sm text-muted-foreground">Total: {formatCurrency(totalSavings)}</p>
                                 </div>
-
-                                {savings.length === 0 ? (
-                                    <div className="text-center py-16 bg-card border border-border rounded-xl">
-                                        <PiggyBank className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                                        <p className="text-muted-foreground mb-3">Belum ada akun tabungan</p>
-                                        <Button onClick={() => openAddModal('savings')}><Plus className="w-4 h-4 mr-2" /> Tambah Akun</Button>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {savings.map((account) => {
-                                            const bankInfo = BANK_OPTIONS.find(b => b.code === account.bank_code)
-                                            return (
-                                                <motion.div key={account.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-5 group">
-                                                    <div className="flex items-start justify-between mb-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg">{account.icon || bankInfo?.icon || '💰'}</div>
-                                                            <div>
-                                                                <h4 className="font-semibold text-foreground">{account.name}</h4>
-                                                                <p className="text-xs text-muted-foreground uppercase">{account.type} {bankInfo ? `· ${bankInfo.label.split(' ')[1]}` : ''}</p>
-                                                            </div>
-                                                        </div>
-                                                        <button onClick={() => handleDeleteSavings(account.id)} className="p-1 md:opacity-0 md:group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all">
-                                                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                                        </button>
-                                                    </div>
-                                                    <p className="text-2xl font-bold text-foreground mb-4">{formatCurrency(account.balance)}</p>
-                                                    {account.profiles && (
-                                                        <p className="text-xs text-muted-foreground mb-3">{account.profiles.role === 'aegg' ? '⭐' : '🌙'} {account.profiles.display_name}</p>
-                                                    )}
-                                                    <div className="flex gap-2">
-                                                        <Button size="sm" className="flex-1" onClick={() => { setSelectedSavingsAccount(account); setSavingsTxType('deposit'); setModalType('savings_tx'); setShowModal(true) }}>
-                                                            <ArrowDownRight className="w-3 h-3 mr-1" /> Deposit
-                                                        </Button>
-                                                        <Button size="sm" variant="outline" className="flex-1" onClick={() => { setSelectedSavingsAccount(account); setSavingsTxType('withdraw'); setModalType('savings_tx'); setShowModal(true) }}>
-                                                            <ArrowUpRight className="w-3 h-3 mr-1" /> Withdraw
-                                                        </Button>
-                                                    </div>
-                                                </motion.div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
+                                <Button onClick={() => openAddModal('savings')}>
+                                    <Plus className="w-4 h-4 mr-2" /> Akun Baru
+                                </Button>
                             </div>
+
+                            {savings.length === 0 ? (
+                                <div className="text-center py-16 bg-card border border-border rounded-xl">
+                                    <PiggyBank className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                                    <p className="text-muted-foreground mb-3">Belum ada akun tabungan</p>
+                                    <Button onClick={() => openAddModal('savings')}><Plus className="w-4 h-4 mr-2" /> Tambah Akun</Button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {savings.map((account) => {
+                                        const bankInfo = BANK_OPTIONS.find(b => b.code === account.bank_code)
+                                        return (
+                                            <motion.div key={account.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-5 group">
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg">{account.icon || bankInfo?.icon || '💰'}</div>
+                                                        <div>
+                                                            <h4 className="font-semibold text-foreground">{account.name}</h4>
+                                                            <p className="text-xs text-muted-foreground uppercase">{account.type} {bankInfo ? `· ${bankInfo.label.split(' ')[1]}` : ''}</p>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => handleDeleteSavings(account.id)} className="p-1 md:opacity-0 md:group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all">
+                                                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                                    </button>
+                                                </div>
+                                                <p className="text-2xl font-bold text-foreground mb-4">{formatCurrency(account.balance)}</p>
+                                                {account.profiles && (
+                                                    <p className="text-xs text-muted-foreground mb-3">{account.profiles.role === 'aegg' ? '⭐' : '🌙'} {account.profiles.display_name}</p>
+                                                )}
+                                                <div className="flex gap-2">
+                                                    <Button size="sm" className="flex-1" onClick={() => { setSelectedSavingsAccount(account); setSavingsTxType('deposit'); setModalType('savings_tx'); setShowModal(true) }}>
+                                                        <ArrowDownRight className="w-3 h-3 mr-1" /> Deposit
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" className="flex-1" onClick={() => { setSelectedSavingsAccount(account); setSavingsTxType('withdraw'); setModalType('savings_tx'); setShowModal(true) }}>
+                                                        <ArrowUpRight className="w-3 h-3 mr-1" /> Withdraw
+                                                    </Button>
+                                                </div>
+                                            </motion.div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
                         )}
 
                         {/* ========== RECAP ========== */}

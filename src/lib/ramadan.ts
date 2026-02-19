@@ -7,7 +7,7 @@ export const LOCATION_LNG = 107.6191
 export const ALADHAN_METHOD = 20 // Kemenag RI
 
 // Ramadan 2026 dates (1 Ramadan = Feb 18, based on Aladhan API Hijri confirmation)
-export const RAMADAN_START = new Date(2026, 1, 18) // Feb 18, 2026
+export const RAMADAN_START = new Date(2026, 1, 18) // Feb 18, 2026 (Month is 0-indexed: 1 = Feb)
 export const RAMADAN_END = new Date(2026, 2, 20)   // Mar 20, 2026 (1 Syawal approx)
 
 export function isRamadan(date: Date = new Date()): boolean {
@@ -17,13 +17,19 @@ export function isRamadan(date: Date = new Date()): boolean {
 
 export function getRamadanDay(date: Date = new Date()): number {
     if (!isRamadan(date)) return 0
-    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    const diffMs = d.getTime() - RAMADAN_START.getTime()
+    // Normalize to start of day
+    const start = new Date(RAMADAN_START.getFullYear(), RAMADAN_START.getMonth(), RAMADAN_START.getDate())
+    const current = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+    const diffMs = current.getTime() - start.getTime()
     return Math.floor(diffMs / 86400000) + 1
 }
 
 export function getRamadanDaysTotal(): number {
-    return Math.round((RAMADAN_END.getTime() - RAMADAN_START.getTime()) / 86400000)
+    // Normalize to start of day
+    const start = new Date(RAMADAN_START.getFullYear(), RAMADAN_START.getMonth(), RAMADAN_START.getDate())
+    const end = new Date(RAMADAN_END.getFullYear(), RAMADAN_END.getMonth(), RAMADAN_END.getDate())
+    return Math.round((end.getTime() - start.getTime()) / 86400000)
 }
 
 export interface PrayerTimes {
@@ -83,12 +89,17 @@ export function parseTimeToDate(timeStr: string, baseDate: Date = new Date()): D
     return d
 }
 
-export function getTimeUntil(targetTime: string, now: Date = new Date()): { hours: number; minutes: number; seconds: number; total: number } {
-    const target = parseTimeToDate(targetTime, now)
-    let diffMs = target.getTime() - now.getTime()
-    if (diffMs < 0) diffMs = 0
+export function getTimeUntil(targetTime: string, now: Date = new Date(), isNextDay: boolean = false): { hours: number; minutes: number; seconds: number; total: number } {
+    let target = parseTimeToDate(targetTime, now)
 
-    const totalSeconds = Math.floor(diffMs / 1000)
+    // If we're targeting next day (e.g. imsak tomorrow), add 24h
+    if (isNextDay) {
+        target.setDate(target.getDate() + 1)
+    }
+
+    let diffMs = target.getTime() - now.getTime()
+
+    const totalSeconds = Math.max(0, Math.floor(diffMs / 1000))
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const seconds = totalSeconds % 60
@@ -96,7 +107,7 @@ export function getTimeUntil(targetTime: string, now: Date = new Date()): { hour
     return { hours, minutes, seconds, total: totalSeconds }
 }
 
-export function getNextPrayer(timings: PrayerTimes, now: Date = new Date()): { name: string; time: string; nameId: string } | null {
+export function getNextPrayer(timings: PrayerTimes, now: Date = new Date()): { name: string; time: string; nameId: string; isTomorrow?: boolean } | null {
     const prayers = [
         { name: 'Imsak', time: timings.Imsak, nameId: 'Imsak' },
         { name: 'Subuh', time: timings.Fajr, nameId: 'Subuh' },
@@ -111,10 +122,11 @@ export function getNextPrayer(timings: PrayerTimes, now: Date = new Date()): { n
         if (prayerDate > now) return prayer
     }
 
-    return null // All prayers passed for today
+    // If all passed, next is Imsak tomorrow
+    return { name: 'Imsak (Besok)', time: timings.Imsak, nameId: 'Imsak', isTomorrow: true }
 }
 
-// ========== LocalStorage Tracker Data ==========
+// ========== Type Data ==========
 
 export interface RamadanDayData {
     fasted: boolean
@@ -129,55 +141,8 @@ export interface RamadanDayData {
     quranJuz: number // 0-30
 }
 
-const STORAGE_KEY = 'ramadan-tracker-2026'
-
-export function getTrackerData(): Record<string, RamadanDayData> {
-    if (typeof window === 'undefined') return {}
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY)
-        return raw ? JSON.parse(raw) : {}
-    } catch {
-        return {}
-    }
-}
-
-export function getDayData(dayNumber: number): RamadanDayData {
-    const all = getTrackerData()
-    return all[String(dayNumber)] || {
-        fasted: false,
-        prayers: { subuh: false, dzuhur: false, ashar: false, maghrib: false, isya: false, tarawih: false },
-        quranJuz: 0,
-    }
-}
-
-export function saveDayData(dayNumber: number, data: RamadanDayData): void {
-    if (typeof window === 'undefined') return
-    const all = getTrackerData()
-    all[String(dayNumber)] = data
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all))
-}
-
-// Stats helpers
-export function getTotalFastedDays(): number {
-    const all = getTrackerData()
-    return Object.values(all).filter(d => d.fasted).length
-}
-
-export function getQuranProgress(): number {
-    const all = getTrackerData()
-    const maxJuz = Math.max(0, ...Object.values(all).map(d => d.quranJuz || 0))
-    return maxJuz
-}
-
-export function getPrayerCompletionRate(): number {
-    const all = getTrackerData()
-    const entries = Object.values(all)
-    if (entries.length === 0) return 0
-    let total = 0, completed = 0
-    entries.forEach(d => {
-        const prayers = Object.values(d.prayers)
-        total += prayers.length
-        completed += prayers.filter(Boolean).length
-    })
-    return total > 0 ? Math.round((completed / total) * 100) : 0
+export const DEFAULT_DAY_DATA: RamadanDayData = {
+    fasted: false,
+    prayers: { subuh: false, dzuhur: false, ashar: false, maghrib: false, isya: false, tarawih: false },
+    quranJuz: 0,
 }

@@ -4,15 +4,52 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { Transaction, Budget, TransactionType, BudgetPeriod, SavingsAccount, SavingsTransaction } from '@/types'
 
+// ============== UTILS ==============
+export async function getFinanceProfile() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabase.from('profiles').select('id, role').eq('id', user.id).single()
+  if (!profile) return null
+
+  let partnerId = undefined
+  if (profile.role === 'aegg' || profile.role === 'peppaa') {
+    const partnerRole = profile.role === 'aegg' ? 'peppaa' : 'aegg'
+    const { data: partner } = await supabase.from('profiles').select('id').eq('role', partnerRole).single()
+    if (partner) partnerId = partner.id
+  }
+
+  return { id: user.id, role: profile.role, partnerId }
+}
+
 // ============== TRANSACTIONS ==============
 
-export async function getTransactions(): Promise<Transaction[]> {
+export async function getTransactions(userId?: string | 'all'): Promise<Transaction[]> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('transactions')
     .select('*, profiles:user_id(display_name, role)')
     .order('date', { ascending: false })
+
+  // If userId is specific string (not 'all' and not undefined), filter by it
+  // If undefined, default to current user (legacy behavior, but we should be explicit given the new requirement)
+  // Actually, to support "Combined", we want 'all' to NOT filter by user_id.
+  // Unless we want to enforce only seeing own + partner? 
+  // RLS allows seeing all, so 'all' means all.
+
+  if (userId && userId !== 'all') {
+    query = query.eq('user_id', userId)
+  } else if (!userId) {
+    // Default: View own transactions if no arg provided
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      query = query.eq('user_id', user.id)
+    }
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching transactions:', error)
@@ -185,13 +222,24 @@ export async function deleteTransaction(id: string) {
 
 // ============== BUDGETS ==============
 
-export async function getBudgets(): Promise<Budget[]> {
+export async function getBudgets(userId?: string | 'all'): Promise<Budget[]> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('budgets')
     .select('*')
     .order('category', { ascending: true })
+
+  if (userId && userId !== 'all') {
+    query = query.eq('user_id', userId)
+  } else if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      query = query.eq('user_id', user.id)
+    }
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching budgets:', error)
@@ -297,13 +345,24 @@ export async function deleteBudget(id: string) {
 
 // ============== SAVINGS ACCOUNTS ==============
 
-export async function getSavingsAccounts(): Promise<SavingsAccount[]> {
+export async function getSavingsAccounts(userId?: string | 'all'): Promise<SavingsAccount[]> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('savings_accounts')
     .select('*, profiles:user_id(display_name, role)')
     .order('created_at', { ascending: true })
+
+  if (userId && userId !== 'all') {
+    query = query.eq('user_id', userId)
+  } else if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      query = query.eq('user_id', user.id)
+    }
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching savings accounts:', error)
@@ -487,9 +546,9 @@ export async function getTransactionRecap(options: {
     return { data: [], error: error.message }
   }
 
-  const transactions = data || []
-  const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const transactions = (data || []) as any[]
+  const totalIncome = transactions.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + t.amount, 0)
+  const totalExpense = transactions.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + t.amount, 0)
 
   return {
     data: transactions,
@@ -512,7 +571,7 @@ export async function getSubTitles(): Promise<string[]> {
 
   if (error) return []
 
-  const unique = (data || []).map(t => t.sub_title).filter(Boolean).reduce((acc: string[], v) => {
+  const unique = (data || []).map((t: any) => t.sub_title).filter(Boolean).reduce((acc: string[], v: any) => {
     if (!acc.includes(v as string)) acc.push(v as string)
     return acc
   }, []).sort()
