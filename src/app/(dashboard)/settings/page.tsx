@@ -441,7 +441,7 @@ export default function SettingsPage() {
                         : 'border-border hover:border-pink-300 hover:bg-secondary/50'
                     )}
                   >
-                    <span className="text-2xl">�</span>
+                    <span className="text-2xl">🌙</span>
                     <div className="text-left">
                       <p className="text-sm font-semibold text-foreground">Peppaa</p>
                       <p className="text-xs text-muted-foreground">PM Game Developer</p>

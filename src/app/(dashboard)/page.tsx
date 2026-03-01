@@ -7,11 +7,13 @@ import Link from 'next/link'
 import {
   Calendar, Clock, Plus, ArrowRight, Search,
   Target, CheckSquare, Wallet, Gift, Home,
+  Flame, Eye,
 } from 'lucide-react'
 import { getUser } from '@/lib/actions/auth'
 import { getTodos } from '@/lib/actions/todos'
 import { getGoals } from '@/lib/actions/goals'
 import { getEvents } from '@/lib/actions/calendar'
+import { getActivityStats, getActivityFeed, getActionLabel, getActionIcon, type ActivityLog } from '@/lib/actions/activity'
 import { cn } from '@/lib/utils'
 import { RamadanWidget } from '@/components/features/ramadan/ramadan-widget'
 
@@ -32,6 +34,8 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null)
   const [greeting, setGreeting] = useState('')
   const [recentItems, setRecentItems] = useState<RecentItem[]>([])
+  const [activityStats, setActivityStats] = useState<any>(null)
+  const [activityFeed, setActivityFeed] = useState<ActivityLog[]>([])
   const [stats, setStats] = useState({
     activeTodos: 0,
     upcomingEvents: 0,
@@ -61,6 +65,14 @@ export default function DashboardPage() {
 
     // 3. Fetch real data
     fetchDashboardData()
+
+    // 4. Fetch activity data
+    getActivityStats()
+      .then(data => { if (data) setActivityStats(data) })
+      .catch(() => {})
+    getActivityFeed(10)
+      .then(data => setActivityFeed(data))
+      .catch(() => {})
 
     return () => clearInterval(interval)
   }, [])
@@ -226,6 +238,74 @@ export default function DashboardPage() {
           </motion.div>
         </section>
 
+        {/* Activity Tracker */}
+        {activityStats && Object.keys(activityStats).length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-4 text-muted-foreground text-sm font-medium uppercase tracking-wider">
+              <Eye className="w-4 h-4" />
+              <span>Activity Tracker</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Object.entries(activityStats).map(([uid, stat]: [string, any]) => {
+                const isAegg = stat.role === 'aegg'
+                const emoji = isAegg ? '⭐' : '🌙'
+                const gradientClass = isAegg
+                  ? 'from-blue-500/10 to-indigo-500/10 border-blue-200 dark:border-blue-800/50'
+                  : 'from-pink-500/10 to-fuchsia-500/10 border-pink-200 dark:border-pink-800/50'
+                const streakColor = stat.streak >= 7
+                  ? 'text-orange-500'
+                  : stat.streak >= 3
+                    ? 'text-yellow-500'
+                    : 'text-muted-foreground'
+
+                return (
+                  <motion.div
+                    key={uid}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={cn(
+                      "bg-gradient-to-br rounded-xl border p-4 space-y-3",
+                      gradientClass
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{emoji}</span>
+                        <span className="font-semibold text-foreground">{stat.name || (isAegg ? 'Aegg' : 'Peppaa')}</span>
+                      </div>
+                      {stat.streak > 0 && (
+                        <div className={cn("flex items-center gap-1 font-bold text-sm", streakColor)}>
+                          <Flame className="w-4 h-4" />
+                          <span>{stat.streak} day{stat.streak !== 1 ? 's' : ''}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="bg-background/60 rounded-lg p-2">
+                        <p className="text-lg font-bold text-foreground">{stat.todayActions}</p>
+                        <p className="text-[10px] text-muted-foreground">Today</p>
+                      </div>
+                      <div className="bg-background/60 rounded-lg p-2">
+                        <p className="text-lg font-bold text-foreground">{stat.weeklyActions}</p>
+                        <p className="text-[10px] text-muted-foreground">This Week</p>
+                      </div>
+                      <div className="bg-background/60 rounded-lg p-2">
+                        <p className="text-lg font-bold text-foreground">{stat.streak}</p>
+                        <p className="text-[10px] text-muted-foreground">Streak</p>
+                      </div>
+                    </div>
+                    {stat.lastSeen && (
+                      <p className="text-xs text-muted-foreground">
+                        Last active: {formatRelativeTime(stat.lastSeen)}
+                      </p>
+                    )}
+                  </motion.div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {/* 3. Quick Access */}
         <section>
           <div className="flex items-center gap-2 mb-4 text-muted-foreground text-sm font-medium uppercase tracking-wider">
@@ -285,7 +365,7 @@ export default function DashboardPage() {
           <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
             {loading ? (
               <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
-            ) : recentItems.length === 0 ? (
+            ) : recentItems.length === 0 && activityFeed.length === 0 ? (
               <div className="p-8 flex flex-col items-center justify-center text-center space-y-3">
                 <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center">
                   <Search className="w-7 h-7 text-primary/50" />
@@ -299,7 +379,43 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {recentItems.map((item, index) => (
+                {/* Activity Feed from activity_logs */}
+                {activityFeed.length > 0 && activityFeed.map((log, index) => {
+                  const profile = log.profiles as any
+                  const isAegg = profile?.role === 'aegg'
+                  return (
+                    <motion.div
+                      key={`activity-${log.id}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="flex items-center gap-3 md:gap-4 px-4 md:px-5 py-3"
+                    >
+                      <span className="text-base md:text-lg flex-shrink-0">{getActionIcon(log.action as any)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {getActionLabel(log.action as any)}
+                          {log.metadata?.title && `: ${log.metadata.title}`}
+                          {log.page && !log.metadata?.title && ` ${log.page}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatRelativeTime(log.created_at)}
+                        </p>
+                      </div>
+                      <span className={cn(
+                        "hidden sm:inline-block px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0",
+                        isAegg
+                          ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                          : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
+                      )}>
+                        {isAegg ? '⭐ Aegg' : '🌙 Peppaa'}
+                      </span>
+                    </motion.div>
+                  )
+                })}
+
+                {/* Legacy items from todos/goals/events (shown if no activity feed) */}
+                {activityFeed.length === 0 && recentItems.map((item, index) => (
                   <motion.div
                     key={item.id}
                     initial={{ opacity: 0 }}

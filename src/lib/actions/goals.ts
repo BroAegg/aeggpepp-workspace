@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/actions/activity'
 import type { Goal, GoalTask, GoalStatus, Priority } from '@/types'
 
 // ============== GOALS ==============
@@ -72,6 +73,8 @@ export async function createGoal(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  logActivity('create_goal', 'Goals', { title }).catch(() => {})
 
   revalidatePath('/goals')
   return { success: true, id: newGoal.id }

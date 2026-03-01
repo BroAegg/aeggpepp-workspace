@@ -1,12 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { login } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LogIn, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
@@ -122,14 +121,6 @@ export default function LoginPage() {
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex flex-col space-y-4 pt-2">
-        <div className="text-sm text-center text-muted-foreground w-full">
-          <p className="mb-2">New to our story?</p>
-          <Link href="/register" className="text-primary hover:text-primary/80 font-semibold hover:underline decoration-2 underline-offset-4 transition-colors">
-            Begin our journey here
-          </Link>
-        </div>
-      </CardFooter>
     </Card>
   )
 }

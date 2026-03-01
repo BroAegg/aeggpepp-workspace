@@ -161,7 +161,7 @@ export function Sidebar() {
               <NavLink key={item.href} item={item} collapsed={isCollapsed} />
             ))}
             {showRamadan && (
-              <NavLink item={{ title: 'Ramadan 🌙', href: '/ramadan', icon: Moon }} collapsed={isCollapsed} />
+              <NavLink item={{ title: 'Ramadan', href: '/ramadan', icon: Moon }} collapsed={isCollapsed} />
             )}
           </nav>
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/actions/activity'
 import type { CalendarEvent, CalendarItem, Goal } from '@/types'
 
 // ============== FETCH EVENTS ==============
@@ -150,6 +151,8 @@ export async function createEvent(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  logActivity('create_event', 'Calendar', { title }).catch(() => {})
 
   revalidatePath('/calendar')
   return { success: true }

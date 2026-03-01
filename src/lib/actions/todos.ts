@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/actions/activity'
 import type { Todo, TodoCategory, TodoStatus, Priority } from '@/types'
 
 // ============== TODOS ==============
@@ -61,6 +62,8 @@ export async function createTodo(formData: FormData) {
     if (error) {
         return { error: error.message }
     }
+
+    logActivity('create_todo', 'Todos', { title: title.trim() }).catch(() => {})
 
     revalidatePath('/todos')
     return { success: true }
@@ -124,6 +127,12 @@ export async function updateTodoStatus(id: string, status: TodoStatus) {
 
     if (error) {
         return { error: error.message }
+    }
+
+    if (completed) {
+        logActivity('complete_todo', 'Todos', { todoId: id }).catch(() => {})
+    } else {
+        logActivity('update_todo', 'Todos', { todoId: id, status }).catch(() => {})
     }
 
     revalidatePath('/todos')
