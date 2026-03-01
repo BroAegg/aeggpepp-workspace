@@ -76,6 +76,7 @@ declare module 'lucide-react' {
   export const Gift: Icon
   export const Star: Icon
   export const Zap: Icon
+  export const Flame: Icon
   export const TrendingUp: Icon
   export const TrendingDown: Icon
   export const BarChart3: Icon
