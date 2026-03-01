@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Header } from '@/components/layout/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,12 @@ import {
   updateAvatar,
   deleteAvatar,
 } from '@/lib/actions/auth'
+import {
+  getFullActivityLog,
+  getActivityStats,
+} from '@/lib/actions/activity'
+import type { ActivityLog, UserActivityStats } from '@/lib/actions/activity'
+import { getActionLabel, getActionIcon } from '@/lib/activity-helpers'
 import {
   UserPlus,
   Mail,
@@ -32,6 +38,11 @@ import {
   Upload,
   Camera,
   X,
+  Activity,
+  ChevronDown,
+  Clock,
+  Flame,
+  Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -64,8 +75,20 @@ export default function SettingsPage() {
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
   const [inviteLoading, setInviteLoading] = useState(false)
 
+  // Activity Log state
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
+  const [activityTotal, setActivityTotal] = useState(0)
+  const [activityStats, setActivityStats] = useState<Record<string, UserActivityStats> | null>(null)
+  const [activityFilter, setActivityFilter] = useState('all')
+  const [activityLoading, setActivityLoading] = useState(false)
+  const [activityOffset, setActivityOffset] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const ACTIVITY_LIMIT = 20
+
   useEffect(() => {
     loadData()
+    loadActivityLog()
+    loadActivityStatsData()
   }, [])
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,6 +204,57 @@ export default function SettingsPage() {
     } finally {
       setLoadingProfile(false)
     }
+  }
+
+  const loadActivityLog = useCallback(async (filter?: string, offset?: number) => {
+    const isLoadMore = (offset || 0) > 0
+    if (isLoadMore) {
+      setLoadingMore(true)
+    } else {
+      setActivityLoading(true)
+    }
+
+    try {
+      const filterAction = filter ?? activityFilter
+      const result = await getFullActivityLog({
+        filterAction,
+        limit: ACTIVITY_LIMIT,
+        offset: offset || 0,
+      })
+
+      if (isLoadMore) {
+        setActivityLogs(prev => [...prev, ...result.logs])
+      } else {
+        setActivityLogs(result.logs)
+      }
+      setActivityTotal(result.total)
+    } catch (error) {
+      console.error('Error loading activity log:', error)
+    } finally {
+      setActivityLoading(false)
+      setLoadingMore(false)
+    }
+  }, [activityFilter])
+
+  const loadActivityStatsData = async () => {
+    try {
+      const stats = await getActivityStats()
+      setActivityStats(stats)
+    } catch (error) {
+      console.error('Error loading activity stats:', error)
+    }
+  }
+
+  const handleFilterChange = (filter: string) => {
+    setActivityFilter(filter)
+    setActivityOffset(0)
+    loadActivityLog(filter, 0)
+  }
+
+  const handleLoadMore = () => {
+    const newOffset = activityOffset + ACTIVITY_LIMIT
+    setActivityOffset(newOffset)
+    loadActivityLog(activityFilter, newOffset)
   }
 
   // Save profile
@@ -658,6 +732,222 @@ export default function SettingsPage() {
                 Create Account
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* Activity Log */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="w-5 h-5" />
+              Activity Log
+            </CardTitle>
+            <CardDescription>
+              Semua aktivitas kamu dan pasanganmu di workspace ini
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Stats Cards */}
+            {activityStats && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Object.entries(activityStats).map(([uid, stats]) => {
+                  const isAegg = stats.role === 'aegg'
+                  return (
+                    <div
+                      key={uid}
+                      className={cn(
+                        'rounded-xl border p-4 space-y-2',
+                        isAegg
+                          ? 'border-primary/30 bg-primary-50/50 dark:bg-primary-900/10'
+                          : 'border-pink-300/30 bg-pink-50/50 dark:bg-pink-900/10'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{isAegg ? '⭐' : '🌙'}</span>
+                        <span className="font-semibold text-sm text-foreground">{stats.name}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                          <div className="flex items-center justify-center gap-1">
+                            <Flame className="w-3 h-3 text-orange-500" />
+                            <span className="text-sm font-bold text-foreground">{stats.streak}</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">Streak</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-bold text-foreground">{stats.weeklyActions}</span>
+                          <p className="text-[10px] text-muted-foreground">Minggu ini</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-bold text-foreground">{stats.todayActions}</span>
+                          <p className="text-[10px] text-muted-foreground">Hari ini</p>
+                        </div>
+                      </div>
+                      {stats.lastLogin && (
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Login terakhir: {new Date(stats.lastLogin).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {stats.daysSinceLogin > 3 && (
+                            <span className="text-orange-500 font-medium ml-1">
+                              ⚠ {stats.daysSinceLogin} hari lalu
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Filter Tabs */}
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { key: 'all', label: 'Semua' },
+                { key: 'daily_login', label: '🔑 Login' },
+                { key: 'create_todo', label: '✅ Todo' },
+                { key: 'create_goal', label: '🎯 Goal' },
+                { key: 'add_transaction', label: '💸 Finance' },
+                { key: 'add_wishlist', label: '🎁 Wishlist' },
+                { key: 'create_event', label: '📅 Event' },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => handleFilterChange(tab.key)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+                    activityFilter === tab.key
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary hover:bg-secondary/80 text-muted-foreground'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Activity Table */}
+            {activityLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : activityLogs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Activity className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Belum ada aktivitas</p>
+                <p className="text-xs mt-1">Mulai gunakan fitur-fitur workspace!</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {/* Header (desktop) */}
+                <div className="hidden md:grid md:grid-cols-[40px_1fr_130px_160px] gap-3 px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border">
+                  <div></div>
+                  <div>Aktivitas</div>
+                  <div>Oleh</div>
+                  <div>Waktu</div>
+                </div>
+
+                {/* Rows */}
+                {activityLogs.map((log) => {
+                  const logProfile = log.profiles as any
+                  const isAegg = logProfile?.role === 'aegg'
+                  const actionLabel = getActionLabel(log.action as any)
+                  const actionIcon = getActionIcon(log.action as any)
+                  const createdAt = new Date(log.created_at)
+                  const timeStr = createdAt.toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  }) + ', ' + createdAt.toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+
+                  // Build detail text
+                  let detail = ''
+                  if (log.metadata?.title) detail = log.metadata.title
+                  else if (log.page && log.action !== 'daily_login') detail = log.page
+
+                  return (
+                    <div
+                      key={log.id}
+                      className="grid grid-cols-[32px_1fr] md:grid-cols-[40px_1fr_130px_160px] gap-2 md:gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/50 transition-colors items-center"
+                    >
+                      {/* Icon */}
+                      <span className="text-lg md:text-xl flex-shrink-0">{actionIcon}</span>
+
+                      {/* Activity */}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {actionLabel}
+                          {detail && (
+                            <span className="text-muted-foreground font-normal"> — {detail}</span>
+                          )}
+                        </p>
+                        {/* Mobile: show user & time inline */}
+                        <div className="flex items-center gap-2 md:hidden mt-0.5">
+                          <span className={cn(
+                            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium',
+                            isAegg
+                              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+                              : 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
+                          )}>
+                            {isAegg ? '⭐' : '🌙'} {logProfile?.display_name || 'Unknown'}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{timeStr}</span>
+                        </div>
+                      </div>
+
+                      {/* User (desktop) */}
+                      <div className="hidden md:flex items-center gap-1.5">
+                        <div className={cn(
+                          'w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0',
+                          isAegg
+                            ? 'bg-primary-100 dark:bg-primary-900/30'
+                            : 'bg-pink-100 dark:bg-pink-900/30'
+                        )}>
+                          {isAegg ? '⭐' : '🌙'}
+                        </div>
+                        <span className="text-xs text-foreground truncate">
+                          {logProfile?.display_name || 'Unknown'}
+                        </span>
+                      </div>
+
+                      {/* Time (desktop) */}
+                      <div className="hidden md:flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{timeStr}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Load More */}
+                {activityLogs.length < activityTotal && (
+                  <div className="pt-3 text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="w-full sm:w-auto"
+                    >
+                      {loadingMore ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 mr-2" />
+                      )}
+                      Muat lagi ({activityTotal - activityLogs.length} sisa)
+                    </Button>
+                  </div>
+                )}
+
+                {/* Total count */}
+                <p className="text-center text-xs text-muted-foreground pt-2">
+                  Menampilkan {activityLogs.length} dari {activityTotal} aktivitas
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

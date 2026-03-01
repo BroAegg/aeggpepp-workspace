@@ -121,6 +121,47 @@ export async function getActivityFeed(limit = 20): Promise<ActivityLog[]> {
 }
 
 /**
+ * Get full activity log for Settings page — includes ALL actions, with optional filters
+ */
+export async function getFullActivityLog(options?: {
+    filterAction?: string
+    filterUser?: string
+    limit?: number
+    offset?: number
+}): Promise<{ logs: ActivityLog[]; total: number }> {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { logs: [], total: 0 }
+
+    const limit = options?.limit || 30
+    const offset = options?.offset || 0
+
+    let query = supabase
+        .from('activity_logs')
+        .select('*, profiles:user_id(display_name, role)', { count: 'exact' })
+        .not('action', 'eq', 'page_view') // always hide page_view noise
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+    if (options?.filterAction && options.filterAction !== 'all') {
+        query = query.eq('action', options.filterAction)
+    }
+
+    if (options?.filterUser) {
+        query = query.eq('user_id', options.filterUser)
+    }
+
+    const { data, error, count } = await query
+
+    if (error) {
+        console.error('Error fetching full activity log:', error)
+        return { logs: [], total: 0 }
+    }
+
+    return { logs: data || [], total: count || 0 }
+}
+
+/**
  * Get per-user activity stats (streak, last login, today/week counts)
  * Streak = consecutive days with a daily_login event
  * Counts = meaningful actions only (no page_view, no daily_login)
