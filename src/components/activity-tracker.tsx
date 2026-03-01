@@ -18,23 +18,29 @@ const PAGE_NAMES: Record<string, string> = {
 }
 
 /**
- * Invisible component that logs page views.
- * Place this in the dashboard layout to track all page visits.
+ * Invisible component that:
+ * 1. Logs daily_login once per day (on mount)
+ * 2. Logs page_view on every navigation
  */
 export function ActivityTracker() {
   const pathname = usePathname()
   const lastLogged = useRef<string>('')
+  const loginLogged = useRef(false)
 
+  // Log daily_login once per app session (throttled server-side to once per 20h)
   useEffect(() => {
-    // Don't log the same page twice in a row 
+    if (loginLogged.current) return
+    loginLogged.current = true
+    logActivity('daily_login').catch(() => {})
+  }, [])
+
+  // Log page_view on navigation
+  useEffect(() => {
     if (pathname === lastLogged.current) return
     lastLogged.current = pathname
-
     const pageName = PAGE_NAMES[pathname] || pathname
-    logActivity('page_view', pageName).catch(() => {
-      // Silently fail
-    })
+    logActivity('page_view', pageName).catch(() => {})
   }, [pathname])
 
-  return null // Invisible component
+  return null
 }

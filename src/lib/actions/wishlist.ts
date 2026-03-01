@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/actions/activity'
 import type { WishlistItem, Priority } from '@/types'
 
 export async function getWishlistItems(): Promise<WishlistItem[]> {
@@ -56,6 +57,8 @@ export async function createWishlistItem(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  logActivity('add_wishlist', 'Wishlist', { title }).catch(() => {})
 
   revalidatePath('/wishlist')
   return { success: true }
@@ -120,6 +123,10 @@ export async function toggleWishlistPurchased(id: string, isPurchased: boolean) 
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (isPurchased) {
+    logActivity('purchase_wishlist', 'Wishlist', { wishlistId: id }).catch(() => {})
   }
 
   revalidatePath('/wishlist')

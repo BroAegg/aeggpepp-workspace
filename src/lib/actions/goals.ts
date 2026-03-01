@@ -140,6 +140,10 @@ export async function updateGoalStatus(id: string, status: GoalStatus) {
     return { error: error.message }
   }
 
+  if (status === 'completed') {
+    logActivity('complete_goal', 'Goals', { goalId: id }).catch(() => {})
+  }
+
   revalidatePath('/goals')
   return { success: true }
 }

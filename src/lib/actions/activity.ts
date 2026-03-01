@@ -3,16 +3,21 @@
 import { createClient } from '@/lib/supabase/server'
 
 export type ActivityAction =
+    | 'daily_login'
     | 'page_view'
     | 'create_todo'
     | 'complete_todo'
     | 'update_todo'
     | 'create_goal'
+    | 'complete_goal'
     | 'update_goal'
     | 'add_transaction'
+    | 'add_savings'
+    | 'add_budget'
     | 'create_event'
     | 'upload_photo'
     | 'add_wishlist'
+    | 'purchase_wishlist'
     | 'update_profile'
 
 export interface ActivityLog {
@@ -28,6 +33,19 @@ export interface ActivityLog {
     }
 }
 
+export interface UserActivityStats {
+    name: string
+    role: 'aegg' | 'peppaa'
+    weeklyActions: number
+    todayActions: number
+    streak: number
+    lastLogin: string | null
+    daysSinceLogin: number
+}
+
+// Actions excluded from meaningful action counts
+const NOISE_ACTIONS = ['page_view', 'daily_login']
+
 /**
  * Log a user activity
  */
@@ -41,7 +59,20 @@ export async function logActivity(
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        // Throttle page_view logs - max 1 per page per 5 minutes
+        // daily_login: max once per 20 hours (handles midnight timezone edge)
+        if (action === 'daily_login') {
+            const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString()
+            const { data: recent } = await supabase
+                .from('activity_logs')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('action', 'daily_login')
+                .gte('created_at', twentyHoursAgo)
+                .limit(1)
+            if (recent && recent.length > 0) return
+        }
+
+        // page_view: max once per page per 5 minutes
         if (action === 'page_view' && page) {
             const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
             const { data: recent } = await supabase
@@ -52,8 +83,7 @@ export async function logActivity(
                 .eq('page', page)
                 .gte('created_at', fiveMinAgo)
                 .limit(1)
-
-            if (recent && recent.length > 0) return // Skip duplicate
+            if (recent && recent.length > 0) return
         }
 
         await supabase.from('activity_logs').insert({
@@ -63,13 +93,12 @@ export async function logActivity(
             metadata: metadata || {},
         })
     } catch (err) {
-        // Silently fail - activity logging should never break the app
         console.error('Activity log error:', err)
     }
 }
 
 /**
- * Get recent activity feed (both users)
+ * Get recent activity feed (both users) — excludes noise
  */
 export async function getActivityFeed(limit = 20): Promise<ActivityLog[]> {
     const supabase = await createClient()
@@ -79,7 +108,7 @@ export async function getActivityFeed(limit = 20): Promise<ActivityLog[]> {
     const { data, error } = await supabase
         .from('activity_logs')
         .select('*, profiles:user_id(display_name, role)')
-        .neq('action', 'page_view') // Exclude page views from feed
+        .not('action', 'in', `(${NOISE_ACTIONS.join(',')})`)
         .order('created_at', { ascending: false })
         .limit(limit)
 
@@ -92,102 +121,106 @@ export async function getActivityFeed(limit = 20): Promise<ActivityLog[]> {
 }
 
 /**
- * Get activity stats for both users
+ * Get per-user activity stats (streak, last login, today/week counts)
+ * Streak = consecutive days with a daily_login event
+ * Counts = meaningful actions only (no page_view, no daily_login)
  */
-export async function getActivityStats() {
+export async function getActivityStats(): Promise<Record<string, UserActivityStats> | null> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
 
     const now = new Date()
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
 
-    // Get this week's activity counts per user
-    const { data: weeklyData } = await supabase
-        .from('activity_logs')
-        .select('user_id, action, created_at, profiles:user_id(display_name, role)')
-        .gte('created_at', weekAgo)
+    // Fetch daily_login events for streak + last login calculation (last 30 days)
+    const [loginRes, weekRes, todayRes] = await Promise.all([
+        supabase
+            .from('activity_logs')
+            .select('user_id, created_at, profiles:user_id(display_name, role)')
+            .eq('action', 'daily_login')
+            .gte('created_at', thirtyDaysAgo)
+            .order('created_at', { ascending: false }),
+        // Meaningful actions this week
+        supabase
+            .from('activity_logs')
+            .select('user_id, created_at, profiles:user_id(display_name, role)')
+            .not('action', 'in', `(${NOISE_ACTIONS.join(',')})`)
+            .gte('created_at', weekAgo),
+        // Today's meaningful actions
+        supabase
+            .from('activity_logs')
+            .select('user_id, created_at, profiles:user_id(display_name, role)')
+            .not('action', 'in', `(${NOISE_ACTIONS.join(',')})`)
+            .gte('created_at', todayStart),
+    ])
 
-    if (!weeklyData) return null
+    const userStats: Record<string, UserActivityStats> = {}
 
-    // Get today's activity per user
-    const { data: todayData } = await supabase
-        .from('activity_logs')
-        .select('user_id, action, created_at, profiles:user_id(display_name, role)')
-        .gte('created_at', todayStart)
-
-    // Calculate streaks - consecutive days with activity
-    const { data: allDates } = await supabase
-        .from('activity_logs')
-        .select('user_id, created_at')
-        .order('created_at', { ascending: false })
-        .limit(500)
-
-    const userStats: Record<string, {
-        name: string
-        role: 'aegg' | 'peppaa'
-        weeklyActions: number
-        todayActions: number
-        streak: number
-        lastSeen: string | null
-    }> = {}
-
-    // Process weekly data
-    weeklyData?.forEach((log: any) => {
-        const uid = log.user_id
+    const ensureUser = (uid: string, profile: any) => {
         if (!userStats[uid]) {
             userStats[uid] = {
-                name: log.profiles?.display_name || 'Unknown',
-                role: log.profiles?.role || 'aegg',
+                name: profile?.display_name || 'Unknown',
+                role: profile?.role || 'aegg',
                 weeklyActions: 0,
                 todayActions: 0,
                 streak: 0,
-                lastSeen: null,
+                lastLogin: null,
+                daysSinceLogin: 999,
             }
         }
-        userStats[uid].weeklyActions++
-    })
+    }
 
-    // Process today data
-    todayData?.forEach((log: any) => {
+    // Process logins → streak + lastLogin
+    const loginDaysByUser: Record<string, Set<string>> = {}
+
+    loginRes.data?.forEach((log: any) => {
         const uid = log.user_id
-        if (userStats[uid]) {
-            userStats[uid].todayActions++
-        }
-    })
+        ensureUser(uid, log.profiles)
 
-    // Calculate streaks & last seen
-    allDates?.forEach((log: any) => {
-        const uid = log.user_id
-        if (userStats[uid] && !userStats[uid].lastSeen) {
-            userStats[uid].lastSeen = log.created_at
-        }
-    })
-
-    // Calculate streaks per user
-    const userDates: Record<string, Set<string>> = {}
-    allDates?.forEach((log: any) => {
-        if (!userDates[log.user_id]) userDates[log.user_id] = new Set()
+        if (!loginDaysByUser[uid]) loginDaysByUser[uid] = new Set()
         const d = new Date(log.created_at)
-        userDates[log.user_id].add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`)
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        loginDaysByUser[uid].add(key)
+
+        // First entry (sorted desc) = last login
+        if (!userStats[uid].lastLogin) {
+            userStats[uid].lastLogin = log.created_at
+            const diffMs = now.getTime() - new Date(log.created_at).getTime()
+            userStats[uid].daysSinceLogin = Math.floor(diffMs / 86400000)
+        }
     })
 
-    Object.entries(userDates).forEach(([uid, dates]) => {
-        if (!userStats[uid]) return
+    // Calculate streak per user (consecutive days going back from today)
+    Object.entries(loginDaysByUser).forEach(([uid, days]) => {
         let streak = 0
-        const today = new Date()
-        for (let i = 0; i < 365; i++) {
-            const d = new Date(today.getTime() - i * 86400000)
-            const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-            if (dates.has(key)) {
+        for (let i = 0; i < 31; i++) {
+            const d = new Date(now.getTime() - i * 86400000)
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+            if (days.has(key)) {
                 streak++
-            } else if (i > 0) { // Allow today to not have activity yet
-                break
+            } else if (i > 0) {
+                break // Streak broken
             }
         }
         userStats[uid].streak = streak
     })
 
-    return userStats
+    // Process weekly actions
+    weekRes.data?.forEach((log: any) => {
+        const uid = log.user_id
+        ensureUser(uid, log.profiles)
+        userStats[uid].weeklyActions++
+    })
+
+    // Process today's actions
+    todayRes.data?.forEach((log: any) => {
+        const uid = log.user_id
+        ensureUser(uid, log.profiles)
+        userStats[uid].todayActions++
+    })
+
+    return Object.keys(userStats).length > 0 ? userStats : null
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/actions/activity'
 import type { Transaction, Budget, TransactionType, BudgetPeriod, SavingsAccount, SavingsTransaction } from '@/types'
 
 // ============== UTILS ==============
@@ -127,6 +128,8 @@ export async function createTransaction(formData: FormData) {
   if (error) {
     return { error: error.message }
   }
+
+  logActivity('add_transaction', 'Finance', { type, category, amount }).catch(() => {})
 
   revalidatePath('/finance')
   return { success: true }
@@ -443,6 +446,8 @@ export async function updateSavingsBalance(accountId: string, amount: number, ty
   })
 
   if (txError) return { error: txError.message }
+
+  logActivity('add_savings', 'Finance', { type, amount }).catch(() => {})
 
   revalidatePath('/finance')
   return { success: true }
