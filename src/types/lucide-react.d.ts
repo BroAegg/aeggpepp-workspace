@@ -147,6 +147,30 @@ declare module 'lucide-react' {
   export const Grid: Icon
   export const LayoutList: Icon
 
+  // Goals / Table
+  export const Table2: Icon
+  export const Columns3: Icon
+  export const PanelRightOpen: Icon
+  export const PanelRightClose: Icon
+  export const Maximize2: Icon
+  export const ChevronsRight: Icon
+  export const GripHorizontal: Icon
+  export const ArrowUpDown: Icon
+  export const FilePlus: Icon
+  export const FileEdit: Icon
+  export const Layers: Icon
+  export const SquarePen: Icon
+  export const Pencil: Icon
+  export const Type: Icon
+  export const List: Icon
+  export const ListOrdered: Icon
+  export const Bold: Icon
+  export const Italic: Icon
+  export const Heading1: Icon
+  export const Heading2: Icon
+  export const Heading3: Icon
+  export const AlignLeft: Icon
+
   // Portfolio & Social
   export const Link: Icon
   export const Linkedin: Icon

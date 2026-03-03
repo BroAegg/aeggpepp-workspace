@@ -36,8 +36,12 @@ export interface Goal {
   position: number
   due_date: string | null
   tag: string | null
+  icon: string | null
+  display_id: number
   created_at: string
   goal_tasks?: GoalTask[]
+  goal_pages?: GoalPage[]
+  profiles?: ItemOwner
 }
 
 export interface GoalTask {
@@ -46,6 +50,18 @@ export interface GoalTask {
   title: string
   completed: boolean
   position: number
+}
+
+export interface GoalPage {
+  id: string
+  goal_id: string
+  parent_page_id: string | null
+  title: string
+  icon: string | null
+  content: any[]
+  position: number
+  created_at: string
+  updated_at: string
 }
 
 // Gallery Types
@@ -250,6 +266,12 @@ export type Database = {
         Row: GoalTask
         Insert: Omit<GoalTask, 'id'>
         Update: Partial<Omit<GoalTask, 'id'>>
+        Relationships: []
+      }
+      goal_pages: {
+        Row: GoalPage
+        Insert: Omit<GoalPage, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<GoalPage, 'id' | 'created_at' | 'updated_at'>>
         Relationships: []
       }
       gallery: {

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { logActivity } from '@/lib/actions/activity'
-import type { Goal, GoalTask, GoalStatus, Priority } from '@/types'
+import type { Goal, GoalTask, GoalPage, GoalStatus, Priority } from '@/types'
 
 // ============== GOALS ==============
 
@@ -18,6 +18,7 @@ export async function getGoals(): Promise<Goal[]> {
     .select(`
       *,
       goal_tasks(*),
+      goal_pages(*),
       profiles:user_id(display_name, role)
     `)
     .order('position', { ascending: true })
@@ -28,6 +29,31 @@ export async function getGoals(): Promise<Goal[]> {
   }
 
   return data || []
+}
+
+export async function getGoalById(id: string): Promise<Goal | null> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data, error } = await supabase
+    .from('goals')
+    .select(`
+      *,
+      goal_tasks(*),
+      goal_pages(*),
+      profiles:user_id(display_name, role)
+    `)
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    console.error('Error fetching goal:', error)
+    return null
+  }
+
+  return data
 }
 
 export async function createGoal(formData: FormData) {
@@ -142,6 +168,26 @@ export async function updateGoalStatus(id: string, status: GoalStatus) {
 
   if (status === 'completed') {
     logActivity('complete_goal', 'Goals', { goalId: id }).catch(() => {})
+  }
+
+  revalidatePath('/goals')
+  return { success: true }
+}
+
+export async function updateGoalIcon(id: string, icon: string | null) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { error } = await supabase
+    .from('goals')
+    .update({ icon })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) {
+    return { error: error.message }
   }
 
   revalidatePath('/goals')
