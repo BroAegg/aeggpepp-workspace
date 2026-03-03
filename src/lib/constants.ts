@@ -146,11 +146,17 @@ export const EVENT_COLORS = [
   { value: '#64748B', label: 'Gray' },
 ] as const
 
-// Todo Categories
-export const TODO_CATEGORIES = [
-  { value: 'work', label: 'Work', icon: '💼', color: 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300' },
-  { value: 'personal', label: 'Personal', icon: '🏠', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
-  { value: 'shopping', label: 'Shopping', icon: '🛒', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
-  { value: 'other', label: 'Other', icon: '📌', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-300' },
+// Category Color Presets (for category color picker)
+export const CATEGORY_COLORS = [
+  { value: 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300', label: 'Blue', preview: 'bg-primary-200' },
+  { value: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300', label: 'Purple', preview: 'bg-purple-200' },
+  { value: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300', label: 'Pink', preview: 'bg-pink-200' },
+  { value: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300', label: 'Rose', preview: 'bg-rose-200' },
+  { value: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300', label: 'Amber', preview: 'bg-amber-200' },
+  { value: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300', label: 'Green', preview: 'bg-emerald-200' },
+  { value: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300', label: 'Cyan', preview: 'bg-cyan-200' },
+  { value: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300', label: 'Orange', preview: 'bg-orange-200' },
+  { value: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300', label: 'Red', preview: 'bg-red-200' },
+  { value: 'bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-300', label: 'Gray', preview: 'bg-gray-200' },
 ] as const
 

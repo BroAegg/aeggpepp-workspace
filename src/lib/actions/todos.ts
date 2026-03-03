@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { logActivity } from '@/lib/actions/activity'
-import type { Todo, TodoCategory, TodoStatus, Priority } from '@/types'
+import type { Todo, TodoStatus, Priority } from '@/types'
 
 // ============== TODOS ==============
 
@@ -40,7 +40,7 @@ export async function createTodo(formData: FormData) {
     const title = formData.get('title') as string
     const description = formData.get('description') as string
     const priority = (formData.get('priority') as Priority) || 'medium'
-    const category = formData.get('category') as TodoCategory | null
+    const category = formData.get('category') as string | null
     const dueDate = formData.get('due_date') as string
 
     if (!title?.trim()) {
@@ -78,7 +78,7 @@ export async function updateTodo(id: string, formData: FormData) {
     const title = formData.get('title') as string
     const description = formData.get('description') as string
     const priority = (formData.get('priority') as Priority) || 'medium'
-    const category = formData.get('category') as TodoCategory | null
+    const category = formData.get('category') as string | null
     const dueDate = formData.get('due_date') as string
 
     if (!title?.trim()) {

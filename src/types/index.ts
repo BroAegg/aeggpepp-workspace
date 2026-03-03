@@ -147,8 +147,16 @@ export interface Budget {
 }
 
 // Todo Types
-export type TodoCategory = 'work' | 'personal' | 'shopping' | 'other'
 export type TodoStatus = 'todo' | 'in_progress' | 'completed'
+
+export interface TodoCategoryItem {
+  id: string
+  name: string
+  icon: string | null
+  color: string
+  position: number
+  created_at: string
+}
 
 export interface Todo {
   id: string
@@ -158,7 +166,7 @@ export interface Todo {
   completed: boolean
   status: TodoStatus
   priority: Priority
-  category: TodoCategory | null
+  category: string | null
   due_date: string | null
   completed_at: string | null
   created_at: string

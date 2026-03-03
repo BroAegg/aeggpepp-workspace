@@ -35,7 +35,7 @@ import {
     SquareCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { PRIORITIES, TODO_CATEGORIES } from '@/lib/constants'
+import { PRIORITIES, CATEGORY_COLORS } from '@/lib/constants'
 import {
     getTodos,
     createTodo,
@@ -46,7 +46,13 @@ import {
     toggleTodoTask,
     deleteTodoTask,
 } from '@/lib/actions/todos'
-import type { Todo, TodoCategory, TodoStatus, TodoTask, Priority } from '@/types'
+import {
+    getTodoCategories,
+    createTodoCategory,
+    updateTodoCategory,
+    deleteTodoCategory,
+} from '@/lib/actions/todo-categories'
+import type { Todo, TodoCategoryItem, TodoStatus, TodoTask, Priority } from '@/types'
 
 const COLUMNS: { id: TodoStatus; title: string; icon: React.ReactNode; color: string; bgColor: string; borderColor: string; accentColor: string; mobileOrder: string }[] = [
     {
@@ -89,12 +95,22 @@ const priorityColors: Record<Priority, string> = {
 
 export default function TodosPage() {
     const [todos, setTodos] = useState<Todo[]>([])
+    const [categories, setCategories] = useState<TodoCategoryItem[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [showModal, setShowModal] = useState(false)
     const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
     const [activeDragId, setActiveDragId] = useState<string | null>(null)
+
+    // Category management
+    const [showCategoryModal, setShowCategoryModal] = useState(false)
+    const [newCatName, setNewCatName] = useState('')
+    const [newCatIcon, setNewCatIcon] = useState('')
+    const [newCatColor, setNewCatColor] = useState<string>(CATEGORY_COLORS[0].value)
+    const [editingCat, setEditingCat] = useState<TodoCategoryItem | null>(null)
+    const [savingCat, setSavingCat] = useState(false)
+    const [deletingCatId, setDeletingCatId] = useState<string | null>(null)
 
     // Filters - Initialize with static defaults to prevent hydration errors
     const [personFilter, setPersonFilter] = useState<string>('all')
@@ -125,6 +141,7 @@ export default function TodosPage() {
 
     useEffect(() => {
         fetchTodos()
+        fetchCategories()
     }, [])
 
     // Load filters from localStorage after mount (prevents hydration errors)
@@ -163,6 +180,15 @@ export default function TodosPage() {
             console.error('Error fetching todos:', error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchCategories = async () => {
+        try {
+            const data = await getTodoCategories()
+            setCategories(data)
+        } catch (error) {
+            console.error('Error fetching categories:', error)
         }
     }
 
@@ -419,6 +445,23 @@ export default function TodosPage() {
         }
     }
 
+    // Category management
+    const handleCreateCategory = async () => {
+        if (!newCatName.trim()) return
+        setSavingCat(true)
+        try {
+            await createTodoCategory(newCatName.trim(), newCatIcon.trim() || undefined, newCatColor)
+            setNewCatName('')
+            setNewCatIcon('')
+            setNewCatColor(CATEGORY_COLORS[0].value)
+            await fetchCategories()
+        } catch (error) {
+            console.error('Error creating category:', error)
+        } finally {
+            setSavingCat(false)
+        }
+    }
+
     // Quick status change
     const handleQuickStatusChange = async (todoId: string, newStatus: TodoStatus) => {
         setTodos((prev) =>
@@ -444,7 +487,7 @@ export default function TodosPage() {
         !!(todo.due_date && !todo.completed && new Date(todo.due_date) < new Date(new Date().toDateString()))
 
     const getCategoryInfo = (category: string | null) =>
-        TODO_CATEGORIES.find((c) => c.value === category)
+        categories.find((c) => c.name === category)
 
     const hasActiveFilters = personFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all' || dueDateFilter !== 'all' || sortBy !== 'none'
 
@@ -514,9 +557,9 @@ export default function TodosPage() {
                         className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
                         <option value="all">All Categories</option>
-                        {TODO_CATEGORIES.map((cat) => (
-                            <option key={cat.value} value={cat.value}>
-                                {cat.icon} {cat.label}
+                        {categories.map((cat) => (
+                            <option key={cat.id} value={cat.name}>
+                                {cat.icon ? `${cat.icon} ` : ''}{cat.name}
                             </option>
                         ))}
                     </select>
@@ -731,18 +774,27 @@ export default function TodosPage() {
                                         <label className="block text-sm font-medium text-foreground mb-2">
                                             Category
                                         </label>
-                                        <select
-                                            value={formCategory}
-                                            onChange={(e) => setFormCategory(e.target.value)}
-                                            className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                                        >
-                                            <option value="">No category</option>
-                                            {TODO_CATEGORIES.map((cat) => (
-                                                <option key={cat.value} value={cat.value}>
-                                                    {cat.icon} {cat.label}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={formCategory}
+                                                onChange={(e) => {
+                                                    if (e.target.value === '__manage__') {
+                                                        setShowCategoryModal(true)
+                                                    } else {
+                                                        setFormCategory(e.target.value)
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            >
+                                                <option value="">No category</option>
+                                                {categories.map((cat) => (
+                                                    <option key={cat.id} value={cat.name}>
+                                                        {cat.icon ? `${cat.icon} ` : ''}{cat.name}
+                                                    </option>
+                                                ))}
+                                                <option value="__manage__">➕ Manage Categories...</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -872,6 +924,218 @@ export default function TodosPage() {
                 )}
             </AnimatePresence>
 
+            {/* Category Management Modal */}
+            <AnimatePresence>
+                {showCategoryModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 z-[55] flex items-center justify-center p-4"
+                        onClick={() => { setShowCategoryModal(false); setEditingCat(null) }}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-card rounded-xl p-6 w-full max-w-md shadow-xl max-h-[85vh] overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-semibold text-foreground">Manage Categories</h2>
+                                <button
+                                    onClick={() => { setShowCategoryModal(false); setEditingCat(null) }}
+                                    className="p-1 hover:bg-secondary rounded-lg transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-muted-foreground" />
+                                </button>
+                            </div>
+
+                            {/* Existing Categories */}
+                            <div className="space-y-2 mb-4">
+                                {categories.length === 0 && (
+                                    <p className="text-sm text-muted-foreground text-center py-4">No categories yet. Create one below!</p>
+                                )}
+                                {categories.map((cat) => (
+                                    <div key={cat.id} className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-secondary/50 transition-colors group">
+                                        {editingCat?.id === cat.id ? (
+                                            /* Edit mode */
+                                            <div className="flex-1 space-y-2">
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={editingCat.icon || ''}
+                                                        onChange={(e) => setEditingCat({ ...editingCat, icon: e.target.value })}
+                                                        placeholder="🎮"
+                                                        className="w-12 px-2 py-1 text-center rounded-md border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={editingCat.name}
+                                                        onChange={(e) => setEditingCat({ ...editingCat, name: e.target.value })}
+                                                        className="flex-1 px-3 py-1 rounded-md border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {CATEGORY_COLORS.map((c) => (
+                                                        <button
+                                                            key={c.value}
+                                                            onClick={() => setEditingCat({ ...editingCat, color: c.value })}
+                                                            className={cn(
+                                                                'w-6 h-6 rounded-full border-2 transition-all',
+                                                                c.preview,
+                                                                editingCat.color === c.value
+                                                                    ? 'border-foreground scale-110'
+                                                                    : 'border-transparent hover:scale-105'
+                                                            )}
+                                                            title={c.label}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        disabled={!editingCat.name.trim() || savingCat}
+                                                        onClick={async () => {
+                                                            setSavingCat(true)
+                                                            await updateTodoCategory(editingCat.id, {
+                                                                name: editingCat.name,
+                                                                icon: editingCat.icon,
+                                                                color: editingCat.color,
+                                                            })
+                                                            await fetchCategories()
+                                                            await fetchTodos()
+                                                            setEditingCat(null)
+                                                            setSavingCat(false)
+                                                        }}
+                                                        className="flex-1"
+                                                    >
+                                                        {savingCat ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" onClick={() => setEditingCat(null)}>
+                                                        Cancel
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            /* Display mode */
+                                            <>
+                                                <span className={cn('px-2 py-0.5 rounded-full text-xs font-semibold', cat.color)}>
+                                                    {cat.icon || '•'} {cat.name}
+                                                </span>
+                                                <div className="flex-1" />
+                                                <button
+                                                    onClick={() => setEditingCat({ ...cat })}
+                                                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-secondary rounded transition-all text-muted-foreground hover:text-foreground"
+                                                    title="Edit"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                                {deletingCatId === cat.id ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={async () => {
+                                                                await deleteTodoCategory(cat.id)
+                                                                await fetchCategories()
+                                                                await fetchTodos()
+                                                                setDeletingCatId(null)
+                                                            }}
+                                                            className="px-2 py-0.5 text-[10px] font-medium bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDeletingCatId(null)}
+                                                            className="px-2 py-0.5 text-[10px] font-medium bg-secondary rounded hover:bg-secondary/80 transition-colors"
+                                                        >
+                                                            No
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setDeletingCatId(cat.id)}
+                                                        className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Add New Category */}
+                            <div className="border-t border-border pt-4 space-y-3">
+                                <h3 className="text-sm font-medium text-foreground">Add New Category</h3>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newCatIcon}
+                                        onChange={(e) => setNewCatIcon(e.target.value)}
+                                        placeholder="🎮"
+                                        className="w-12 px-2 py-2 text-center rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={newCatName}
+                                        onChange={(e) => setNewCatName(e.target.value)}
+                                        placeholder="Category name..."
+                                        className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && newCatName.trim()) {
+                                                handleCreateCategory()
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {CATEGORY_COLORS.map((c) => (
+                                        <button
+                                            key={c.value}
+                                            onClick={() => setNewCatColor(c.value)}
+                                            className={cn(
+                                                'w-6 h-6 rounded-full border-2 transition-all',
+                                                c.preview,
+                                                newCatColor === c.value
+                                                    ? 'border-foreground scale-110'
+                                                    : 'border-transparent hover:scale-105'
+                                            )}
+                                            title={c.label}
+                                        />
+                                    ))}
+                                </div>
+                                {/* Preview */}
+                                {newCatName.trim() && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">Preview:</span>
+                                        <span className={cn('px-2 py-0.5 rounded-full text-xs font-semibold', newCatColor)}>
+                                            {newCatIcon || '•'} {newCatName}
+                                        </span>
+                                    </div>
+                                )}
+                                <Button
+                                    onClick={handleCreateCategory}
+                                    disabled={!newCatName.trim() || savingCat}
+                                    className="w-full"
+                                    size="sm"
+                                >
+                                    {savingCat ? (
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    ) : (
+                                        <Plus className="w-4 h-4 mr-2" />
+                                    )}
+                                    Create Category
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Delete Confirmation */}
             <AnimatePresence>
                 {showDeleteConfirm && (
@@ -940,7 +1204,7 @@ function KanbanColumn({
     onEdit: (todo: Todo) => void
     onQuickStatusChange: (todoId: string, status: TodoStatus) => void
     isOverdue: (todo: Todo) => boolean
-    getCategoryInfo: (category: string | null) => (typeof TODO_CATEGORIES)[number] | undefined
+    getCategoryInfo: (category: string | null) => TodoCategoryItem | undefined
     onToggleTask: (taskId: string, completed: boolean) => void
     className?: string
 }) {
@@ -1017,7 +1281,7 @@ function KanbanCard({
     onEdit: (todo: Todo) => void
     onQuickStatusChange: (todoId: string, status: TodoStatus) => void
     isOverdue: boolean
-    getCategoryInfo: (category: string | null) => (typeof TODO_CATEGORIES)[number] | undefined
+    getCategoryInfo: (category: string | null) => TodoCategoryItem | undefined
     onToggleTask: (taskId: string, completed: boolean) => void
 }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -1102,7 +1366,7 @@ function KanbanCard({
                                         category.color
                                     )}
                                 >
-                                    {category.icon}
+                                    {category.icon || category.name}
                                 </span>
                             )}
 
