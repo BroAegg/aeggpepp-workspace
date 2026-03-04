@@ -14,6 +14,7 @@ import {
     getTodos,
     updateTodoStatus,
     toggleTodoTask,
+    clearCompletedTodos,
 } from '@/lib/actions/todos'
 import {
     getTodoCategories,
@@ -276,6 +277,22 @@ export default function TodosPage() {
         }
     }
 
+    const [clearingCompleted, setClearingCompleted] = useState(false)
+
+    const handleClearCompleted = async () => {
+        if (totalCompleted === 0) return
+        if (!confirm(`Hapus semua ${totalCompleted} todo yang selesai?`)) return
+        setClearingCompleted(true)
+        try {
+            await clearCompletedTodos()
+            await fetchTodos()
+        } catch (error) {
+            console.error('Error clearing completed:', error)
+        } finally {
+            setClearingCompleted(false)
+        }
+    }
+
     const hasActiveFilters = personFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all' || dueDateFilter !== 'all' || sortBy !== 'none'
 
     return (
@@ -293,9 +310,15 @@ export default function TodosPage() {
                             <span className="px-2.5 py-1 rounded-full bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300 font-semibold text-xs">
                                 {totalInProgress} in progress
                             </span>
-                            <span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-semibold text-xs">
+                            <button
+                                onClick={handleClearCompleted}
+                                disabled={clearingCompleted || totalCompleted === 0}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-semibold text-xs hover:bg-emerald-200 dark:hover:bg-emerald-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Hapus semua yang selesai"
+                            >
+                                {clearingCompleted ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                                 {totalCompleted} done
-                            </span>
+                            </button>
                             {overdueTodos > 0 && (
                                 <span className="px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-300 font-semibold text-xs animate-pulse">
                                     {overdueTodos} overdue

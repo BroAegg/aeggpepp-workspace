@@ -258,3 +258,29 @@ export async function deleteTodoTask(taskId: string) {
     revalidatePath('/todos')
     return { success: true }
 }
+
+export async function clearCompletedTodos(): Promise<{ success: boolean; count?: number; error?: string }> {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { data: completed } = await supabase
+        .from('todos')
+        .select('id')
+        .eq('status', 'completed')
+
+    if (!completed || completed.length === 0) return { success: true, count: 0 }
+
+    const ids = completed.map((t: { id: string }) => t.id)
+
+    const { error } = await supabase
+        .from('todos')
+        .delete()
+        .in('id', ids)
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/todos')
+    return { success: true, count: ids.length }
+}
