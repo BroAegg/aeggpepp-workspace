@@ -279,7 +279,7 @@ export async function clearCompletedTodos(): Promise<{ success: boolean; count?:
         .delete()
         .in('id', ids)
 
-    if (error) return { error: error.message }
+    if (error) return { success: false, error: error.message }
 
     revalidatePath('/todos')
     return { success: true, count: ids.length }
