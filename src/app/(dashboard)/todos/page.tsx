@@ -284,10 +284,15 @@ export default function TodosPage() {
         if (!confirm(`Hapus semua ${totalCompleted} todo yang selesai?`)) return
         setClearingCompleted(true)
         try {
-            await clearCompletedTodos()
-            await fetchTodos()
+            const result = await clearCompletedTodos()
+            if (result.success) {
+                await fetchTodos()
+            } else {
+                alert('Gagal hapus: ' + (result.error || 'Unknown error'))
+            }
         } catch (error) {
             console.error('Error clearing completed:', error)
+            alert('Terjadi error, coba lagi.')
         } finally {
             setClearingCompleted(false)
         }

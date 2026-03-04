@@ -269,6 +269,7 @@ export async function clearCompletedTodos(): Promise<{ success: boolean; count?:
         .from('todos')
         .select('id')
         .eq('status', 'completed')
+        .eq('user_id', user.id)
 
     if (!completed || completed.length === 0) return { success: true, count: 0 }
 
