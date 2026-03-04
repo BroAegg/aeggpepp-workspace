@@ -263,7 +263,7 @@ export async function clearCompletedTodos(): Promise<{ success: boolean; count?:
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Not authenticated' }
+    if (!user) return { success: false, error: 'Not authenticated' }
 
     const { data: completed } = await supabase
         .from('todos')
