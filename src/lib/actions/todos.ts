@@ -47,7 +47,7 @@ export async function createTodo(formData: FormData) {
         return { error: 'Title is required' }
     }
 
-    const { error } = await supabase.from('todos').insert({
+    const { data, error } = await supabase.from('todos').insert({
         user_id: user.id,
         title: title.trim(),
         description: description?.trim() || null,
@@ -57,7 +57,7 @@ export async function createTodo(formData: FormData) {
         category: category || null,
         due_date: dueDate || null,
         completed_at: null,
-    })
+    }).select('id').single()
 
     if (error) {
         return { error: error.message }
@@ -66,7 +66,7 @@ export async function createTodo(formData: FormData) {
     logActivity('create_todo', 'Todos', { title: title.trim() }).catch(() => {})
 
     revalidatePath('/todos')
-    return { success: true }
+    return { success: true, id: data?.id }
 }
 
 export async function updateTodo(id: string, formData: FormData) {

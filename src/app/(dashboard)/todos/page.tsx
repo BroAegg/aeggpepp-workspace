@@ -5,46 +5,15 @@ import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-    DndContext,
-    DragOverlay,
-    useDroppable,
-    useDraggable,
-    closestCorners,
-    PointerSensor,
-    TouchSensor,
-    useSensor,
-    useSensors,
-    type DragStartEvent,
-    type DragEndEvent,
-} from '@dnd-kit/core'
-import {
-    Plus,
-    CheckCircle2,
-    Circle,
-    X,
-    Trash2,
-    Calendar,
-    AlertTriangle,
-    Loader2,
-    Filter,
-    GripVertical,
-    Inbox,
-    Clock,
-    ArrowRight,
-    CheckSquare,
-    SquareCheck,
+    Plus, X, Loader2, Filter, Inbox,
+    CheckSquare, Table2, LayoutGrid, Edit2, Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PRIORITIES, CATEGORY_COLORS } from '@/lib/constants'
 import {
     getTodos,
-    createTodo,
-    updateTodo,
-    deleteTodo as deleteTodoAction,
     updateTodoStatus,
-    createTodoTask,
     toggleTodoTask,
-    deleteTodoTask,
 } from '@/lib/actions/todos'
 import {
     getTodoCategories,
@@ -52,56 +21,28 @@ import {
     updateTodoCategory,
     deleteTodoCategory,
 } from '@/lib/actions/todo-categories'
-import type { Todo, TodoCategoryItem, TodoStatus, TodoTask, Priority } from '@/types'
+import { TableView } from '@/components/todos/table-view'
+import { KanbanView } from '@/components/todos/kanban-view'
+import { TodoSidePeek } from '@/components/todos/side-peek'
+import { AddTodoModal } from '@/components/todos/add-todo-modal'
+import type { Todo, TodoCategoryItem, TodoStatus, Priority } from '@/types'
 
-const COLUMNS: { id: TodoStatus; title: string; icon: React.ReactNode; color: string; bgColor: string; borderColor: string; accentColor: string; mobileOrder: string }[] = [
-    {
-        id: 'todo',
-        title: 'To Do',
-        icon: <Circle className="w-4 h-4" />,
-        color: 'text-rose-600 dark:text-rose-400',
-        bgColor: 'bg-rose-50/80 dark:bg-rose-950/20',
-        borderColor: 'border-rose-200 dark:border-rose-800/40',
-        accentColor: 'border-l-rose-400 dark:border-l-rose-500',
-        mobileOrder: 'order-2 md:order-1',
-    },
-    {
-        id: 'in_progress',
-        title: 'In Progress',
-        icon: <Clock className="w-4 h-4" />,
-        color: 'text-fuchsia-600 dark:text-fuchsia-400',
-        bgColor: 'bg-fuchsia-50/80 dark:bg-fuchsia-950/20',
-        borderColor: 'border-fuchsia-200 dark:border-fuchsia-800/40',
-        accentColor: 'border-l-fuchsia-400 dark:border-l-fuchsia-500',
-        mobileOrder: 'order-1 md:order-2',
-    },
-    {
-        id: 'completed',
-        title: 'Completed',
-        icon: <CheckCircle2 className="w-4 h-4" />,
-        color: 'text-emerald-600 dark:text-emerald-400',
-        bgColor: 'bg-emerald-50/80 dark:bg-emerald-950/20',
-        borderColor: 'border-emerald-200 dark:border-emerald-800/40',
-        accentColor: 'border-l-emerald-400 dark:border-l-emerald-500',
-        mobileOrder: 'order-3 md:order-3',
-    },
-]
-
-const priorityColors: Record<Priority, string> = {
-    low: 'bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-300',
-    medium: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-    high: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-}
+type ViewMode = 'table' | 'board'
 
 export default function TodosPage() {
     const [todos, setTodos] = useState<Todo[]>([])
     const [categories, setCategories] = useState<TodoCategoryItem[]>([])
     const [loading, setLoading] = useState(true)
-    const [saving, setSaving] = useState(false)
-    const [showModal, setShowModal] = useState(false)
-    const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
-    const [activeDragId, setActiveDragId] = useState<string | null>(null)
+
+    // View mode
+    const [viewMode, setViewMode] = useState<ViewMode>('board')
+
+    // Side peek state
+    const [peekTodo, setPeekTodo] = useState<Todo | null>(null)
+    const [peekOpen, setPeekOpen] = useState(false)
+
+    // Add modal
+    const [showAddModal, setShowAddModal] = useState(false)
 
     // Category management
     const [showCategoryModal, setShowCategoryModal] = useState(false)
@@ -112,56 +53,37 @@ export default function TodosPage() {
     const [savingCat, setSavingCat] = useState(false)
     const [deletingCatId, setDeletingCatId] = useState<string | null>(null)
 
-    // Filters - Initialize with static defaults to prevent hydration errors
+    // Filters
     const [personFilter, setPersonFilter] = useState<string>('all')
     const [priorityFilter, setPriorityFilter] = useState<string>('all')
     const [categoryFilter, setCategoryFilter] = useState<string>('all')
     const [dueDateFilter, setDueDateFilter] = useState<string>('all')
     const [sortBy, setSortBy] = useState<string>('none')
 
-    // Form state
-    const [formTitle, setFormTitle] = useState('')
-    const [formDescription, setFormDescription] = useState('')
-    const [formPriority, setFormPriority] = useState<Priority>('medium')
-    const [formCategory, setFormCategory] = useState<string>('')
-    const [formDueDate, setFormDueDate] = useState('')
-
-    // Sub-task form
-    const [newTaskTitle, setNewTaskTitle] = useState('')
-    const [addingTask, setAddingTask] = useState(false)
-
-    // DnD sensors
-    const pointerSensor = useSensor(PointerSensor, {
-        activationConstraint: { distance: 8 },
-    })
-    const touchSensor = useSensor(TouchSensor, {
-        activationConstraint: { delay: 200, tolerance: 5 },
-    })
-    const sensors = useSensors(pointerSensor, touchSensor)
-
     useEffect(() => {
         fetchTodos()
         fetchCategories()
-    }, [])
 
-    // Load filters from localStorage after mount (prevents hydration errors)
-    useEffect(() => {
+        // Load view mode & filters from localStorage
         if (typeof window !== 'undefined') {
-            const savedPersonFilter = localStorage.getItem('todos_personFilter')
-            const savedPriorityFilter = localStorage.getItem('todos_priorityFilter')
-            const savedCategoryFilter = localStorage.getItem('todos_categoryFilter')
-            const savedDueDateFilter = localStorage.getItem('todos_dueDateFilter')
-            const savedSortBy = localStorage.getItem('todos_sortBy')
+            const savedView = localStorage.getItem('todos-view-mode')
+            if (savedView === 'table' || savedView === 'board') setViewMode(savedView)
 
-            if (savedPersonFilter) setPersonFilter(savedPersonFilter)
-            if (savedPriorityFilter) setPriorityFilter(savedPriorityFilter)
-            if (savedCategoryFilter) setCategoryFilter(savedCategoryFilter)
-            if (savedDueDateFilter) setDueDateFilter(savedDueDateFilter)
-            if (savedSortBy) setSortBy(savedSortBy)
+            const savedPerson = localStorage.getItem('todos_personFilter')
+            const savedPriority = localStorage.getItem('todos_priorityFilter')
+            const savedCategory = localStorage.getItem('todos_categoryFilter')
+            const savedDueDate = localStorage.getItem('todos_dueDateFilter')
+            const savedSort = localStorage.getItem('todos_sortBy')
+
+            if (savedPerson) setPersonFilter(savedPerson)
+            if (savedPriority) setPriorityFilter(savedPriority)
+            if (savedCategory) setCategoryFilter(savedCategory)
+            if (savedDueDate) setDueDateFilter(savedDueDate)
+            if (savedSort) setSortBy(savedSort)
         }
     }, [])
 
-    // Save filters to localStorage whenever they change
+    // Save filters to localStorage
     useEffect(() => {
         if (typeof window !== 'undefined') {
             localStorage.setItem('todos_personFilter', personFilter)
@@ -171,6 +93,11 @@ export default function TodosPage() {
             localStorage.setItem('todos_sortBy', sortBy)
         }
     }, [personFilter, priorityFilter, categoryFilter, dueDateFilter, sortBy])
+
+    const handleViewChange = (mode: ViewMode) => {
+        setViewMode(mode)
+        localStorage.setItem('todos-view-mode', mode)
+    }
 
     const fetchTodos = async () => {
         try {
@@ -196,22 +123,15 @@ export default function TodosPage() {
     const filteredTodos = useMemo(() => {
         let result = [...todos]
 
-        // Person filter
         if (personFilter !== 'all') {
             result = result.filter((t) => t.profiles?.role === personFilter)
         }
-
-        // Priority filter
         if (priorityFilter !== 'all') {
             result = result.filter((t) => t.priority === priorityFilter)
         }
-
-        // Category filter
         if (categoryFilter !== 'all') {
             result = result.filter((t) => t.category === categoryFilter)
         }
-
-        // Due date filter
         if (dueDateFilter !== 'all') {
             const today = new Date()
             today.setHours(0, 0, 0, 0)
@@ -231,14 +151,13 @@ export default function TodosPage() {
             }
         }
 
-        // Sorting
         if (sortBy !== 'none') {
-            const priorityOrder = { high: 3, medium: 2, low: 1 }
+            const priorityOrder: Record<string, number> = { high: 3, medium: 2, low: 1 }
 
             if (sortBy === 'priority_desc') {
-                result.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+                result.sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))
             } else if (sortBy === 'priority_asc') {
-                result.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+                result.sort((a, b) => (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0))
             } else if (sortBy === 'due_date_asc') {
                 result.sort((a, b) => {
                     if (!a.due_date && !b.due_date) return 0
@@ -259,7 +178,7 @@ export default function TodosPage() {
         return result
     }, [todos, personFilter, priorityFilter, categoryFilter, dueDateFilter, sortBy])
 
-    // Group by status
+    // Group by status (for board view)
     const todosByStatus = useMemo(() => {
         const grouped: Record<TodoStatus, Todo[]> = {
             todo: [],
@@ -283,28 +202,18 @@ export default function TodosPage() {
         (t) => !t.completed && t.due_date && new Date(t.due_date) < new Date(new Date().toDateString())
     ).length
 
-    // Drag handlers
-    const handleDragStart = (event: DragStartEvent) => {
-        setActiveDragId(event.active.id as string)
+    // Callbacks for child components
+    const handleOpenTodo = (todo: Todo) => {
+        const fresh = todos.find((t) => t.id === todo.id) || todo
+        setPeekTodo(fresh)
+        setPeekOpen(true)
     }
 
-    const handleDragEnd = async (event: DragEndEvent) => {
-        const { active, over } = event
-        setActiveDragId(null)
+    const handleOpenAdd = () => {
+        setShowAddModal(true)
+    }
 
-        if (!over) return
-
-        const todoId = active.id as string
-        const newStatus = over.id as TodoStatus
-
-        if (!['todo', 'in_progress', 'completed'].includes(newStatus)) return
-
-        const todo = todos.find((t) => t.id === todoId)
-        if (!todo) return
-
-        const currentStatus = todo.status || 'todo'
-        if (currentStatus === newStatus) return
-
+    const handleStatusChange = async (todoId: string, newStatus: TodoStatus) => {
         // Optimistic update
         setTodos((prev) =>
             prev.map((t) =>
@@ -318,7 +227,6 @@ export default function TodosPage() {
                     : t
             )
         )
-
         try {
             await updateTodoStatus(todoId, newStatus)
         } catch (error) {
@@ -327,121 +235,27 @@ export default function TodosPage() {
         }
     }
 
-    const draggedTodo = activeDragId ? todos.find((t) => t.id === activeDragId) : null
-
-    // Modal handlers
-    const openAddModal = () => {
-        setEditingTodo(null)
-        setFormTitle('')
-        setFormDescription('')
-        setFormPriority('medium')
-        setFormCategory('')
-        setFormDueDate('')
-        setNewTaskTitle('')
-        setShowModal(true)
-    }
-
-    const openEditModal = (todo: Todo) => {
-        setEditingTodo(todo)
-        setFormTitle(todo.title)
-        setFormDescription(todo.description || '')
-        setFormPriority(todo.priority)
-        setFormCategory(todo.category || '')
-        setFormDueDate(todo.due_date || '')
-        setNewTaskTitle('')
-        setShowModal(true)
-    }
-
-    const handleSave = async () => {
-        if (!formTitle.trim()) return
-        setSaving(true)
-
-        const formData = new FormData()
-        formData.set('title', formTitle)
-        formData.set('description', formDescription)
-        formData.set('priority', formPriority)
-        formData.set('category', formCategory)
-        formData.set('due_date', formDueDate)
-
-        try {
-            if (editingTodo) {
-                await updateTodo(editingTodo.id, formData)
-            } else {
-                await createTodo(formData)
-            }
-            await fetchTodos()
-            setShowModal(false)
-            setEditingTodo(null)
-        } catch (error) {
-            console.error('Error saving todo:', error)
-        } finally {
-            setSaving(false)
-        }
-    }
-
-    const handleDelete = async (id: string) => {
-        try {
-            await deleteTodoAction(id)
-            await fetchTodos()
-            setShowDeleteConfirm(null)
-            setShowModal(false)
-        } catch (error) {
-            console.error('Error deleting todo:', error)
-        }
-    }
-
-    // Sub-task handlers
-    const handleAddTask = async () => {
-        if (!editingTodo || !newTaskTitle.trim()) return
-        setAddingTask(true)
-        try {
-            await createTodoTask(editingTodo.id, newTaskTitle.trim())
-            setNewTaskTitle('')
-            await fetchTodos()
-            const updated = (await getTodos()).find((t) => t.id === editingTodo.id)
-            if (updated) setEditingTodo(updated)
-        } catch (error) {
-            console.error('Error adding task:', error)
-        } finally {
-            setAddingTask(false)
-        }
-    }
-
     const handleToggleTask = async (taskId: string, completed: boolean) => {
         try {
             await toggleTodoTask(taskId, completed)
             await fetchTodos()
-            if (editingTodo) {
-                const updated = (await getTodos()).find((t) => t.id === editingTodo.id)
-                if (updated) {
-                    setEditingTodo(updated)
-                    // Auto-move to completed when all sub-tasks done
-                    if (
-                        updated.todo_tasks &&
-                        updated.todo_tasks.length > 0 &&
-                        updated.todo_tasks.every((task) => task.completed) &&
-                        updated.status !== 'completed'
-                    ) {
-                        await updateTodoStatus(updated.id, 'completed')
-                        await fetchTodos()
-                    }
-                }
-            }
         } catch (error) {
             console.error('Error toggling task:', error)
         }
     }
 
-    const handleDeleteTask = async (taskId: string) => {
-        try {
-            await deleteTodoTask(taskId)
-            await fetchTodos()
-            if (editingTodo) {
-                const updated = (await getTodos()).find((t) => t.id === editingTodo.id)
-                if (updated) setEditingTodo(updated)
-            }
-        } catch (error) {
-            console.error('Error deleting task:', error)
+    const handleSidePeekClose = () => {
+        setPeekOpen(false)
+        setTimeout(() => setPeekTodo(null), 300)
+    }
+
+    const handleRefresh = async () => {
+        await fetchTodos()
+        // Update side peek todo with fresh data
+        if (peekTodo) {
+            const freshTodos = await getTodos()
+            const updated = freshTodos.find((t: Todo) => t.id === peekTodo.id)
+            if (updated) setPeekTodo(updated)
         }
     }
 
@@ -461,33 +275,6 @@ export default function TodosPage() {
             setSavingCat(false)
         }
     }
-
-    // Quick status change
-    const handleQuickStatusChange = async (todoId: string, newStatus: TodoStatus) => {
-        setTodos((prev) =>
-            prev.map((t) =>
-                t.id === todoId
-                    ? {
-                        ...t,
-                        status: newStatus,
-                        completed: newStatus === 'completed',
-                        completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
-                    }
-                    : t
-            )
-        )
-        try {
-            await updateTodoStatus(todoId, newStatus)
-        } catch (error) {
-            await fetchTodos()
-        }
-    }
-
-    const isOverdue = (todo: Todo): boolean =>
-        !!(todo.due_date && !todo.completed && new Date(todo.due_date) < new Date(new Date().toDateString()))
-
-    const getCategoryInfo = (category: string | null) =>
-        categories.find((c) => c.name === category)
 
     const hasActiveFilters = personFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all' || dueDateFilter !== 'all' || sortBy !== 'none'
 
@@ -516,9 +303,38 @@ export default function TodosPage() {
                             )}
                         </div>
                     </div>
-                    <Button onClick={openAddModal} className="bg-gradient-to-r from-pink-500 to-fuchsia-500 hover:from-pink-600 hover:to-fuchsia-600 text-white shadow-md shadow-pink-500/20 hover:shadow-pink-500/40 transition-all">
-                        <Plus className="w-4 h-4 mr-2" /> Add Todo
-                    </Button>
+
+                    <div className="flex items-center gap-3">
+                        {/* View Toggle */}
+                        <div className="flex items-center bg-secondary/50 rounded-lg p-0.5">
+                            <button
+                                onClick={() => handleViewChange('table')}
+                                className={cn(
+                                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all',
+                                    viewMode === 'table'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                )}
+                            >
+                                <Table2 className="w-3.5 h-3.5" /> Table
+                            </button>
+                            <button
+                                onClick={() => handleViewChange('board')}
+                                className={cn(
+                                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all',
+                                    viewMode === 'board'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                )}
+                            >
+                                <LayoutGrid className="w-3.5 h-3.5" /> Board
+                            </button>
+                        </div>
+
+                        <Button onClick={handleOpenAdd} className="bg-gradient-to-r from-pink-500 to-fuchsia-500 hover:from-pink-600 hover:to-fuchsia-600 text-white shadow-md shadow-pink-500/20 hover:shadow-pink-500/40 transition-all">
+                            <Plus className="w-4 h-4 mr-2" /> Add Todo
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Filters */}
@@ -608,6 +424,14 @@ export default function TodosPage() {
                             Clear all
                         </button>
                     )}
+
+                    {/* Category Management button */}
+                    <button
+                        onClick={() => setShowCategoryModal(true)}
+                        className="ml-auto px-2.5 py-1 rounded-md border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        Manage Categories
+                    </button>
                 </div>
 
                 {/* Loading */}
@@ -631,298 +455,55 @@ export default function TodosPage() {
                         <p className="text-sm text-muted-foreground mb-4">
                             Create your first todo to get started!
                         </p>
-                        <Button onClick={openAddModal}>
+                        <Button onClick={handleOpenAdd}>
                             <Plus className="w-4 h-4 mr-2" /> Add Todo
                         </Button>
                     </motion.div>
                 )}
 
-                {/* Kanban Board */}
+                {/* Content — Table or Board */}
                 {!loading && todos.length > 0 && (
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCorners}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                    >
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-                            {COLUMNS.map((column) => (
-                                <KanbanColumn
-                                    key={column.id}
-                                    column={column}
-                                    todos={todosByStatus[column.id] || []}
-                                    onEdit={openEditModal}
-                                    onQuickStatusChange={handleQuickStatusChange}
-                                    isOverdue={isOverdue}
-                                    getCategoryInfo={getCategoryInfo}
-                                    onToggleTask={handleToggleTask}
-                                    className={column.mobileOrder}
-                                />
-                            ))}
-                        </div>
-
-                        {/* Drag Overlay */}
-                        <DragOverlay>
-                            {draggedTodo ? (
-                                <div className="bg-card rounded-xl border border-primary/30 shadow-xl p-3 max-w-[320px] opacity-90 rotate-2">
-                                    <p className="text-sm font-medium text-foreground truncate">
-                                        {draggedTodo.title}
-                                    </p>
-                                    <div className="flex items-center gap-1.5 mt-1.5">
-                                        <span
-                                            className={cn(
-                                                'px-1.5 py-0.5 rounded text-[10px] font-semibold',
-                                                priorityColors[draggedTodo.priority]
-                                            )}
-                                        >
-                                            {draggedTodo.priority.toUpperCase()}
-                                        </span>
-                                        {draggedTodo.profiles && (
-                                            <span className="text-[10px] text-muted-foreground">
-                                                {draggedTodo.profiles.role === 'aegg' ? '⭐' : '🌙'}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : null}
-                        </DragOverlay>
-                    </DndContext>
+                    <>
+                        {viewMode === 'table' ? (
+                            <TableView
+                                todos={filteredTodos}
+                                categories={categories}
+                                onOpenTodo={handleOpenTodo}
+                                onOpenAdd={handleOpenAdd}
+                            />
+                        ) : (
+                            <KanbanView
+                                todos={todos}
+                                todosByStatus={todosByStatus}
+                                categories={categories}
+                                onOpenTodo={handleOpenTodo}
+                                onStatusChange={handleStatusChange}
+                                onToggleTask={handleToggleTask}
+                            />
+                        )}
+                    </>
                 )}
             </div>
 
-            {/* Add/Edit Modal */}
-            <AnimatePresence>
-                {showModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-                        onClick={() => setShowModal(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-card rounded-xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-semibold text-foreground">
-                                    {editingTodo ? 'Edit Todo' : 'New Todo'}
-                                </h2>
-                                <button
-                                    onClick={() => setShowModal(false)}
-                                    className="p-1 hover:bg-secondary rounded-lg transition-colors"
-                                >
-                                    <X className="w-5 h-5 text-muted-foreground" />
-                                </button>
-                            </div>
+            {/* Side Peek */}
+            <TodoSidePeek
+                todo={peekTodo}
+                open={peekOpen}
+                categories={categories}
+                onClose={handleSidePeekClose}
+                onRefresh={handleRefresh}
+            />
 
-                            <div className="space-y-4">
-                                {/* Title */}
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">
-                                        Title
-                                    </label>
-                                    <input
-                                        type="text"
-                                        placeholder="What needs to be done?"
-                                        value={formTitle}
-                                        onChange={(e) => setFormTitle(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                                        autoFocus
-                                    />
-                                </div>
-
-                                {/* Description */}
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">
-                                        Description
-                                    </label>
-                                    <textarea
-                                        placeholder="Add details..."
-                                        value={formDescription}
-                                        onChange={(e) => setFormDescription(e.target.value)}
-                                        rows={2}
-                                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                                    />
-                                </div>
-
-                                {/* Priority & Category */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">
-                                            Priority
-                                        </label>
-                                        <select
-                                            value={formPriority}
-                                            onChange={(e) =>
-                                                setFormPriority(e.target.value as Priority)
-                                            }
-                                            className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                                        >
-                                            {Object.entries(PRIORITIES).map(([key, val]) => (
-                                                <option key={key} value={key}>
-                                                    {val.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">
-                                            Category
-                                        </label>
-                                        <div className="flex gap-2">
-                                            <select
-                                                value={formCategory}
-                                                onChange={(e) => {
-                                                    if (e.target.value === '__manage__') {
-                                                        setShowCategoryModal(true)
-                                                    } else {
-                                                        setFormCategory(e.target.value)
-                                                    }
-                                                }}
-                                                className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                                            >
-                                                <option value="">No category</option>
-                                                {categories.map((cat) => (
-                                                    <option key={cat.id} value={cat.name}>
-                                                        {cat.icon ? `${cat.icon} ` : ''}{cat.name}
-                                                    </option>
-                                                ))}
-                                                <option value="__manage__">➕ Manage Categories...</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Due Date */}
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">
-                                        Due Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={formDueDate}
-                                        onChange={(e) => setFormDueDate(e.target.value)}
-                                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                                    />
-                                </div>
-
-                                {/* Sub-tasks (only in edit mode) */}
-                                {editingTodo && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">
-                                            Sub-tasks
-                                        </label>
-                                        <div className="space-y-1.5 mb-2">
-                                            {editingTodo.todo_tasks &&
-                                                editingTodo.todo_tasks.map((task) => (
-                                                    <div
-                                                        key={task.id}
-                                                        className="flex items-center gap-2 group"
-                                                    >
-                                                        <button
-                                                            onClick={() =>
-                                                                handleToggleTask(
-                                                                    task.id,
-                                                                    !task.completed
-                                                                )
-                                                            }
-                                                            className="flex-shrink-0"
-                                                        >
-                                                            {task.completed ? (
-                                                                <CheckSquare className="w-4 h-4 text-green-500" />
-                                                            ) : (
-                                                                <SquareCheck className="w-4 h-4 text-muted-foreground hover:text-primary" />
-                                                            )}
-                                                        </button>
-                                                        <span
-                                                            className={cn(
-                                                                'text-sm flex-1',
-                                                                task.completed &&
-                                                                'line-through text-muted-foreground'
-                                                            )}
-                                                        >
-                                                            {task.title}
-                                                        </span>
-                                                        <button
-                                                            onClick={() =>
-                                                                handleDeleteTask(task.id)
-                                                            }
-                                                            className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all"
-                                                        >
-                                                            <X className="w-3 h-3 text-red-500" />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="text"
-                                                placeholder="Add a sub-task..."
-                                                value={newTaskTitle}
-                                                onChange={(e) => setNewTaskTitle(e.target.value)}
-                                                onKeyDown={(e) =>
-                                                    e.key === 'Enter' && handleAddTask()
-                                                }
-                                                className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                                            />
-                                            <Button
-                                                size="sm"
-                                                onClick={handleAddTask}
-                                                disabled={!newTaskTitle.trim() || addingTask}
-                                            >
-                                                {addingTask ? (
-                                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                                ) : (
-                                                    <Plus className="w-3 h-3" />
-                                                )}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex gap-3 mt-6">
-                                {editingTodo && (
-                                    <Button
-                                        variant="outline"
-                                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                        onClick={() => setShowDeleteConfirm(editingTodo.id)}
-                                    >
-                                        <Trash2 className="w-4 h-4 mr-1" />
-                                        Delete
-                                    </Button>
-                                )}
-                                <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => setShowModal(false)}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    className="flex-1"
-                                    onClick={handleSave}
-                                    disabled={!formTitle.trim() || saving}
-                                >
-                                    {saving ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : editingTodo ? (
-                                        'Save Changes'
-                                    ) : (
-                                        'Create Todo'
-                                    )}
-                                </Button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Add Modal */}
+            <AddTodoModal
+                open={showAddModal}
+                categories={categories}
+                onClose={() => setShowAddModal(false)}
+                onCreated={() => {
+                    fetchTodos()
+                    setShowAddModal(false)
+                }}
+            />
 
             {/* Category Management Modal */}
             <AnimatePresence>
@@ -931,528 +512,170 @@ export default function TodosPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 z-[55] flex items-center justify-center p-4"
-                        onClick={() => { setShowCategoryModal(false); setEditingCat(null) }}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-card rounded-xl p-6 w-full max-w-md shadow-xl max-h-[85vh] overflow-y-auto"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-semibold text-foreground">Manage Categories</h2>
-                                <button
-                                    onClick={() => { setShowCategoryModal(false); setEditingCat(null) }}
-                                    className="p-1 hover:bg-secondary rounded-lg transition-colors"
-                                >
-                                    <X className="w-5 h-5 text-muted-foreground" />
-                                </button>
-                            </div>
-
-                            {/* Existing Categories */}
-                            <div className="space-y-2 mb-4">
-                                {categories.length === 0 && (
-                                    <p className="text-sm text-muted-foreground text-center py-4">No categories yet. Create one below!</p>
-                                )}
-                                {categories.map((cat) => (
-                                    <div key={cat.id} className="flex items-center gap-2 p-2 rounded-lg border border-border hover:bg-secondary/50 transition-colors group">
-                                        {editingCat?.id === cat.id ? (
-                                            /* Edit mode */
-                                            <div className="flex-1 space-y-2">
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        value={editingCat.icon || ''}
-                                                        onChange={(e) => setEditingCat({ ...editingCat, icon: e.target.value })}
-                                                        placeholder="🎮"
-                                                        className="w-12 px-2 py-1 text-center rounded-md border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        value={editingCat.name}
-                                                        onChange={(e) => setEditingCat({ ...editingCat, name: e.target.value })}
-                                                        className="flex-1 px-3 py-1 rounded-md border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {CATEGORY_COLORS.map((c) => (
-                                                        <button
-                                                            key={c.value}
-                                                            onClick={() => setEditingCat({ ...editingCat, color: c.value })}
-                                                            className={cn(
-                                                                'w-6 h-6 rounded-full border-2 transition-all',
-                                                                c.preview,
-                                                                editingCat.color === c.value
-                                                                    ? 'border-foreground scale-110'
-                                                                    : 'border-transparent hover:scale-105'
-                                                            )}
-                                                            title={c.label}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        disabled={!editingCat.name.trim() || savingCat}
-                                                        onClick={async () => {
-                                                            setSavingCat(true)
-                                                            await updateTodoCategory(editingCat.id, {
-                                                                name: editingCat.name,
-                                                                icon: editingCat.icon,
-                                                                color: editingCat.color,
-                                                            })
-                                                            await fetchCategories()
-                                                            await fetchTodos()
-                                                            setEditingCat(null)
-                                                            setSavingCat(false)
-                                                        }}
-                                                        className="flex-1"
-                                                    >
-                                                        {savingCat ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
-                                                    </Button>
-                                                    <Button size="sm" variant="outline" onClick={() => setEditingCat(null)}>
-                                                        Cancel
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            /* Display mode */
-                                            <>
-                                                <span className={cn('px-2 py-0.5 rounded-full text-xs font-semibold', cat.color)}>
-                                                    {cat.icon || '•'} {cat.name}
-                                                </span>
-                                                <div className="flex-1" />
-                                                <button
-                                                    onClick={() => setEditingCat({ ...cat })}
-                                                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-secondary rounded transition-all text-muted-foreground hover:text-foreground"
-                                                    title="Edit"
-                                                >
-                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                    </svg>
-                                                </button>
-                                                {deletingCatId === cat.id ? (
-                                                    <div className="flex items-center gap-1">
-                                                        <button
-                                                            onClick={async () => {
-                                                                await deleteTodoCategory(cat.id)
-                                                                await fetchCategories()
-                                                                await fetchTodos()
-                                                                setDeletingCatId(null)
-                                                            }}
-                                                            className="px-2 py-0.5 text-[10px] font-medium bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                                                        >
-                                                            Delete
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setDeletingCatId(null)}
-                                                            className="px-2 py-0.5 text-[10px] font-medium bg-secondary rounded hover:bg-secondary/80 transition-colors"
-                                                        >
-                                                            No
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => setDeletingCatId(cat.id)}
-                                                        className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                                    </button>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Add New Category */}
-                            <div className="border-t border-border pt-4 space-y-3">
-                                <h3 className="text-sm font-medium text-foreground">Add New Category</h3>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={newCatIcon}
-                                        onChange={(e) => setNewCatIcon(e.target.value)}
-                                        placeholder="🎮"
-                                        className="w-12 px-2 py-2 text-center rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    />
-                                    <input
-                                        type="text"
-                                        value={newCatName}
-                                        onChange={(e) => setNewCatName(e.target.value)}
-                                        placeholder="Category name..."
-                                        className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && newCatName.trim()) {
-                                                handleCreateCategory()
-                                            }
-                                        }}
-                                    />
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {CATEGORY_COLORS.map((c) => (
-                                        <button
-                                            key={c.value}
-                                            onClick={() => setNewCatColor(c.value)}
-                                            className={cn(
-                                                'w-6 h-6 rounded-full border-2 transition-all',
-                                                c.preview,
-                                                newCatColor === c.value
-                                                    ? 'border-foreground scale-110'
-                                                    : 'border-transparent hover:scale-105'
-                                            )}
-                                            title={c.label}
-                                        />
-                                    ))}
-                                </div>
-                                {/* Preview */}
-                                {newCatName.trim() && (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground">Preview:</span>
-                                        <span className={cn('px-2 py-0.5 rounded-full text-xs font-semibold', newCatColor)}>
-                                            {newCatIcon || '•'} {newCatName}
-                                        </span>
-                                    </div>
-                                )}
-                                <Button
-                                    onClick={handleCreateCategory}
-                                    disabled={!newCatName.trim() || savingCat}
-                                    className="w-full"
-                                    size="sm"
-                                >
-                                    {savingCat ? (
-                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                    ) : (
-                                        <Plus className="w-4 h-4 mr-2" />
-                                    )}
-                                    Create Category
-                                </Button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* Delete Confirmation */}
-            <AnimatePresence>
-                {showDeleteConfirm && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
-                        onClick={() => setShowDeleteConfirm(null)}
+                        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+                        onClick={() => setShowCategoryModal(false)}
                     >
                         <motion.div
                             initial={{ scale: 0.95 }}
                             animate={{ scale: 1 }}
                             exit={{ scale: 0.95 }}
-                            className="bg-card rounded-xl p-6 w-full max-w-sm shadow-xl"
+                            className="bg-card rounded-xl shadow-2xl w-full max-w-md border border-border"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-foreground">Delete Todo?</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        This action cannot be undone.
-                                    </p>
-                                </div>
+                            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+                                <h2 className="text-base font-semibold text-foreground">
+                                    Manage Categories
+                                </h2>
+                                <button
+                                    onClick={() => setShowCategoryModal(false)}
+                                    className="p-1 rounded-md hover:bg-secondary transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
-                            <div className="flex gap-3">
-                                <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => setShowDeleteConfirm(null)}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-                                    onClick={() => handleDelete(showDeleteConfirm)}
-                                >
-                                    Delete
-                                </Button>
+
+                            <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+                                {/* Existing categories */}
+                                {categories.length > 0 && (
+                                    <div className="space-y-2">
+                                        {categories.map((cat) => (
+                                            <div
+                                                key={cat.id}
+                                                className="flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary/30 group"
+                                            >
+                                                <span className={cn('px-2 py-0.5 rounded-full text-xs font-semibold', cat.color)}>
+                                                    {cat.icon || '•'} {cat.name}
+                                                </span>
+                                                <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {editingCat?.id === cat.id ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                value={editingCat.name}
+                                                                onChange={(e) =>
+                                                                    setEditingCat({ ...editingCat, name: e.target.value })
+                                                                }
+                                                                className="px-2 py-0.5 rounded border border-border bg-background text-xs w-24"
+                                                            />
+                                                            <button
+                                                                onClick={async () => {
+                                                                    await updateTodoCategory(editingCat.id, {
+                                                                        name: editingCat.name,
+                                                                    })
+                                                                    setEditingCat(null)
+                                                                    await fetchCategories()
+                                                                }}
+                                                                className="text-xs text-primary hover:underline"
+                                                            >
+                                                                Save
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setEditingCat(null)}
+                                                                className="text-xs text-muted-foreground"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => setEditingCat(cat)}
+                                                                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                                                            >
+                                                                <Edit2 className="w-3 h-3" />
+                                                            </button>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    setDeletingCatId(cat.id)
+                                                                    await deleteTodoCategory(cat.id)
+                                                                    setDeletingCatId(null)
+                                                                    await fetchCategories()
+                                                                }}
+                                                                disabled={deletingCatId === cat.id}
+                                                                className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {categories.length === 0 && (
+                                    <p className="text-center text-sm text-muted-foreground py-4">
+                                        No categories yet. Create one below!
+                                    </p>
+                                )}
+
+                                {/* Create new category */}
+                                <div className="border-t border-border pt-4 space-y-3">
+                                    <h3 className="text-sm font-medium text-foreground">
+                                        New Category
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            value={newCatIcon}
+                                            onChange={(e) => setNewCatIcon(e.target.value)}
+                                            placeholder="Icon"
+                                            className="w-14 px-2 py-1.5 rounded-md border border-border bg-background text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        />
+                                        <input
+                                            value={newCatName}
+                                            onChange={(e) => setNewCatName(e.target.value)}
+                                            placeholder="Category name"
+                                            className="flex-1 px-2.5 py-1.5 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleCreateCategory()
+                                            }}
+                                        />
+                                    </div>
+                                    {/* Color picker */}
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {CATEGORY_COLORS.map((c) => (
+                                            <button
+                                                key={c.value}
+                                                onClick={() => setNewCatColor(c.value)}
+                                                className={cn(
+                                                    'w-6 h-6 rounded-full border-2 transition-all',
+                                                    c.preview,
+                                                    newCatColor === c.value
+                                                        ? 'border-foreground scale-110'
+                                                        : 'border-transparent hover:scale-105'
+                                                )}
+                                                title={c.label}
+                                            />
+                                        ))}
+                                    </div>
+                                    {/* Preview */}
+                                    {newCatName.trim() && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-muted-foreground">Preview:</span>
+                                            <span className={cn('px-2 py-0.5 rounded-full text-xs font-semibold', newCatColor)}>
+                                                {newCatIcon || '•'} {newCatName}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <Button
+                                        onClick={handleCreateCategory}
+                                        disabled={!newCatName.trim() || savingCat}
+                                        className="w-full"
+                                        size="sm"
+                                    >
+                                        {savingCat ? (
+                                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        ) : (
+                                            <Plus className="w-4 h-4 mr-2" />
+                                        )}
+                                        Create Category
+                                    </Button>
+                                </div>
                             </div>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
         </>
-    )
-}
-
-// ============== Kanban Column ==============
-
-function KanbanColumn({
-    column,
-    todos,
-    onEdit,
-    onQuickStatusChange,
-    isOverdue,
-    getCategoryInfo,
-    onToggleTask,
-    className,
-}: {
-    column: (typeof COLUMNS)[number]
-    todos: Todo[]
-    onEdit: (todo: Todo) => void
-    onQuickStatusChange: (todoId: string, status: TodoStatus) => void
-    isOverdue: (todo: Todo) => boolean
-    getCategoryInfo: (category: string | null) => TodoCategoryItem | undefined
-    onToggleTask: (taskId: string, completed: boolean) => void
-    className?: string
-}) {
-    const { setNodeRef, isOver } = useDroppable({ id: column.id })
-
-    return (
-        <div
-            ref={setNodeRef}
-            className={cn(
-                'rounded-xl border transition-all duration-200 min-h-[300px] backdrop-blur-[2px]',
-                column.bgColor,
-                column.borderColor,
-                isOver && 'ring-2 ring-primary/40 border-primary/30 scale-[1.01]',
-                className
-            )}
-        >
-            {/* Column Header */}
-            <div className={cn("px-4 py-3 border-b border-black/5 dark:border-white/5")}>
-                <div className="flex items-center gap-2">
-                    <span className={column.color}>{column.icon}</span>
-                    <h3 className="font-bold text-sm md:text-sm text-foreground">{column.title}</h3>
-                    <span className={cn(
-                        "px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm",
-                        column.color,
-                        column.bgColor
-                    )}>
-                        {todos.length}
-                    </span>
-                </div>
-            </div>
-
-            {/* Cards */}
-            <div className="p-2 space-y-2">
-                <AnimatePresence mode="popLayout">
-                    {todos.map((todo) => (
-                        <KanbanCard
-                            key={todo.id}
-                            todo={todo}
-                            columnId={column.id}
-                            onEdit={onEdit}
-                            onQuickStatusChange={onQuickStatusChange}
-                            isOverdue={isOverdue(todo)}
-                            getCategoryInfo={getCategoryInfo}
-                            onToggleTask={onToggleTask}
-                        />
-                    ))}
-                </AnimatePresence>
-
-                {todos.length === 0 && (
-                    <div className="py-8 text-center">
-                        <p className="text-xs text-muted-foreground">
-                            {isOver ? 'Drop here' : 'No items'}
-                        </p>
-                    </div>
-                )}
-            </div>
-        </div>
-    )
-}
-
-// ============== Kanban Card ==============
-
-function KanbanCard({
-    todo,
-    columnId,
-    onEdit,
-    onQuickStatusChange,
-    isOverdue,
-    getCategoryInfo,
-    onToggleTask,
-}: {
-    todo: Todo
-    columnId: TodoStatus
-    onEdit: (todo: Todo) => void
-    onQuickStatusChange: (todoId: string, status: TodoStatus) => void
-    isOverdue: boolean
-    getCategoryInfo: (category: string | null) => TodoCategoryItem | undefined
-    onToggleTask: (taskId: string, completed: boolean) => void
-}) {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-        id: todo.id,
-    })
-
-    const style = transform
-        ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-        : undefined
-
-    const category = getCategoryInfo(todo.category)
-    const tasks = todo.todo_tasks || []
-    const completedTasks = tasks.filter((t) => t.completed).length
-    const showSubTasks = columnId === 'in_progress' && tasks.length > 0
-
-    const nextStatus: TodoStatus | null =
-        columnId === 'todo' ? 'in_progress' : columnId === 'in_progress' ? 'completed' : null
-
-    const column = COLUMNS.find(c => c.id === columnId)
-
-    return (
-        <motion.div
-            ref={setNodeRef}
-            style={style}
-            layout
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: isDragging ? 0.5 : 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
-            className={cn(
-                'bg-card rounded-lg border-l-[3px] border border-border/50 shadow-sm hover:shadow-md transition-all cursor-pointer group',
-                column?.accentColor,
-                isOverdue && 'border-l-red-500 dark:border-l-red-400 bg-red-50/30 dark:bg-red-950/10',
-                isDragging && 'shadow-xl z-50'
-            )}
-        >
-            <div className="p-3">
-                <div className="flex items-start gap-2">
-                    {/* Drag handle */}
-                    <button
-                        {...listeners}
-                        {...attributes}
-                        className="mt-0.5 p-1 rounded hover:bg-secondary cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
-                    >
-                        <GripVertical className="w-4 h-4 md:w-3.5 md:h-3.5 text-muted-foreground/50" />
-                    </button>
-
-                    {/* Card content */}
-                    <div className="flex-1 min-w-0" onClick={() => onEdit(todo)}>
-                        <p
-                            className={cn(
-                                'text-base md:text-sm font-medium leading-tight',
-                                todo.completed
-                                    ? 'line-through text-muted-foreground'
-                                    : 'text-foreground'
-                            )}
-                        >
-                            {todo.title}
-                        </p>
-
-                        {todo.description && (
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                {todo.description}
-                            </p>
-                        )}
-
-                        {/* Metadata */}
-                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                            <span
-                                className={cn(
-                                    'px-2 py-0.5 rounded-full text-[11px] md:text-[10px] font-bold',
-                                    priorityColors[todo.priority]
-                                )}
-                            >
-                                {todo.priority.toUpperCase()}
-                            </span>
-
-                            {category && (
-                                <span
-                                    className={cn(
-                                        'px-2 py-0.5 rounded-full text-[11px] md:text-[10px] font-semibold',
-                                        category.color
-                                    )}
-                                >
-                                    {category.icon || category.name}
-                                </span>
-                            )}
-
-                            {todo.due_date && (
-                                <span
-                                    className={cn(
-                                        'flex items-center gap-0.5 text-[11px] md:text-[10px]',
-                                        isOverdue
-                                            ? 'text-red-500 font-bold'
-                                            : 'text-muted-foreground'
-                                    )}
-                                >
-                                    <Calendar className="w-2.5 h-2.5" />
-                                    {isOverdue
-                                        ? 'Overdue'
-                                        : new Date(todo.due_date).toLocaleDateString('en-US', {
-                                            month: 'short',
-                                            day: 'numeric',
-                                        })}
-                                </span>
-                            )}
-
-                            {tasks.length > 0 && (
-                                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                                    <CheckSquare className="w-2.5 h-2.5" />
-                                    {completedTasks}/{tasks.length}
-                                </span>
-                            )}
-
-                            {todo.profiles && (
-                                <span className="text-[10px] ml-auto">
-                                    {todo.profiles.role === 'aegg' ? '⭐' : '🌙'}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Sub-tasks (visible only in In Progress) */}
-                {showSubTasks && (
-                    <div className="mt-2.5 ml-6 space-y-1 border-t border-border/30 pt-2">
-                        {tasks.map((task) => (
-                            <button
-                                key={task.id}
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    onToggleTask(task.id, !task.completed)
-                                }}
-                                className="flex items-center gap-2 w-full text-left group/task hover:bg-secondary/50 rounded px-1 py-0.5 transition-colors"
-                            >
-                                {task.completed ? (
-                                    <CheckSquare className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                                ) : (
-                                    <SquareCheck className="w-3.5 h-3.5 text-muted-foreground group-hover/task:text-primary flex-shrink-0" />
-                                )}
-                                <span
-                                    className={cn(
-                                        'text-xs',
-                                        task.completed
-                                            ? 'line-through text-muted-foreground'
-                                            : 'text-foreground'
-                                    )}
-                                >
-                                    {task.title}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {/* Quick move button */}
-                {nextStatus && (
-                    <div className="mt-2 ml-6 md:ml-6">
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                onQuickStatusChange(todo.id, nextStatus)
-                            }}
-                            className="flex items-center gap-1 text-xs md:text-[10px] font-medium text-fuchsia-600 dark:text-fuchsia-400 hover:text-fuchsia-700 transition-colors md:opacity-0 md:group-hover:opacity-100"
-                        >
-                            <ArrowRight className="w-3.5 h-3.5 md:w-3 md:h-3" />
-                            Move to {COLUMNS.find((c) => c.id === nextStatus)?.title}
-                        </button>
-                    </div>
-                )}
-            </div>
-        </motion.div>
     )
 }
