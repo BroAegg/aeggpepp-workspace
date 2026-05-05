@@ -5,7 +5,7 @@
 > **Estimated Phases**: 4  
 > **Ref**: User screenshots — Notion "KUMAGEMA HQ" project management (table view, side peek, sub-pages)
 
----
+--- 
 
 ## 📋 Overview
 
