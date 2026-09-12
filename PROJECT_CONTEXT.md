@@ -479,6 +479,13 @@ CREATE TABLE todos (
 - [x] Font loading: switched from CSS `@import` to `next/font/google` (better performance, no FOUT)
 - [x] Tailwind fontFamily uses CSS variable `var(--font-inter)` fallback chain
 
+### Phase 17: Cleanup & Foundation ✅ COMPLETED
+- [x] Deleted 7 unused SQL migration files (fix-database.sql, migration*.sql, setup-avatar-storage.sql)
+- [x] Deleted auto-generated tsconfig.tsbuildinfo
+- [x] Fixed .env.local.example security issue (removed real credentials, replaced with placeholders)
+- [x] Created DEVELOPMENT-ROADMAP.md (grand development plan Phases 18-23)
+- [x] Updated PROJECT_CONTEXT.md with current status
+
 ---
 
 ## 📝 Development Notes
@@ -506,11 +513,12 @@ npm start
 ```
 
 ### Current Status
-- **Date**: February 14, 2026
-- **Phase**: 16 (Mobile UX & Polish) - ✅ COMPLETED
-- **Previous Phases**: Phases 1-16 ✅ ALL COMPLETED
-- **Next Task**: PWA optimization, performance tuning, deploy to Vercel
+- **Date**: September 13, 2026
+- **Phase**: 17 (Cleanup & Foundation) - ✅ COMPLETED
+- **Previous Phases**: Phases 1-17 ✅ ALL COMPLETED
+- **Next Task**: Phase 18 — Telegram Bot + N8N Setup (see DEVELOPMENT-ROADMAP.md)
 - **Dev Server**: Run `npm run dev` → `http://localhost:3000`
+- **Roadmap**: See `DEVELOPMENT-ROADMAP.md` for Phases 18-23
 
 **What's Working:**
 - ✅ Next.js project fully configured
@@ -576,21 +584,24 @@ npm start
 - `updatePassword()` - Change password
 - `getPartnerProfile()` - Get partner's profile info
 
-**Next Steps:**
-1. Deploy to Vercel (connect GitHub repo, set env vars)
-2. Run Supabase SQL migrations (add `tag` column to goals, update RLS policies)
-3. PWA optimization (service worker caching, offline support)
-4. Performance tuning (lazy loading, image optimization with next/image)
-5. Optional: Archived goals column
-6. Optional: Transaction category sync between constants and finance form
-7. Optional: Real-time updates via Supabase Realtime subscriptions
+**Next Steps (see DEVELOPMENT-ROADMAP.md for full details):**
+1. Phase 18: Telegram Bot + N8N Setup (receipt scanner via Telegram)
+2. Phase 19: Receipt OCR Scanner (Gemini API + item parsing)
+3. Phase 20: Financial Health Engine (spending score, alerts)
+4. Phase 21: AI Financial Advisor (Gemini chat, spending insights)
+5. Phase 22: Notifications & Alerts (weekly summary, budget warnings)
+6. Phase 23: Goals Notion-like Overhaul (see GOALS-OVERHAUL-PLAN.md)
+7. Future: PWA optimization, deploy to Vercel, real-time updates
 
 ---
 
 ## 🔗 Related Files
 
+- **Master Capstone & Task Kiblat**: `CAPSTONE_TASKS.md` - **Kiblat utama pengembangan dari awal sampai akhir**
+- **Development Roadmap**: `DEVELOPMENT-ROADMAP.md` - Grand development plan & background research (Phases 18-23)
+- **Goals Overhaul Plan**: `GOALS-OVERHAUL-PLAN.md` - Notion-like goals system plan
+- **Receipts System Schema**: `setup-receipts-system.sql` - Supabase DB migration for Telegram receipt scanner
 - **Old Version (PHP)**: `D:\Peppakuu\Our Project\webb\` - Legacy PHP/MySQL version (reference only)
-- **Supabase Project**: [Setup required - user has account ready]
 
 ---
 
@@ -598,12 +609,13 @@ npm start
 
 Ketika melanjutkan project ini:
 
-1. **Baca file ini dulu** untuk memahami konteks
+1. **BACA `CAPSTONE_TASKS.md` TERLEBIH DAHULU** sebagai kiblat checklist dan status terkini!
 2. **Cek struktur folder** untuk melihat file yang sudah dibuat
-3. **Lanjutkan dari "Next Task"** yang tertulis di Current Status
-4. **Update file ini** setelah menyelesaikan task besar
-5. **Gunakan design system** yang sudah ditentukan (colors, typography)
-6. **Follow project structure** yang sudah direncanakan
+3. **Lanjutkan dari fase yang berstatus `[ ]` di `CAPSTONE_TASKS.md`**
+4. **Update checklist `[x]` di `CAPSTONE_TASKS.md`** setelah menyelesaikan task
+5. **Jalankan `npx tsc --noEmit`** untuk memastikan tidak ada TypeScript error
+6. **Lakukan Git Commit & Push** ke remote repo setiap kali ada pembaruan penting!
+7. **Gunakan design system** yang sudah ditentukan (colors, typography)
 
 ### Code Style
 - TypeScript strict mode
@@ -656,4 +668,4 @@ interface Todo {
 
 ---
 
-*Last Updated: February 14, 2026 (Session: Phases 11-16 — Security, Data Integrity, User Attribution, Feature Completeness, Calendar Holidays, Mobile UX & Polish)*
+*Last Updated: September 13, 2026 (Session: Phase 17 — Cleanup & Foundation, Grand Development Roadmap)*

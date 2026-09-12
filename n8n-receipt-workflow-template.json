@@ -1,0 +1,162 @@
+{
+  "name": "AeggPepp Telegram Receipt & Expense Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Boolean($json.message.photo) }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-is-photo",
+      "name": "Has Photo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "fileId": "={{ $json.message.photo.slice(-1)[0].file_id }}"
+      },
+      "id": "download-photo",
+      "name": "Download Receipt Photo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "prompt": "=Analisis struk belanja ini secara detail. Output HANYA format JSON valid tanpa markdown backticks:\n{\n  \"store\": \"Nama Toko/Merchant\",\n  \"date\": \"YYYY-MM-DD (tanggal transaksi jika tertera, default hari ini)\",\n  \"category\": \"Kategori pengeluaran (Food, Shopping, Transportation, Utilities, Entertainment, Health, Other)\",\n  \"total_amount\": 0,\n  \"items\": [\n    {\n      \"name\": \"Nama barang\",\n      \"quantity\": 1,\n      \"unit_price\": 0,\n      \"total_price\": 0\n    }\n  ]\n}"
+      },
+      "id": "gemini-ocr",
+      "name": "Gemini Vision OCR",
+      "type": "n8n-nodes-base.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        960,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "prompt": "=Ekstrak data pengeluaran dari pesan teks berikut: \"{{ $json.message.text }}\".\nOutput HANYA format JSON valid:\n{\n  \"store\": \"Nama tempat/deskripsi\",\n  \"date\": \"YYYY-MM-DD\",\n  \"category\": \"Food/Transportation/Shopping/Other\",\n  \"total_amount\": 0,\n  \"items\": []\n}"
+      },
+      "id": "gemini-text-parse",
+      "name": "Gemini Text Parser",
+      "type": "n8n-nodes-base.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        720,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=✅ *Pengeluaran Berhasil Dicatat!*\n\n🏪 *Tempat*: {{ $json.store || $json.description }}\n💰 *Total*: Rp {{ Number($json.total_amount).toLocaleString('id-ID') }}\n📂 *Kategori*: {{ $json.category }}\n📅 *Tanggal*: {{ $json.date }}\n\nData sudah otomatis terupdate di AeggPepp Dashboard 🚀",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "telegram-reply",
+      "name": "Send Telegram Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1380,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Has Photo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Photo?": {
+      "main": [
+        [
+          {
+            "node": "Download Receipt Photo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gemini Text Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Receipt Photo": {
+      "main": [
+        [
+          {
+            "node": "Gemini Vision OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Vision OCR": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Text Parser": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

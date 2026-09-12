@@ -13,7 +13,6 @@ import { getTodos } from '@/lib/actions/todos'
 import { getGoals } from '@/lib/actions/goals'
 import { getEvents } from '@/lib/actions/calendar'
 import { cn } from '@/lib/utils'
-import { RamadanWidget } from '@/components/features/ramadan/ramadan-widget'
 
 interface RecentItem {
   id: string
@@ -193,8 +192,6 @@ export default function DashboardPage() {
           </motion.div>
         </section>
 
-        {/* Ramadan Widget */}
-        <RamadanWidget />
 
         {/* 2. Stats Cards */}
         <section className="grid grid-cols-3 gap-3 md:gap-4">

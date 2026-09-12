@@ -14,7 +14,6 @@ const PAGE_NAMES: Record<string, string> = {
   '/wishlist': 'Wishlist',
   '/settings': 'Settings',
   '/portfolio': 'Portfolio',
-  '/ramadan': 'Ramadan',
 }
 
 /**
