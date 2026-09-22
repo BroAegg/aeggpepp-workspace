@@ -156,7 +156,7 @@ Kembalikan HANYA format JSON valid tanpa tanda markdown (blok code json):
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -230,7 +230,7 @@ Kembalikan HANYA format JSON valid tanpa markdown backticks:
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -538,6 +538,12 @@ Bot Pencatatan Keuangan <b>AeggPepp Workspace</b> siap menemani hari-hari kalian
 
     const cleanCategory = CATEGORY_MAP[parsedResult.category.toLowerCase()] || 'other_expense'
 
+    let finalDescription = parsedResult.store || parsedResult.description || 'Pengeluaran'
+    if (parsedResult.items && parsedResult.items.length > 0) {
+      const itemsSummary = parsedResult.items.map(i => `${i.name} (${formatIDR(i.price)})`).join(', ')
+      finalDescription = `${finalDescription} • ${itemsSummary}`
+    }
+
     const { data: newTx, error: insertError } = await supabase
       .from('transactions')
       .insert({
@@ -545,11 +551,11 @@ Bot Pencatatan Keuangan <b>AeggPepp Workspace</b> siap menemani hari-hari kalian
         type: parsedResult.type,
         category: cleanCategory,
         amount: parsedResult.total_amount,
-        description: parsedResult.store || parsedResult.description,
+        description: finalDescription,
         date: parsedResult.date,
         paid_by: userId,
-        is_shared: cleanCategory === 'date' || parsedResult.type === 'expense',
-        receipt_metadata: parsedResult.items && parsedResult.items.length > 0 ? { items: parsedResult.items, via: 'telegram' } : null,
+        is_split: false,
+        is_settled: true,
       })
       .select()
       .single()
@@ -563,18 +569,22 @@ Bot Pencatatan Keuangan <b>AeggPepp Workspace</b> siap menemani hari-hari kalian
     }
 
     // 6. Log to activity_logs
-    await supabase.from('activity_logs').insert({
-      user_id: userId,
-      action: 'add_transaction',
-      entity_type: 'transaction',
-      entity_id: newTx.id,
-      details: {
-        amount: parsedResult.total_amount,
-        category: cleanCategory,
-        description: parsedResult.store,
-        via: 'telegram_bot',
-      },
-    })
+    try {
+      await supabase.from('activity_logs').insert({
+        user_id: userId,
+        action: 'add_transaction',
+        page: 'Finance',
+        metadata: {
+          amount: parsedResult.total_amount,
+          category: cleanCategory,
+          description: parsedResult.store,
+          via: 'telegram_bot',
+          transaction_id: newTx?.id,
+        },
+      })
+    } catch (logErr) {
+      console.error('Failed to log telegram activity:', logErr)
+    }
 
     // 7. Send confirmation to Telegram
     const typeLabel = parsedResult.type === 'income' ? 'Pemasukan 💰' : 'Pengeluaran 💳'

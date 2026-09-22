@@ -26,14 +26,22 @@ import { TableView } from '@/components/todos/table-view'
 import { KanbanView } from '@/components/todos/kanban-view'
 import { TodoSidePeek } from '@/components/todos/side-peek'
 import { AddTodoModal } from '@/components/todos/add-todo-modal'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 import type { Todo, TodoCategoryItem, TodoStatus, Priority } from '@/types'
 
 type ViewMode = 'table' | 'board'
 
 export default function TodosPage() {
-    const [todos, setTodos] = useState<Todo[]>([])
-    const [categories, setCategories] = useState<TodoCategoryItem[]>([])
-    const [loading, setLoading] = useState(true)
+    const {
+        todos: cachedTodos,
+        todoCategories: cachedCategories,
+        todosLoaded,
+        setTodosData,
+    } = useWorkspaceStore()
+
+    const [todos, setTodos] = useState<Todo[]>(cachedTodos)
+    const [categories, setCategories] = useState<TodoCategoryItem[]>(cachedCategories)
+    const [loading, setLoading] = useState(!todosLoaded && cachedTodos.length === 0)
 
     // View mode
     const [viewMode, setViewMode] = useState<ViewMode>('board')
@@ -104,6 +112,7 @@ export default function TodosPage() {
         try {
             const data = await getTodos()
             setTodos(data)
+            setTodosData(data)
         } catch (error) {
             console.error('Error fetching todos:', error)
         } finally {
@@ -115,6 +124,7 @@ export default function TodosPage() {
         try {
             const data = await getTodoCategories()
             setCategories(data)
+            setTodosData(todos, data)
         } catch (error) {
             console.error('Error fetching categories:', error)
         }
@@ -378,8 +388,8 @@ export default function TodosPage() {
                         className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
                         <option value="all">All People</option>
-                        <option value="aegg">⭐ Aegg</option>
-                        <option value="peppaa">🌙 Peppaa</option>
+                        <option value="aegg">Aegg</option>
+                        <option value="peppaa">Peppaa</option>
                     </select>
 
                     <select
@@ -403,7 +413,7 @@ export default function TodosPage() {
                         <option value="all">All Categories</option>
                         {categories.map((cat) => (
                             <option key={cat.id} value={cat.name}>
-                                {cat.icon ? `${cat.icon} ` : ''}{cat.name}
+                                {cat.name}
                             </option>
                         ))}
                     </select>
@@ -414,10 +424,10 @@ export default function TodosPage() {
                         className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
                         <option value="all">All Due Dates</option>
-                        <option value="today">📅 Today</option>
-                        <option value="this_week">📆 This Week</option>
-                        <option value="overdue">⚠️ Overdue</option>
-                        <option value="no_date">— No Date</option>
+                        <option value="today">Today</option>
+                        <option value="this_week">This Week</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="no_date">No Date</option>
                     </select>
 
                     <div className="h-4 w-px bg-border" />
@@ -432,10 +442,10 @@ export default function TodosPage() {
                         className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
                         <option value="none">Default</option>
-                        <option value="priority_desc">⬆️ Priority (High → Low)</option>
-                        <option value="priority_asc">⬇️ Priority (Low → High)</option>
-                        <option value="due_date_asc">📅 Due Date (Nearest)</option>
-                        <option value="due_date_desc">📅 Due Date (Farthest)</option>
+                        <option value="priority_desc">Priority (High to Low)</option>
+                        <option value="priority_asc">Priority (Low to High)</option>
+                        <option value="due_date_asc">Due Date (Nearest)</option>
+                        <option value="due_date_desc">Due Date (Farthest)</option>
                     </select>
 
                     {hasActiveFilters && (

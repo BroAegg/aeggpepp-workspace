@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Transaction, Budget, SavingsAccount, Todo, Goal, CalendarEvent } from '@/types'
+import type { Transaction, Budget, SavingsAccount, Todo, TodoCategoryItem, Goal, CalendarEvent } from '@/types'
 
 interface WorkspaceState {
   // Profile
@@ -21,10 +21,26 @@ interface WorkspaceState {
   removeTransactionOptimistic: (id: string) => void
   invalidateFinance: () => void
 
-  // Dashboard Cache
+  // Todos Cache
   todos: Todo[]
+  todoCategories: TodoCategoryItem[]
+  todosLoaded: boolean
+  setTodosData: (todos: Todo[], categories?: TodoCategoryItem[]) => void
+  invalidateTodos: () => void
+
+  // Goals Cache
   goals: Goal[]
+  goalsLoaded: boolean
+  setGoalsData: (goals: Goal[]) => void
+  invalidateGoals: () => void
+
+  // Calendar Cache
   events: CalendarEvent[]
+  eventsLoaded: boolean
+  setEventsData: (events: CalendarEvent[]) => void
+  invalidateEvents: () => void
+
+  // Dashboard Combined Cache
   dashboardLoaded: boolean
   dashboardLastFetched: number | null
   setDashboardData: (data: {
@@ -75,10 +91,54 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       financeLastFetched: null,
     }),
 
-  // Dashboard
+  // Todos
   todos: [],
+  todoCategories: [],
+  todosLoaded: false,
+
+  setTodosData: (todos, categories) =>
+    set((state) => ({
+      todos,
+      todoCategories: categories !== undefined ? categories : state.todoCategories,
+      todosLoaded: true,
+    })),
+
+  invalidateTodos: () =>
+    set({
+      todosLoaded: false,
+    }),
+
+  // Goals
   goals: [],
+  goalsLoaded: false,
+
+  setGoalsData: (goals) =>
+    set({
+      goals,
+      goalsLoaded: true,
+    }),
+
+  invalidateGoals: () =>
+    set({
+      goalsLoaded: false,
+    }),
+
+  // Calendar
   events: [],
+  eventsLoaded: false,
+
+  setEventsData: (events) =>
+    set({
+      events,
+      eventsLoaded: true,
+    }),
+
+  invalidateEvents: () =>
+    set({
+      eventsLoaded: false,
+    }),
+
+  // Dashboard
   dashboardLoaded: false,
   dashboardLastFetched: null,
 
@@ -87,6 +147,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       todos: data.todos !== undefined ? data.todos : state.todos,
       goals: data.goals !== undefined ? data.goals : state.goals,
       events: data.events !== undefined ? data.events : state.events,
+      todosLoaded: data.todos !== undefined ? true : state.todosLoaded,
+      goalsLoaded: data.goals !== undefined ? true : state.goalsLoaded,
+      eventsLoaded: data.events !== undefined ? true : state.eventsLoaded,
       dashboardLoaded: true,
       dashboardLastFetched: Date.now(),
     })),
@@ -102,6 +165,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     set({
       financeLoaded: false,
       financeLastFetched: null,
+      todosLoaded: false,
+      goalsLoaded: false,
+      eventsLoaded: false,
       dashboardLoaded: false,
       dashboardLastFetched: null,
     }),

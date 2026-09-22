@@ -11,14 +11,16 @@ import { TableView } from '@/components/goals/table-view'
 import { SidePeek } from '@/components/goals/side-peek'
 import { AddGoalModal } from '@/components/goals/add-goal-modal'
 import { SubPageEditor } from '@/components/goals/sub-page-editor'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 import type { Goal, GoalPage } from '@/types'
 
 type GoalStatus = 'backlog' | 'in_progress' | 'completed' | 'archived'
 type ViewMode = 'table' | 'kanban'
 
 export default function GoalsPage() {
-  const [goals, setGoals] = useState<Goal[]>([])
-  const [loading, setLoading] = useState(true)
+  const { goals: cachedGoals, goalsLoaded, setGoalsData } = useWorkspaceStore()
+  const [goals, setGoals] = useState<Goal[]>(cachedGoals)
+  const [loading, setLoading] = useState(!goalsLoaded && cachedGoals.length === 0)
   const [viewMode, setViewMode] = useState<ViewMode>('table')
 
   // Side peek state
@@ -43,6 +45,7 @@ export default function GoalsPage() {
     try {
       const data = await getGoals()
       setGoals(data)
+      setGoalsData(data)
       // Refresh peek goal if open
       if (peekGoal) {
         const updated = data.find(g => g.id === peekGoal.id)

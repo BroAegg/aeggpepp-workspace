@@ -49,16 +49,18 @@ import {
   updateEvent,
   deleteEvent as deleteEventAction,
 } from '@/lib/actions/calendar'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 import type { CalendarEvent, CalendarItem } from '@/types'
 
 // ============== MAIN PAGE ==============
 
 export default function CalendarPage() {
+  const { events: cachedEvents, eventsLoaded, setEventsData } = useWorkspaceStore()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [events, setEvents] = useState<CalendarEvent[]>(cachedEvents)
   const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!eventsLoaded && cachedEvents.length === 0)
   const [saving, setSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
@@ -85,6 +87,7 @@ export default function CalendarPage() {
         getCalendarItems(),
       ])
       setEvents(eventsData)
+      setEventsData(eventsData)
 
       // Post-process items to fix time using browser timezone
       const processedItems = itemsData.map((item) => {
