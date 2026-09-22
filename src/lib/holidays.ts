@@ -93,7 +93,7 @@ const specialDates: Holiday[] = [
   { date: '2027-12-31', name: 'Malam Tahun Baru 🎆', type: 'international' },
 ]
 
-const allHolidays: Holiday[] = [
+export const allHolidays: Holiday[] = [
   ...holidays2025,
   ...holidays2026,
   ...holidays2027,

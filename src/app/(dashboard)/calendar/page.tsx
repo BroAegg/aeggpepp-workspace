@@ -33,6 +33,10 @@ import {
   CalendarDays,
   CircleDot,
   CheckSquare,
+  Globe,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TimePicker } from '@/components/ui/time-picker'
@@ -58,6 +62,8 @@ export default function CalendarPage() {
   const [saving, setSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
+  const [showSyncModal, setShowSyncModal] = useState(false)
+  const [copiedFeed, setCopiedFeed] = useState(false)
 
   // Form state
   const [formTitle, setFormTitle] = useState('')
@@ -284,9 +290,19 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          <Button onClick={() => openAddModal()}>
-            <Plus className="w-4 h-4 mr-2" /> New Event
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowSyncModal(true)}
+              className="flex items-center gap-2 border-primary/20 text-primary hover:bg-primary/5"
+            >
+              <Globe className="w-4 h-4" />
+              <span className="hidden sm:inline">Koneksi</span> Google Calendar
+            </Button>
+            <Button onClick={() => openAddModal()}>
+              <Plus className="w-4 h-4 mr-2" /> New Event
+            </Button>
+          </div>
         </div>
 
         {/* ============ CALENDAR GRID ============ */}
@@ -717,6 +733,125 @@ export default function CalendarPage() {
                   ) : (
                     'Create Event'
                   )}
+                </Button>
+              </div>
+
+              {editingEvent && (
+                <a
+                  href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(formTitle)}&dates=${formStartDate.replace(/-/g, '')}T${formStartTime.replace(':', '')}00/${formStartDate.replace(/-/g, '')}T${formEndTime.replace(':', '')}00&details=${encodeURIComponent(formDescription)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 w-full mt-3 py-2 text-xs font-semibold text-primary hover:underline bg-primary/5 rounded-lg border border-primary/20"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Buka & Simpan Langsung ke Google Calendar Web
+                </a>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ============ GOOGLE CALENDAR SYNC MODAL ============ */}
+        {showSyncModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowSyncModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto space-y-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500">
+                    <Globe className="w-6 h-6" />
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">
+                      Koneksikan ke Google Calendar & Gmail
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Sinkronisasi otomatis semua agenda Aegg & Peppaa
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSyncModal(false)}
+                  className="p-1 hover:bg-secondary rounded-lg transition-colors text-muted-foreground"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 rounded-xl bg-secondary/60 border border-border space-y-2 text-xs">
+                <p className="font-semibold text-foreground">
+                  ✨ Cara Kerja Sinkronisasi Langsung:
+                </p>
+                <p className="text-muted-foreground leading-relaxed">
+                  Kalender ini menyediakan live iCalendar (.ics feed). Setelah ditautkan satu kali di Google Calendar atau Gmail, semua agenda kencan, acara bersama, deadline target (Goals), dan libur nasional RI akan otomatis muncul di kalender HP Android / iPhone kalian berdua tanpa perlu input manual lagi!
+                </p>
+              </div>
+
+              {/* Feed URL Box */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  URL Live Kalender Kalian:
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={typeof window !== 'undefined' ? `${window.location.origin}/api/calendar/feed` : '/api/calendar/feed'}
+                    className="flex-1 text-xs px-3 py-2.5 rounded-xl bg-background border border-border text-foreground font-mono select-all"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        navigator.clipboard.writeText(`${window.location.origin}/api/calendar/feed`)
+                        setCopiedFeed(true)
+                        setTimeout(() => setCopiedFeed(false), 2000)
+                      }
+                    }}
+                    className="flex items-center gap-1.5 flex-shrink-0"
+                  >
+                    {copiedFeed ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-500" />
+                        Tersalin!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        Salin Link
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Steps */}
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p className="font-bold text-foreground">Langkah Menautkan ke Google Calendar (Hanya 1x):</p>
+                <ol className="list-decimal list-inside space-y-1 pl-1">
+                  <li>Buka <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-primary hover:underline font-semibold">calendar.google.com</a> di browser HP/Laptop.</li>
+                  <li>Di menu sebelah kiri, klik tanda <strong>+ (Tambah kalender lain)</strong>.</li>
+                  <li>Pilih <strong>Dari URL (From URL)</strong>.</li>
+                  <li>Tempel (Paste) link yang sudah disalin di atas, lalu klik <strong>Tambahkan kalender</strong>.</li>
+                  <li>Selesai! Google Calendar dan Gmail akan otomatis terhubung selamanya.</li>
+                </ol>
+              </div>
+
+              <div className="pt-2">
+                <Button className="w-full" onClick={() => setShowSyncModal(false)}>
+                  Mengerti & Tutup
                 </Button>
               </div>
             </motion.div>

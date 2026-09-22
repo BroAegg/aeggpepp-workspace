@@ -178,6 +178,11 @@ export function AddGoalModal({ open, defaultStatus = 'backlog', onClose, onCreat
                     className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   >
                     <option value="">No tag</option>
+                    <option value="💍 Pernikahan">💍 Pernikahan</option>
+                    <option value="💑 Pacaran & Kencan">💑 Pacaran & Kencan</option>
+                    <option value="💰 Tabungan Bersama">💰 Tabungan Bersama</option>
+                    <option value="✈️ Liburan Impian">✈️ Liburan Impian</option>
+                    <option value="🏡 Masa Depan">🏡 Masa Depan</option>
                     <option value="Dev">Dev</option>
                     <option value="Design">Design</option>
                     <option value="Finance">Finance</option>

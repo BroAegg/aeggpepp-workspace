@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -8,49 +9,103 @@ import {
     Target,
     CheckSquare,
     Wallet,
-    Plus,
+    Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const navItems = [
-    { title: 'Home', href: '/', icon: Home },
-    { title: 'Calendar', href: '/calendar', icon: Calendar },
-    { title: 'Goals', href: '/goals', icon: Target },
-    { title: 'Todos', href: '/todos', icon: CheckSquare },
-    { title: 'Finance', href: '/finance', icon: Wallet },
-]
+import { QuickExpenseDrawer } from '@/components/features/finance/quick-expense-drawer'
 
 export function MobileBottomNav() {
     const pathname = usePathname()
+    const [quickDrawerOpen, setQuickDrawerOpen] = useState(false)
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
-            <div className="flex items-center justify-around px-1 py-1.5">
-                {navItems.map((item) => {
-                    const isActive = pathname === item.href
-                    const Icon = item.icon
-                    return (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cn(
-                                'flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors min-w-0',
-                                isActive
-                                    ? 'text-primary'
-                                    : 'text-muted-foreground active:text-foreground'
-                            )}
+        <>
+            <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
+                <div className="flex items-center justify-around px-2 py-1.5 relative">
+                    {/* 1. Home */}
+                    <Link
+                        href="/"
+                        className={cn(
+                            'flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors min-w-0 flex-1',
+                            pathname === '/'
+                                ? 'text-primary'
+                                : 'text-muted-foreground active:text-foreground'
+                        )}
+                    >
+                        <Home className={cn('w-5 h-5', pathname === '/' && 'stroke-[2.5]')} />
+                        <span className={cn('text-[10px] font-medium truncate', pathname === '/' && 'font-semibold')}>
+                            Home
+                        </span>
+                    </Link>
+
+                    {/* 2. Calendar */}
+                    <Link
+                        href="/calendar"
+                        className={cn(
+                            'flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors min-w-0 flex-1',
+                            pathname === '/calendar'
+                                ? 'text-primary'
+                                : 'text-muted-foreground active:text-foreground'
+                        )}
+                    >
+                        <Calendar className={cn('w-5 h-5', pathname === '/calendar' && 'stroke-[2.5]')} />
+                        <span className={cn('text-[10px] font-medium truncate', pathname === '/calendar' && 'font-semibold')}>
+                            Kalender
+                        </span>
+                    </Link>
+
+                    {/* 3. Center Elevated Quick Button (Zap) */}
+                    <div className="flex flex-col items-center px-1 -mt-4">
+                        <button
+                            type="button"
+                            onClick={() => setQuickDrawerOpen(true)}
+                            className="flex items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 border-2 border-background active:scale-90 transition-transform"
+                            title="Catat Cepat (5 Detik)"
                         >
-                            <Icon className={cn('w-5 h-5', isActive && 'stroke-[2.5]')} />
-                            <span className={cn(
-                                'text-[10px] font-medium truncate',
-                                isActive && 'font-semibold'
-                            )}>
-                                {item.title}
-                            </span>
-                        </Link>
-                    )
-                })}
-            </div>
-        </nav>
+                            <Zap className="w-6 h-6 fill-current animate-pulse" />
+                        </button>
+                        <span className="text-[9px] font-bold text-primary mt-0.5">Kilat</span>
+                    </div>
+
+                    {/* 4. Todos */}
+                    <Link
+                        href="/todos"
+                        className={cn(
+                            'flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors min-w-0 flex-1',
+                            pathname === '/todos'
+                                ? 'text-primary'
+                                : 'text-muted-foreground active:text-foreground'
+                        )}
+                    >
+                        <CheckSquare className={cn('w-5 h-5', pathname === '/todos' && 'stroke-[2.5]')} />
+                        <span className={cn('text-[10px] font-medium truncate', pathname === '/todos' && 'font-semibold')}>
+                            Todos
+                        </span>
+                    </Link>
+
+                    {/* 5. Finance */}
+                    <Link
+                        href="/finance"
+                        className={cn(
+                            'flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors min-w-0 flex-1',
+                            pathname === '/finance'
+                                ? 'text-primary'
+                                : 'text-muted-foreground active:text-foreground'
+                        )}
+                    >
+                        <Wallet className={cn('w-5 h-5', pathname === '/finance' && 'stroke-[2.5]')} />
+                        <span className={cn('text-[10px] font-medium truncate', pathname === '/finance' && 'font-semibold')}>
+                            Finance
+                        </span>
+                    </Link>
+                </div>
+            </nav>
+
+            {/* Quick Expense Drawer */}
+            <QuickExpenseDrawer
+                isOpen={quickDrawerOpen}
+                onClose={() => setQuickDrawerOpen(false)}
+            />
+        </>
     )
 }

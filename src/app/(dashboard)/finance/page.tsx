@@ -31,6 +31,8 @@ import { LedgerTab } from '@/components/features/finance/ledger-tab'
 import { AnalyticsTab } from '@/components/features/finance/analytics-tab'
 import { BudgetsTab } from '@/components/features/finance/budgets-tab'
 import { RecapTab } from '@/components/features/finance/recap-tab'
+import { GamifiedOverview } from '@/components/features/finance/gamified-overview'
+import { QuickExpenseDrawer } from '@/components/features/finance/quick-expense-drawer'
 
 type TransactionTypeFilter = 'all' | 'income' | 'expense'
 
@@ -94,6 +96,8 @@ export default function FinancePage() {
     // Partner View Stats
     const [viewMode, setViewMode] = useState<'me' | 'partner' | 'combined'>('me')
     const [userProfile, setUserProfile] = useState<{ id: string; role: string; partnerId?: string } | null>(null)
+    const [uiMode, setUiMode] = useState<'gamified' | 'detailed'>('gamified')
+    const [quickExpenseOpen, setQuickExpenseOpen] = useState(false)
 
     const formRef = useRef<HTMLFormElement>(null)
 
@@ -371,6 +375,34 @@ export default function FinancePage() {
                                     Combined
                                 </button>
                             </div>
+
+                            {/* UI Mode Toggle (Mode Santai vs Mode Rinci) */}
+                            {activeTab === 'overview' && (
+                                <div className="flex items-center gap-1 bg-secondary/80 p-1 rounded-full border border-border">
+                                    <button
+                                        onClick={() => setUiMode('gamified')}
+                                        className={cn(
+                                            "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5",
+                                            uiMode === 'gamified'
+                                                ? "bg-background shadow-sm text-primary font-bold ring-1 ring-black/5 dark:ring-white/10"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        🎮 Mode Santai
+                                    </button>
+                                    <button
+                                        onClick={() => setUiMode('detailed')}
+                                        className={cn(
+                                            "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5",
+                                            uiMode === 'detailed'
+                                                ? "bg-background shadow-sm text-primary font-bold ring-1 ring-black/5 dark:ring-white/10"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        📊 Mode Rinci
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {loading && (
@@ -381,6 +413,17 @@ export default function FinancePage() {
 
                         {/* ========== OVERVIEW ========== */}
                         {!loading && activeTab === 'overview' && (
+                            uiMode === 'gamified' ? (
+                                <GamifiedOverview
+                                    transactions={transactions}
+                                    budgets={budgets}
+                                    savings={savings}
+                                    viewMode={viewMode}
+                                    userRole={userProfile?.role}
+                                    onOpenQuickExpense={() => setQuickExpenseOpen(true)}
+                                    onSwitchToAdvanced={() => setUiMode('detailed')}
+                                />
+                            ) : (
                             <div className="space-y-6">
                                 {/* Top Row: Balance + Income/Expense Summary */}
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -605,6 +648,7 @@ export default function FinancePage() {
                                     </div>
                                 )}
                             </div>
+                            )
                         )}
 
                         {/* ========== TRANSACTIONS ========== */}
@@ -1037,6 +1081,13 @@ export default function FinancePage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Quick Expense Drawer */}
+            <QuickExpenseDrawer
+                isOpen={quickExpenseOpen}
+                onClose={() => setQuickExpenseOpen(false)}
+                onSuccess={() => fetchData(userProfile, viewMode)}
+            />
         </>
     )
 }

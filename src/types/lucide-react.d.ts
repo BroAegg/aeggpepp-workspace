@@ -125,6 +125,9 @@ declare module 'lucide-react' {
   // Finance & Shopping
   export const PiggyBank: Icon
   export const ShoppingCart: Icon
+  export const ShoppingBag: Icon
+  export const Utensils: Icon
+  export const ShieldCheck: Icon
   export const Coffee: Icon
   export const Car: Icon
   export const Gamepad2: Icon

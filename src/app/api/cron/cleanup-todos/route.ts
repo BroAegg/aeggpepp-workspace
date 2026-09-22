@@ -19,11 +19,12 @@ export async function GET(request: Request) {
 
         const supabase = createAdminClient()
 
-        // Delete tasks that are marked as 'completed'
-        // This runs weekly on Sunday, so it cleans up the week's completed tasks
+        // Archive tasks that are marked as 'completed'
+        // This runs weekly to move completed tasks to the archive so they don't clutter the active view,
+        // while safely preserving all couple history and memories forever.
         const { count, error } = await supabase
             .from('todos')
-            .delete({ count: 'exact' })
+            .update({ status: 'archived', updated_at: new Date().toISOString() }, { count: 'exact' })
             .eq('status', 'completed')
 
         if (error) {

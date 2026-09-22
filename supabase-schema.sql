@@ -404,7 +404,86 @@ create trigger update_todos_updated_at
   execute function update_updated_at_column();
 
 -- =====================================================
+-- SAVINGS ACCOUNTS TABLE (Wedding Fund, Emergency, etc.)
+-- =====================================================
+create table if not exists savings_accounts (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references profiles(id) on delete cascade not null,
+  name text not null,
+  target_amount decimal(14,2) not null,
+  current_amount decimal(14,2) default 0,
+  color text default '#10B981',
+  icon text default 'PiggyBank',
+  is_shared boolean default false,
+  target_date date,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table savings_accounts enable row level security;
+create policy "Users can view all savings accounts" on savings_accounts for select using ( true );
+create policy "Users can create savings accounts" on savings_accounts for insert with check ( auth.uid() = user_id );
+create policy "Users can update savings accounts" on savings_accounts for update using ( auth.uid() = user_id or is_shared = true );
+create policy "Users can delete own savings accounts" on savings_accounts for delete using ( auth.uid() = user_id );
+
+-- =====================================================
+-- GOAL PAGES (Notion-style rich content per goal)
+-- =====================================================
+create table if not exists goal_pages (
+  id uuid default gen_random_uuid() primary key,
+  goal_id uuid references goals(id) on delete cascade not null unique,
+  content jsonb default '[]'::jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table goal_pages enable row level security;
+create policy "Users can view all goal pages" on goal_pages for select using ( true );
+create policy "Users can insert goal pages" on goal_pages for insert with check ( true );
+create policy "Users can update goal pages" on goal_pages for update using ( true );
+create policy "Users can delete goal pages" on goal_pages for delete using ( true );
+
+-- =====================================================
+-- TODO CATEGORIES TABLE
+-- =====================================================
+create table if not exists todo_categories (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references profiles(id) on delete cascade,
+  name text not null,
+  color text default '#3B82F6',
+  icon text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table todo_categories enable row level security;
+create policy "Users can view all todo categories" on todo_categories for select using ( true );
+create policy "Users can create todo categories" on todo_categories for insert with check ( auth.uid() = user_id );
+create policy "Users can update own todo categories" on todo_categories for update using ( auth.uid() = user_id );
+create policy "Users can delete own todo categories" on todo_categories for delete using ( auth.uid() = user_id );
+
+-- =====================================================
+-- ACTIVITY LOGS TABLE
+-- =====================================================
+create table if not exists activity_logs (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references profiles(id) on delete cascade not null,
+  action text not null,
+  entity_type text not null,
+  entity_id text,
+  details jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table activity_logs enable row level security;
+create policy "Users can view all activity logs" on activity_logs for select using ( true );
+create policy "Users can create activity logs" on activity_logs for insert with check ( auth.uid() = user_id );
+
+-- Extend transactions table with receipts and metadata
+alter table transactions add column if not exists receipt_url text;
+alter table transactions add column if not exists receipt_metadata jsonb;
+alter table transactions add column if not exists payment_method text default 'cash';
+alter table transactions add column if not exists is_shared boolean default false;
+
+-- =====================================================
 -- DONE!
 -- =====================================================
--- All tables, policies, and indexes created successfully!
--- Now create a Storage bucket named 'gallery' for photo uploads.

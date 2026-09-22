@@ -7,6 +7,7 @@ import Link from 'next/link'
 import {
   Calendar, Clock, Plus, ArrowRight, Search,
   Target, CheckSquare, Wallet, Gift, Home,
+  Zap, Heart, Sparkles,
 } from 'lucide-react'
 import { getUser } from '@/lib/actions/auth'
 import { getTodos } from '@/lib/actions/todos'
@@ -192,6 +193,49 @@ export default function DashboardPage() {
           </motion.div>
         </section>
 
+        {/* 1.5 Relationship & Pre-Wedding Banner */}
+        <motion.section
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.05 }}
+          className="bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-primary/10 border border-pink-500/20 rounded-2xl p-5 shadow-sm"
+        >
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-2xl flex-shrink-0 animate-pulse">
+                💍
+              </div>
+              <div>
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <h3 className="text-base font-bold text-foreground">
+                    Aegg ⭐ & Peppaa 🌙
+                  </h3>
+                  <span className="text-[10px] font-bold bg-pink-500/20 text-pink-600 dark:text-pink-400 px-2 py-0.5 rounded-full">
+                    Pacaran Menuju Pelaminan 💖
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Setiap hari melangkah bersama membangun masa depan sampai hari tua
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/goals"
+                className="px-3.5 py-1.5 rounded-xl bg-card border border-border text-xs font-semibold hover:border-pink-500/40 text-foreground transition-all shadow-sm"
+              >
+                🎯 Target Nikah
+              </Link>
+              <Link
+                href="/finance"
+                className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-all shadow-sm flex items-center gap-1.5"
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                Catat Keuangan
+              </Link>
+            </div>
+          </div>
+        </motion.section>
 
         {/* 2. Stats Cards */}
         <section className="grid grid-cols-3 gap-3 md:gap-4">

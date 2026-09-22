@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "prompt": "=Analisis struk belanja ini secara detail. Output HANYA format JSON valid tanpa markdown backticks:\n{\n  \"store\": \"Nama Toko/Merchant\",\n  \"date\": \"YYYY-MM-DD (tanggal transaksi jika tertera, default hari ini)\",\n  \"category\": \"Kategori pengeluaran (Food, Shopping, Transportation, Utilities, Entertainment, Health, Other)\",\n  \"total_amount\": 0,\n  \"items\": [\n    {\n      \"name\": \"Nama barang\",\n      \"quantity\": 1,\n      \"unit_price\": 0,\n      \"total_price\": 0\n    }\n  ]\n}"
+        "prompt": "=Analisis struk belanja fisik Indonesia ini secara detail. Output HANYA format JSON valid tanpa backticks markdown:\n{\n  \"store\": \"Nama Toko/Merchant/Restoran\",\n  \"date\": \"YYYY-MM-DD (tanggal tertera, jika tidak ada isi hari ini)\",\n  \"category\": \"food/transport/shopping/date/bills/health/other\",\n  \"total_amount\": 0,\n  \"items\": [\n    {\n      \"name\": \"Nama barang\",\n      \"quantity\": 1,\n      \"unit_price\": 0,\n      \"total_price\": 0\n    }\n  ]\n}"
       },
       "id": "gemini-ocr",
       "name": "Gemini Vision OCR",
@@ -66,21 +66,51 @@
     },
     {
       "parameters": {
-        "prompt": "=Ekstrak data pengeluaran dari pesan teks berikut: \"{{ $json.message.text }}\".\nOutput HANYA format JSON valid:\n{\n  \"store\": \"Nama tempat/deskripsi\",\n  \"date\": \"YYYY-MM-DD\",\n  \"category\": \"Food/Transportation/Shopping/Other\",\n  \"total_amount\": 0,\n  \"items\": []\n}"
+        "prompt": "=Ekstrak data pengeluaran dari pesan teks santai Indonesia berikut: \"{{ $json.message.text }}\". Contoh input: 'kopi kenangan 28rb', 'makan siang soto 35k', 'bensin 50000'. Output HANYA format JSON valid tanpa backticks:\n{\n  \"store\": \"Nama tempat/deskripsi pengeluaran\",\n  \"date\": \"YYYY-MM-DD (default hari ini)\",\n  \"category\": \"food/transport/shopping/date/bills/health/other\",\n  \"total_amount\": 0,\n  \"items\": []\n}"
       },
       "id": "gemini-text-parse",
       "name": "Gemini Text Parser",
       "type": "n8n-nodes-base.googleGemini",
       "typeVersion": 1,
       "position": [
-        720,
+        960,
         420
       ]
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_AEGGPEPP_DOMAIN/api/webhooks/telegram-expense",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "YOUR_TELEGRAM_WEBHOOK_SECRET"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"store\": \"{{ $json.store || 'Pengeluaran Telegram' }}\",\n  \"total_amount\": {{ $json.total_amount || 0 }},\n  \"category\": \"{{ $json.category || 'other' }}\",\n  \"date\": \"{{ $json.date }}\",\n  \"items\": {{ JSON.stringify($json.items || []) }},\n  \"sender_name\": \"{{ $('Telegram Trigger').item.json.message.from.first_name }}\",\n  \"telegram_user_id\": \"{{ $('Telegram Trigger').item.json.message.from.id }}\"\n}"
+      },
+      "id": "post-to-app-webhook",
+      "name": "Post to AeggPepp Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1220,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
-        "text": "=✅ *Pengeluaran Berhasil Dicatat!*\n\n🏪 *Tempat*: {{ $json.store || $json.description }}\n💰 *Total*: Rp {{ Number($json.total_amount).toLocaleString('id-ID') }}\n📂 *Kategori*: {{ $json.category }}\n📅 *Tanggal*: {{ $json.date }}\n\nData sudah otomatis terupdate di AeggPepp Dashboard 🚀",
+        "text": "=✅ *Pengeluaran Berhasil Dicatat!*\n\n🏪 *Tempat*: {{ $json.data.store }}\n💰 *Total*: Rp {{ Number($json.data.amount).toLocaleString('id-ID') }}\n📂 *Kategori*: {{ $json.data.category }}\n👤 *Pencatat*: {{ $json.data.recorded_for }}\n📅 *Tanggal*: {{ $json.data.date }}\n\nData sudah otomatis sinkron ke Dashboard AeggPepp 🚀",
         "additionalFields": {
           "parse_mode": "Markdown"
         }
@@ -90,7 +120,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1380,
+        1460,
         300
       ]
     }
@@ -140,7 +170,7 @@
       "main": [
         [
           {
-            "node": "Send Telegram Confirmation",
+            "node": "Post to AeggPepp Webhook",
             "type": "main",
             "index": 0
           }
@@ -148,6 +178,17 @@
       ]
     },
     "Gemini Text Parser": {
+      "main": [
+        [
+          {
+            "node": "Post to AeggPepp Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to AeggPepp Webhook": {
       "main": [
         [
           {
