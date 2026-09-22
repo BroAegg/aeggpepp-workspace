@@ -68,7 +68,7 @@ export async function GET(request: Request) {
           ? dtStart
           : formatIcsDate(new Date(new Date(ev.start_date).getTime() + 3600000).toISOString())
 
-        const ownerRole = ev.profiles?.role === 'peppaa' ? '🌙 Peppaa' : '⭐ Aegg'
+        const ownerRole = ev.profiles?.role === 'peppaa' ? 'Peppaa' : 'Aegg'
 
         lines.push(
           'BEGIN:VEVENT',
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
     if (goals && goals.length > 0) {
       for (const g of goals) {
         const dueDate = formatIcsDate(g.due_date, true)
-        const ownerRole = g.profiles?.role === 'peppaa' ? '🌙 Peppaa' : '⭐ Aegg'
+        const ownerRole = g.profiles?.role === 'peppaa' ? 'Peppaa' : 'Aegg'
 
         lines.push(
           'BEGIN:VEVENT',
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
           `DTSTAMP:${nowIcs}`,
           `DTSTART;VALUE=DATE:${dueDate}`,
           `DTEND;VALUE=DATE:${dueDate}`,
-          `SUMMARY:${escapeIcsText(`🎯 Target: [${ownerRole}] ${g.title}`)}`,
+          `SUMMARY:${escapeIcsText(`[${ownerRole}] Target: ${g.title}`)}`,
           `DESCRIPTION:${escapeIcsText(g.description || 'Target AeggPepp Workspace')}`,
           'STATUS:CONFIRMED',
           'END:VEVENT'

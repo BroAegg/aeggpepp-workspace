@@ -20,6 +20,7 @@ import {
   GripVertical, ArrowRight, CheckSquare, SquareCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 import type { Todo, TodoCategoryItem, TodoStatus, Priority } from '@/types'
 
 const COLUMNS: {
@@ -169,9 +170,7 @@ export function KanbanView({
                 {draggedTodo.priority.toUpperCase()}
               </span>
               {draggedTodo.profiles && (
-                <span className="text-[10px] text-muted-foreground">
-                  {draggedTodo.profiles.role === 'aegg' ? '⭐' : '🌙'}
-                </span>
+                <OwnerBadge role={draggedTodo.profiles.role} compact />
               )}
             </div>
           </div>
@@ -393,9 +392,9 @@ function KanbanCard({
               )}
 
               {todo.profiles && (
-                <span className="text-[10px] ml-auto">
-                  {todo.profiles.role === 'aegg' ? '⭐' : '🌙'}
-                </span>
+                <div className="ml-auto">
+                  <OwnerBadge role={todo.profiles.role} compact />
+                </div>
               )}
             </div>
           </div>

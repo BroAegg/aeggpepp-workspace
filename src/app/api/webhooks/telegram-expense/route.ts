@@ -761,9 +761,9 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
       return NextResponse.json({ ok: true })
     }
 
-    // 6. Handle /event or "event:" or "jadwal:" (Create calendar event)
-    if (text.startsWith('/event ') || lowerText.startsWith('event:') || lowerText.startsWith('jadwal:')) {
-      const rawEventText = text.replace(/^\/event\s+|^event:\s*|^jadwal:\s*/i, '').trim()
+    // 6. Handle /event or /jadwal or "event:" or "jadwal:" (Create calendar event)
+    if (text.startsWith('/event ') || text.startsWith('/jadwal ') || text.startsWith('/agenda ') || lowerText.startsWith('event:') || lowerText.startsWith('jadwal:')) {
+      const rawEventText = text.replace(/^\/(event|jadwal|agenda)\s+|^event:\s*|^jadwal:\s*/i, '').trim()
       if (rawEventText && userId) {
         let parsedEv: ParsedEvent | null = null
         if (geminiKey) {
@@ -814,21 +814,31 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
       const noteContent = text.replace(/^\/note\s+|^note:\s*|^catatan:\s*/i, '').trim()
       if (noteContent && userId) {
         try {
+          // 1. Log to activity_logs
           await supabase.from('activity_logs').insert({
             user_id: userId,
-            action: 'add_note',
-            page: 'Notes',
-            metadata: {
+            action: 'create_note',
+            entity_type: 'note',
+            details: {
               content: noteContent,
               author: displayName,
-              created_at: new Date().toISOString(),
             },
+          })
+
+          // 2. Also save to todos as memo so it appears in workspace
+          await supabase.from('todos').insert({
+            user_id: userId,
+            title: `📝 ${noteContent}`,
+            category: 'other',
+            completed: false,
+            status: 'todo',
+            priority: 'medium',
           })
         } catch (logErr) {
           console.error('Failed to log note:', logErr)
         }
 
-        const noteMsg = `📝 <b>Catatan Berhasil Disimpan!</b>\n\n"<i>${noteContent}</i>"\n\n• <b>Penulis:</b> ${displayName}\n<i>Tersimpan aman di AeggPepp Workspace.</i>`
+        const noteMsg = `📝 <b>Catatan Berhasil Disimpan!</b>\n\n"<i>${noteContent}</i>"\n\n• <b>Penulis:</b> ${displayName}\n<i>Tersimpan dan dapat diakses di AeggPepp Workspace.</i>`
         if (botToken && chatId) await sendTelegramMessage(chatId, noteMsg, botToken)
         return NextResponse.json({ ok: true })
       }

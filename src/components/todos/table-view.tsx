@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TODO_STATUSES, PRIORITIES } from '@/lib/constants'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 import type { Todo, TodoCategoryItem, TodoStatus, Priority } from '@/types'
 
 type SortField = 'title' | 'status' | 'priority' | 'category' | 'due_date' | 'created_at'
@@ -232,11 +233,9 @@ export function TableView({ todos, categories, onOpenTodo, onOpenAdd }: TableVie
                 </div>
 
                 {/* Owner */}
-                <div className="text-right">
+                <div className="flex justify-end">
                   {todo.profiles ? (
-                    <span className="text-sm">
-                      {todo.profiles.role === 'aegg' ? '⭐' : '🌙'}
-                    </span>
+                    <OwnerBadge role={todo.profiles.role} compact />
                   ) : (
                     <span className="text-xs text-muted-foreground/50">—</span>
                   )}

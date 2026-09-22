@@ -50,6 +50,7 @@ import {
   deleteEvent as deleteEventAction,
 } from '@/lib/actions/calendar'
 import { useWorkspaceStore } from '@/stores/workspace-store'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 import type { CalendarEvent, CalendarItem } from '@/types'
 
 // ============== MAIN PAGE ==============
@@ -876,7 +877,6 @@ function ScheduleItem({
   onEditEvent?: () => void
   compact?: boolean
 }) {
-  const ownerEmoji = item.owner.role === 'aegg' ? '⭐' : item.owner.role === 'peppaa' ? '🌙' : '👤'
 
   const typeIcon =
     item.type === 'event' ? (
@@ -950,19 +950,8 @@ function ScheduleItem({
             </p>
           </div>
 
-          {/* Badge (Right or Bottom) */}
-          <div
-            className={cn(
-              'flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium w-fit sm:ml-0',
-              item.owner.role === 'aegg'
-                ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-                : item.owner.role === 'peppaa'
-                  ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
-                  : 'bg-secondary text-muted-foreground'
-            )}
-          >
-            {ownerEmoji} {item.owner.display_name?.split(' ')[0] || 'User'}
-          </div>
+          {/* Badge */}
+          <OwnerBadge role={item.owner.role} compact={compact} className="flex-shrink-0" />
         </div>
 
         {!compact && item.description && (

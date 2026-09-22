@@ -10,7 +10,6 @@ import {
   Target,
   CheckSquare,
   Image,
-  Briefcase,
   Gift,
   Wallet,
   Settings,
@@ -35,14 +34,13 @@ const mainNavItems: NavItem[] = [
   { title: 'Dashboard', href: '/', icon: Home },
   { title: 'Calendar', href: '/calendar', icon: Calendar },
   { title: 'Goals', href: '/goals', icon: Target },
-  { title: 'Tasks', href: '/todos', icon: CheckSquare },
+  { title: 'Tasks & Belanja', href: '/todos', icon: CheckSquare },
 ]
 
 const recordNavItems: NavItem[] = [
   { title: 'Finance', href: '/finance', icon: Wallet },
   { title: 'Wishlist', href: '/wishlist', icon: Gift },
   { title: 'Gallery', href: '/gallery', icon: Image },
-  { title: 'Portfolio', href: '/portfolio', icon: Briefcase },
 ]
 
 function NavLink({
@@ -198,7 +196,7 @@ export function Sidebar() {
           <div className="space-y-0.5 pt-2">
             {!isCollapsed && (
               <p className="px-2 mb-1.5 text-[10px] font-semibold text-sidebar-muted uppercase tracking-wider">
-                Finance & Records
+                Finance & Memories
               </p>
             )}
             {recordNavItems.map((item) => (

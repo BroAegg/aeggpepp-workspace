@@ -45,6 +45,7 @@ import {
   Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 
 export default function SettingsPage() {
   // Profile state
@@ -388,12 +389,12 @@ export default function SettingsPage() {
                       />
                     ) : (
                       <div className={cn(
-                        "w-20 h-20 rounded-full flex items-center justify-center text-2xl font bold",
+                        "w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold border",
                         role === 'aegg' 
-                          ? 'bg-primary-100 dark:bg-primary-900/30' 
-                          : 'bg-pink-100 dark:bg-pink-900/30'
+                          ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/25' 
+                          : 'bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-500/25'
                       )}>
-                        {role === 'aegg' ? '⭐' : '🌙'}
+                        {displayName?.charAt(0).toUpperCase() || (role === 'aegg' ? 'A' : 'P')}
                       </div>
                     )}
                     {(avatarUrl || avatarPreview) && (
@@ -499,10 +500,10 @@ export default function SettingsPage() {
                         : 'border-border hover:border-primary/50 hover:bg-secondary/50'
                     )}
                   >
-                    <span className="text-2xl">⭐</span>
+                    <span className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm shrink-0">A</span>
                     <div className="text-left">
                       <p className="text-sm font-semibold text-foreground">Aegg</p>
-                      <p className="text-xs text-muted-foreground">Fullstack Engineer</p>
+                      <p className="text-xs text-muted-foreground">Workspace Partner</p>
                     </div>
                   </button>
                   <button
@@ -515,10 +516,10 @@ export default function SettingsPage() {
                         : 'border-border hover:border-pink-300 hover:bg-secondary/50'
                     )}
                   >
-                    <span className="text-2xl">🌙</span>
+                    <span className="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold text-sm shrink-0">P</span>
                     <div className="text-left">
                       <p className="text-sm font-semibold text-foreground">Peppaa</p>
-                      <p className="text-xs text-muted-foreground">PM Game Developer</p>
+                      <p className="text-xs text-muted-foreground">Workspace Partner</p>
                     </div>
                   </button>
                 </div>
@@ -551,12 +552,12 @@ export default function SettingsPage() {
             {partner ? (
               <div className="flex items-center gap-4 p-4 bg-secondary/50 rounded-xl">
                 <div className={cn(
-                  'w-12 h-12 rounded-full flex items-center justify-center text-2xl',
+                  'w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border',
                   partner.role === 'aegg'
-                    ? 'bg-primary-100 dark:bg-primary-900/30'
-                    : 'bg-pink-100 dark:bg-pink-900/30'
+                    ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/25'
+                    : 'bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-500/25'
                 )}>
-                  {partner.role === 'aegg' ? '⭐' : '🌙'}
+                  {partner.display_name?.charAt(0).toUpperCase() || (partner.role === 'aegg' ? 'A' : 'P')}
                 </div>
                 <div>
                   <p className="font-semibold text-foreground">{partner.display_name}</p>
@@ -763,8 +764,7 @@ export default function SettingsPage() {
                       )}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">{isAegg ? '⭐' : '🌙'}</span>
-                        <span className="font-semibold text-sm text-foreground">{stats.name}</span>
+                        <OwnerBadge role={isAegg ? 'aegg' : 'peppaa'} />
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div>
@@ -886,31 +886,14 @@ export default function SettingsPage() {
                         </p>
                         {/* Mobile: show user & time inline */}
                         <div className="flex items-center gap-2 md:hidden mt-0.5">
-                          <span className={cn(
-                            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium',
-                            isAegg
-                              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-                              : 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
-                          )}>
-                            {isAegg ? '⭐' : '🌙'} {logProfile?.display_name || 'Unknown'}
-                          </span>
+                          <OwnerBadge role={isAegg ? 'aegg' : 'peppaa'} compact />
                           <span className="text-[10px] text-muted-foreground">{timeStr}</span>
                         </div>
                       </div>
 
                       {/* User (desktop) */}
                       <div className="hidden md:flex items-center gap-1.5">
-                        <div className={cn(
-                          'w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0',
-                          isAegg
-                            ? 'bg-primary-100 dark:bg-primary-900/30'
-                            : 'bg-pink-100 dark:bg-pink-900/30'
-                        )}>
-                          {isAegg ? '⭐' : '🌙'}
-                        </div>
-                        <span className="text-xs text-foreground truncate">
-                          {logProfile?.display_name || 'Unknown'}
-                        </span>
+                        <OwnerBadge role={isAegg ? 'aegg' : 'peppaa'} />
                       </div>
 
                       {/* Time (desktop) */}

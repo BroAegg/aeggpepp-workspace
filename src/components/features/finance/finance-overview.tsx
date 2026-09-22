@@ -18,8 +18,9 @@ import {
 } from 'lucide-react'
 import type { Transaction, Budget, SavingsAccount } from '@/types'
 import { cn } from '@/lib/utils'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 
-interface GamifiedOverviewProps {
+interface FinanceOverviewProps {
   transactions: Transaction[]
   budgets: Budget[]
   savings: SavingsAccount[]
@@ -29,7 +30,7 @@ interface GamifiedOverviewProps {
   userRole?: string
 }
 
-export function GamifiedOverview({
+export function FinanceOverview({
   transactions,
   budgets,
   savings,
@@ -37,7 +38,7 @@ export function GamifiedOverview({
   onOpenQuickExpense,
   onSwitchToAdvanced,
   userRole = 'aegg',
-}: GamifiedOverviewProps) {
+}: FinanceOverviewProps) {
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -356,7 +357,6 @@ export function GamifiedOverview({
           ) : (
             stats.recentExpenses.map((tx) => {
               const role = (tx as any).profiles?.role || 'aegg'
-              const isPeppaa = role === 'peppaa'
               return (
                 <div
                   key={tx.id}
@@ -373,16 +373,7 @@ export function GamifiedOverview({
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                         <span>{tx.date}</span>
                         <span>•</span>
-                        <span
-                          className={cn(
-                            'font-medium px-1.5 py-0.2 rounded',
-                            isPeppaa
-                              ? 'bg-primary/10 text-primary'
-                              : 'bg-secondary text-foreground'
-                          )}
-                        >
-                          {isPeppaa ? 'Peppaa' : 'Aegg'}
-                        </span>
+                        <OwnerBadge role={role} compact />
                       </div>
                     </div>
                   </div>
@@ -398,3 +389,7 @@ export function GamifiedOverview({
     </div>
   )
 }
+
+// Backwards compatibility alias
+export const GamifiedOverview = FinanceOverview
+export type { FinanceOverviewProps as GamifiedOverviewProps }

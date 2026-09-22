@@ -17,6 +17,7 @@ import {
   toggleTodoTask,
   deleteTodoTask,
 } from '@/lib/actions/todos'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 import type { Todo, TodoCategoryItem, TodoStatus, Priority } from '@/types'
 
 const statusIcons: Record<TodoStatus, React.ReactNode> = {
@@ -266,11 +267,9 @@ export function TodoSidePeek({ todo, open, categories, onClose, onRefresh }: Sid
 
                     {/* Owner (read-only) */}
                     <span className="text-xs text-muted-foreground">Owner</span>
-                    <div className="text-sm">
+                    <div>
                       {todo.profiles ? (
-                        <span>
-                          {todo.profiles.role === 'aegg' ? '⭐ Aegg' : '🌙 Peppaa'}
-                        </span>
+                        <OwnerBadge role={todo.profiles.role} />
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}

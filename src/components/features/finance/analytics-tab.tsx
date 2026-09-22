@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { BarChart3, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Crown } from 'lucide-react'
+import { BarChart3, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Crown, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TRANSACTION_CATEGORIES } from '@/lib/constants'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 import type { Transaction } from '@/types'
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -294,22 +295,25 @@ export function AnalyticsTab({ transactions, formatCurrency, formatShort }: Anal
 
                     {/* Person Comparison */}
                     <div className="bg-card border border-border rounded-xl p-5">
-                        <h4 className="text-sm font-semibold text-foreground mb-3">👥 Perbandingan Pengeluaran</h4>
+                        <div className="flex items-center gap-2 mb-3">
+                            <Users className="w-4 h-4 text-primary" />
+                            <h4 className="text-sm font-semibold text-foreground">Perbandingan Pengeluaran</h4>
+                        </div>
                         {personComparison.total > 0 ? (
                             <div className="space-y-3">
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-sm text-foreground">⭐ Aegg</span>
-                                        <span className="text-sm font-medium text-foreground">{formatCurrency(personComparison.aegg)} ({personComparison.aeggPct.toFixed(0)}%)</span>
+                                        <OwnerBadge role="aegg" />
+                                        <span className="text-xs font-semibold text-foreground tabular-nums">{formatCurrency(personComparison.aegg)} ({personComparison.aeggPct.toFixed(0)}%)</span>
                                     </div>
                                     <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                                        <motion.div initial={{ width: 0 }} animate={{ width: `${personComparison.aeggPct}%` }} className="h-full bg-blue-500 rounded-full" transition={{ duration: 0.5 }} />
+                                        <motion.div initial={{ width: 0 }} animate={{ width: `${personComparison.aeggPct}%` }} className="h-full bg-teal-500 rounded-full" transition={{ duration: 0.5 }} />
                                     </div>
                                 </div>
                                 <div>
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-sm text-foreground">🌙 Peppaa</span>
-                                        <span className="text-sm font-medium text-foreground">{formatCurrency(personComparison.peppaa)} ({personComparison.peppaaPct.toFixed(0)}%)</span>
+                                        <OwnerBadge role="peppaa" />
+                                        <span className="text-xs font-semibold text-foreground tabular-nums">{formatCurrency(personComparison.peppaa)} ({personComparison.peppaaPct.toFixed(0)}%)</span>
                                     </div>
                                     <div className="h-2 bg-secondary rounded-full overflow-hidden">
                                         <motion.div initial={{ width: 0 }} animate={{ width: `${personComparison.peppaaPct}%` }} className="h-full bg-pink-500 rounded-full" transition={{ duration: 0.5 }} />

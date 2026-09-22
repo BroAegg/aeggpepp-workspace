@@ -46,7 +46,8 @@ const RecapTab = dynamic(() => import('@/components/features/finance/recap-tab')
     ssr: false,
 })
 
-import { GamifiedOverview } from '@/components/features/finance/gamified-overview'
+import { FinanceOverview } from '@/components/features/finance/finance-overview'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 import { QuickExpenseDrawer } from '@/components/features/finance/quick-expense-drawer'
 
 import { useWorkspaceStore } from '@/stores/workspace-store'
@@ -426,7 +427,7 @@ export default function FinancePage() {
                         {/* ========== OVERVIEW (UNIFIED & INTUITIVE) ========== */}
                         {!loading && activeTab === 'overview' && (
                             <div className="space-y-8">
-                                <GamifiedOverview
+                                <FinanceOverview
                                     transactions={transactions}
                                     budgets={budgets}
                                     savings={savings}
@@ -717,7 +718,7 @@ export default function FinancePage() {
                                                                     <><span>·</span><span className="text-primary font-medium"><Tag className="w-2.5 h-2.5 inline mr-0.5" />{transaction.sub_title}</span></>
                                                                 )}
                                                                 {(transaction as any).profiles && (
-                                                                    <><span>·</span><span>{(transaction as any).profiles.role === 'aegg' ? '⭐' : '🌙'}</span></>
+                                                                    <><span>·</span><OwnerBadge role={(transaction as any).profiles.role} compact /></>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -817,7 +818,9 @@ export default function FinancePage() {
                                                 </div>
                                                 <p className="text-2xl font-bold text-foreground mb-4">{formatCurrency(account.balance)}</p>
                                                 {account.profiles && (
-                                                    <p className="text-xs text-muted-foreground mb-3">{account.profiles.role === 'aegg' ? '⭐' : '🌙'} {account.profiles.display_name}</p>
+                                                    <div className="mb-3">
+                                                        <OwnerBadge role={account.profiles.role} />
+                                                    </div>
                                                 )}
                                                 <div className="flex gap-2">
                                                     <Button size="sm" className="flex-1" onClick={() => { setSelectedSavingsAccount(account); setSavingsTxType('deposit'); setModalType('savings_tx'); setShowModal(true) }}>

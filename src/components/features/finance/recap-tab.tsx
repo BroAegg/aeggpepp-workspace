@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { TRANSACTION_CATEGORIES } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { bulkCreateTransactions, type BulkTransactionItem } from '@/lib/actions/finance'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 import type { Transaction } from '@/types'
 
 interface RecapTabProps {
@@ -435,10 +436,10 @@ export function RecapTab({ transactions, formatCurrency, onRefresh }: RecapTabPr
                                                                             <span>·</span>
                                                                             <span className="capitalize">{catInfo?.label || t.category}</span>
                                                                             {(t as any).profiles && (
-                                                                                <><span>·</span><span>{(t as any).profiles.role === 'aegg' ? '⭐' : '🌙'}</span></>
+                                                                                <><span>·</span><OwnerBadge role={(t as any).profiles.role} compact /></>
                                                                             )}
                                                                             {t.receipt_url && (
-                                                                                <><span>·</span><span className="text-blue-500">📄</span></>
+                                                                                <><span>·</span><Receipt className="w-3 h-3 text-blue-500 inline" /></>
                                                                             )}
                                                                         </div>
                                                                     </div>

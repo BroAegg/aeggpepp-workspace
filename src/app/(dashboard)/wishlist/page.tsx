@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, ExternalLink, Edit2, Trash2, Check, ShoppingCart, Gift, Sparkles, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getWishlistItems, createWishlistItem, updateWishlistItem, deleteWishlistItem, toggleWishlistPurchased } from '@/lib/actions/wishlist'
+import { OwnerBadge } from '@/components/ui/owner-badge'
 import type { WishlistItem } from '@/types'
 
 type Priority = 'all' | 'high' | 'medium' | 'low'
@@ -97,9 +98,9 @@ export default function WishlistPage() {
   }
 
   const priorityColors = {
-    high: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-    medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
-    low: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+    high: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20',
+    medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+    low: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
   }
 
   return (
@@ -250,14 +251,11 @@ export default function WishlistPage() {
                 {/* Content */}
                 <div className="p-4">
                   {/* User Badge */}
-                  <div className={cn(
-                    "inline-block px-2 py-0.5 rounded-full text-xs font-medium mb-2",
-                    (item.profiles?.role) === 'aegg'
-                      ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
-                      : "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
-                  )}>
-                    {(item.profiles?.role) === 'aegg' ? '⭐ Aegg' : '🌙 Peppaa'}
-                  </div>
+                  {item.profiles?.role && (
+                    <div className="mb-2">
+                      <OwnerBadge role={item.profiles.role} />
+                    </div>
+                  )}
 
                   <h3 className="font-semibold text-foreground mb-1 line-clamp-1">{item.title}</h3>
                   <p className="text-xl font-bold text-primary">
@@ -425,9 +423,9 @@ export default function WishlistPage() {
                     defaultValue={editingItem?.priority || 'medium'}
                     className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   >
-                    <option value="high">🔴 High</option>
-                    <option value="medium">🟡 Medium</option>
-                    <option value="low">🟢 Low</option>
+                    <option value="high">Tinggi (High)</option>
+                    <option value="medium">Sedang (Medium)</option>
+                    <option value="low">Rendah (Low)</option>
                   </select>
                 </div>
                 <input type="hidden" name="is_shared" value="true" />
