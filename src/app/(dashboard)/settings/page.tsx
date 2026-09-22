@@ -43,8 +43,11 @@ import {
   Clock,
   Flame,
   Calendar,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { resetAllDataAction } from '@/lib/actions/system'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 
 export default function SettingsPage() {
   // Profile state
@@ -84,6 +87,31 @@ export default function SettingsPage() {
   const [activityOffset, setActivityOffset] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const ACTIVITY_LIMIT = 20
+
+  // Reset Data state
+  const [resetting, setResetting] = useState(false)
+  const [resetConfirm, setResetConfirm] = useState(false)
+
+  const handleResetAllData = async () => {
+    if (!resetConfirm) {
+      setResetConfirm(true)
+      return
+    }
+    setResetting(true)
+    try {
+      await resetAllDataAction()
+      useWorkspaceStore.getState().invalidateAll()
+      if (typeof window !== 'undefined') {
+        localStorage.clear()
+        window.location.href = '/'
+      }
+    } catch (err: any) {
+      console.error('Reset error:', err)
+      alert('Gagal mereset data: ' + (err?.message || err))
+    } finally {
+      setResetting(false)
+    }
+  }
 
   useEffect(() => {
     loadData()
@@ -948,6 +976,53 @@ export default function SettingsPage() {
                 </p>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone: Reset Semua Data */}
+        <Card className="border-red-300/80 dark:border-red-900/50 bg-red-50/15 dark:bg-red-950/10">
+          <CardHeader>
+            <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2 text-base">
+              <Trash2 className="w-4 h-4" /> Zona Berbahaya: Reset Semua Data
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Mengosongkan seluruh data transaksi, tabungan, tugas, target, dan acara kalender. Akun login Aegg &amp; Peppaa tetap aman.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <p className="text-xs text-muted-foreground">
+                {resetConfirm
+                  ? '⚠️ Klik sekali lagi tombol merah di samping untuk konfirmasi penghapusan permanen.'
+                  : 'Gunakan tombol ini jika ingin membersihkan seluruh data uji coba dan mulai mencatat dari nol.'}
+              </p>
+              <div className="flex items-center gap-2 shrink-0">
+                {resetConfirm && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setResetConfirm(false)}
+                    disabled={resetting}
+                  >
+                    Batal
+                  </Button>
+                )}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={handleResetAllData}
+                  disabled={resetting}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {resetting ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  )}
+                  {resetConfirm ? 'Ya, Hapus Semua Data Sekarang' : 'Kosongkan Semua Data'}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
