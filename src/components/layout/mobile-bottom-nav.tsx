@@ -10,6 +10,7 @@ import {
     CheckSquare,
     Wallet,
     Zap,
+    Plus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { QuickExpenseDrawer } from '@/components/features/finance/quick-expense-drawer'
@@ -54,17 +55,17 @@ export function MobileBottomNav() {
                         </span>
                     </Link>
 
-                    {/* 3. Center Elevated Quick Button (Zap) */}
+                    {/* 3. Center Elevated Quick Button */}
                     <div className="flex flex-col items-center px-1 -mt-4">
                         <button
                             type="button"
                             onClick={() => setQuickDrawerOpen(true)}
-                            className="flex items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 border-2 border-background active:scale-90 transition-transform"
-                            title="Catat Cepat (5 Detik)"
+                            className="flex items-center justify-center w-11 h-11 rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/25 border-2 border-background active:scale-95 transition-transform"
+                            title="Catat Pengeluaran"
                         >
-                            <Zap className="w-6 h-6 fill-current animate-pulse" />
+                            <Plus className="w-5 h-5 stroke-[2.5]" />
                         </button>
-                        <span className="text-[9px] font-bold text-primary mt-0.5">Kilat</span>
+                        <span className="text-[9px] font-semibold text-primary mt-0.5">Catat</span>
                     </div>
 
                     {/* 4. Todos */}

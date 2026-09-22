@@ -19,15 +19,22 @@ create table if not exists profiles (
 -- Enable RLS
 alter table profiles enable row level security;
 
+-- Ensure Telegram integration columns exist
+alter table profiles add column if not exists telegram_chat_id text;
+alter table profiles add column if not exists telegram_username text;
+
 -- Policies for profiles
+drop policy if exists "Public profiles are viewable by everyone" on profiles;
 create policy "Public profiles are viewable by everyone"
   on profiles for select
   using ( true );
 
+drop policy if exists "Anyone can insert profile during signup" on profiles;
 create policy "Anyone can insert profile during signup"
   on profiles for insert
   with check ( true );
 
+drop policy if exists "Users can update own profile" on profiles;
 create policy "Users can update own profile"
   on profiles for update
   using ( auth.uid() = id );
@@ -51,18 +58,22 @@ create table if not exists events (
 alter table events enable row level security;
 
 -- Policies for events
+drop policy if exists "Users can view all events" on events;
 create policy "Users can view all events"
   on events for select
   using ( true );
 
+drop policy if exists "Users can create their own events" on events;
 create policy "Users can create their own events"
   on events for insert
   with check ( auth.uid() = user_id );
 
+drop policy if exists "Users can update their own events" on events;
 create policy "Users can update their own events"
   on events for update
   using ( auth.uid() = user_id );
 
+drop policy if exists "Users can delete their own events" on events;
 create policy "Users can delete their own events"
   on events for delete
   using ( auth.uid() = user_id );
@@ -87,18 +98,22 @@ create table if not exists goals (
 alter table goals enable row level security;
 
 -- Policies for goals
+drop policy if exists "Users can view all goals" on goals;
 create policy "Users can view all goals"
   on goals for select
   using ( true );
 
+drop policy if exists "Users can create their own goals" on goals;
 create policy "Users can create their own goals"
   on goals for insert
   with check ( auth.uid() = user_id );
 
+drop policy if exists "Users can update their own goals" on goals;
 create policy "Users can update their own goals"
   on goals for update
   using ( auth.uid() = user_id );
 
+drop policy if exists "Users can delete their own goals" on goals;
 create policy "Users can delete their own goals"
   on goals for delete
   using ( auth.uid() = user_id );
@@ -118,6 +133,7 @@ create table if not exists goal_tasks (
 alter table goal_tasks enable row level security;
 
 -- Policies for goal_tasks (inherit from parent goal)
+drop policy if exists "Users can view goal tasks" on goal_tasks;
 create policy "Users can view goal tasks"
   on goal_tasks for select
   using ( 
@@ -127,6 +143,7 @@ create policy "Users can view goal tasks"
     )
   );
 
+drop policy if exists "Users can create goal tasks for their goals" on goal_tasks;
 create policy "Users can create goal tasks for their goals"
   on goal_tasks for insert
   with check (
@@ -137,6 +154,7 @@ create policy "Users can create goal tasks for their goals"
     )
   );
 
+drop policy if exists "Users can update goal tasks for their goals" on goal_tasks;
 create policy "Users can update goal tasks for their goals"
   on goal_tasks for update
   using (
@@ -147,6 +165,7 @@ create policy "Users can update goal tasks for their goals"
     )
   );
 
+drop policy if exists "Users can delete goal tasks for their goals" on goal_tasks;
 create policy "Users can delete goal tasks for their goals"
   on goal_tasks for delete
   using (
@@ -173,18 +192,22 @@ create table if not exists gallery (
 alter table gallery enable row level security;
 
 -- Policies for gallery
+drop policy if exists "Users can view all gallery items" on gallery;
 create policy "Users can view all gallery items"
   on gallery for select
   using ( true );
 
+drop policy if exists "Users can upload their own photos" on gallery;
 create policy "Users can upload their own photos"
   on gallery for insert
   with check ( auth.uid() = user_id );
 
+drop policy if exists "Users can update their own photos" on gallery;
 create policy "Users can update their own photos"
   on gallery for update
   using ( auth.uid() = user_id );
 
+drop policy if exists "Users can delete their own photos" on gallery;
 create policy "Users can delete their own photos"
   on gallery for delete
   using ( auth.uid() = user_id );
@@ -207,18 +230,22 @@ create table if not exists portfolio_links (
 alter table portfolio_links enable row level security;
 
 -- Policies for portfolio_links
+drop policy if exists "Users can view all portfolio links" on portfolio_links;
 create policy "Users can view all portfolio links"
   on portfolio_links for select
   using ( true );
 
+drop policy if exists "Users can create their own links" on portfolio_links;
 create policy "Users can create their own links"
   on portfolio_links for insert
   with check ( auth.uid() = user_id );
 
+drop policy if exists "Users can update their own links" on portfolio_links;
 create policy "Users can update their own links"
   on portfolio_links for update
   using ( auth.uid() = user_id );
 
+drop policy if exists "Users can delete their own links" on portfolio_links;
 create policy "Users can delete their own links"
   on portfolio_links for delete
   using ( auth.uid() = user_id );
@@ -240,22 +267,30 @@ create table if not exists wishlist (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Ensure columns exist
+alter table wishlist add column if not exists is_shared boolean default true;
+alter table wishlist add column if not exists is_purchased boolean default false;
+
 -- Enable RLS
 alter table wishlist enable row level security;
 
 -- Policies for wishlist (can view shared items + own items)
+drop policy if exists "Users can view shared and own wishlist items" on wishlist;
 create policy "Users can view shared and own wishlist items"
   on wishlist for select
   using ( is_shared = true or auth.uid() = user_id );
 
+drop policy if exists "Users can create their own wishlist items" on wishlist;
 create policy "Users can create their own wishlist items"
   on wishlist for insert
   with check ( auth.uid() = user_id );
 
+drop policy if exists "Users can update their own wishlist items" on wishlist;
 create policy "Users can update their own wishlist items"
   on wishlist for update
   using ( auth.uid() = user_id or is_shared = true );
 
+drop policy if exists "Users can delete their own wishlist items" on wishlist;
 create policy "Users can delete their own wishlist items"
   on wishlist for delete
   using ( auth.uid() = user_id );
@@ -274,22 +309,37 @@ create table if not exists transactions (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Ensure all transaction columns exist if table was previously created
+alter table transactions add column if not exists sub_title text;
+alter table transactions add column if not exists is_split boolean default false;
+alter table transactions add column if not exists split_with text;
+alter table transactions add column if not exists paid_by uuid references profiles(id);
+alter table transactions add column if not exists is_settled boolean default false;
+alter table transactions add column if not exists receipt_url text;
+alter table transactions add column if not exists receipt_metadata jsonb;
+alter table transactions add column if not exists payment_method text default 'cash';
+alter table transactions add column if not exists is_shared boolean default false;
+
 -- Enable RLS
 alter table transactions enable row level security;
 
 -- Policies for transactions
+drop policy if exists "Users can view all transactions" on transactions;
 create policy "Users can view all transactions"
   on transactions for select
   using ( true );
 
+drop policy if exists "Users can create their own transactions" on transactions;
 create policy "Users can create their own transactions"
   on transactions for insert
   with check ( auth.uid() = user_id );
 
+drop policy if exists "Users can update their own transactions" on transactions;
 create policy "Users can update their own transactions"
   on transactions for update
   using ( auth.uid() = user_id );
 
+drop policy if exists "Users can delete their own transactions" on transactions;
 create policy "Users can delete their own transactions"
   on transactions for delete
   using ( auth.uid() = user_id );
@@ -310,18 +360,22 @@ create table if not exists budgets (
 alter table budgets enable row level security;
 
 -- Policies for budgets
+drop policy if exists "Users can view all budgets" on budgets;
 create policy "Users can view all budgets"
   on budgets for select
   using ( true );
 
+drop policy if exists "Users can create their own budgets" on budgets;
 create policy "Users can create their own budgets"
   on budgets for insert
   with check ( auth.uid() = user_id );
 
+drop policy if exists "Users can update their own budgets" on budgets;
 create policy "Users can update their own budgets"
   on budgets for update
   using ( auth.uid() = user_id );
 
+drop policy if exists "Users can delete their own budgets" on budgets;
 create policy "Users can delete their own budgets"
   on budgets for delete
   using ( auth.uid() = user_id );
@@ -347,18 +401,22 @@ create table if not exists todos (
 alter table todos enable row level security;
 
 -- Policies for todos
+drop policy if exists "Users can view all todos" on todos;
 create policy "Users can view all todos"
   on todos for select
   using ( true );
 
+drop policy if exists "Users can create their own todos" on todos;
 create policy "Users can create their own todos"
   on todos for insert
   with check ( auth.uid() = user_id );
 
+drop policy if exists "Users can update their own todos" on todos;
 create policy "Users can update their own todos"
   on todos for update
   using ( auth.uid() = user_id );
 
+drop policy if exists "Users can delete their own todos" on todos;
 create policy "Users can delete their own todos"
   on todos for delete
   using ( auth.uid() = user_id );
@@ -457,9 +515,13 @@ create table if not exists goal_pages (
 );
 
 alter table goal_pages enable row level security;
+drop policy if exists "Users can view all goal pages" on goal_pages;
 create policy "Users can view all goal pages" on goal_pages for select using ( true );
+drop policy if exists "Users can insert goal pages" on goal_pages;
 create policy "Users can insert goal pages" on goal_pages for insert with check ( true );
+drop policy if exists "Users can update goal pages" on goal_pages;
 create policy "Users can update goal pages" on goal_pages for update using ( true );
+drop policy if exists "Users can delete goal pages" on goal_pages;
 create policy "Users can delete goal pages" on goal_pages for delete using ( true );
 
 -- =====================================================
@@ -475,9 +537,13 @@ create table if not exists todo_categories (
 );
 
 alter table todo_categories enable row level security;
+drop policy if exists "Users can view all todo categories" on todo_categories;
 create policy "Users can view all todo categories" on todo_categories for select using ( true );
+drop policy if exists "Users can create todo categories" on todo_categories;
 create policy "Users can create todo categories" on todo_categories for insert with check ( auth.uid() = user_id );
+drop policy if exists "Users can update own todo categories" on todo_categories;
 create policy "Users can update own todo categories" on todo_categories for update using ( auth.uid() = user_id );
+drop policy if exists "Users can delete own todo categories" on todo_categories;
 create policy "Users can delete own todo categories" on todo_categories for delete using ( auth.uid() = user_id );
 
 -- =====================================================
@@ -494,7 +560,9 @@ create table if not exists activity_logs (
 );
 
 alter table activity_logs enable row level security;
+drop policy if exists "Users can view all activity logs" on activity_logs;
 create policy "Users can view all activity logs" on activity_logs for select using ( true );
+drop policy if exists "Users can create activity logs" on activity_logs;
 create policy "Users can create activity logs" on activity_logs for insert with check ( auth.uid() = user_id );
 
 -- Extend transactions table with receipts and metadata

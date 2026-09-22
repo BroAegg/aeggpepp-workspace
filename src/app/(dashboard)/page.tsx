@@ -15,6 +15,8 @@ import { getGoals } from '@/lib/actions/goals'
 import { getEvents } from '@/lib/actions/calendar'
 import { cn } from '@/lib/utils'
 
+import { useWorkspaceStore } from '@/stores/workspace-store'
+
 interface RecentItem {
   id: string
   title: string
@@ -29,22 +31,35 @@ interface RecentItem {
 }
 
 export default function DashboardPage() {
-  const [profile, setProfile] = useState<any>(null)
+  const {
+    todos: cachedTodos,
+    goals: cachedGoals,
+    events: cachedEvents,
+    dashboardLoaded,
+    setDashboardData,
+    profile: cachedProfile,
+    setProfile: setStoreProfile,
+  } = useWorkspaceStore()
+
+  const [profile, setProfile] = useState<any>(cachedProfile)
   const [greeting, setGreeting] = useState('')
   const [recentItems, setRecentItems] = useState<RecentItem[]>([])
 
   const [stats, setStats] = useState({
-    activeTodos: 0,
-    upcomingEvents: 0,
-    activeGoals: 0,
+    activeTodos: cachedTodos.filter(t => !t.completed).length,
+    upcomingEvents: cachedEvents.filter(e => new Date(e.start_date) >= new Date()).length,
+    activeGoals: cachedGoals.filter(g => g.status === 'in_progress').length,
   })
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!dashboardLoaded)
 
   useEffect(() => {
     // 1. Fetch User Profile
     getUser()
       .then((data) => {
-        if (data) setProfile(data)
+        if (data) {
+          setProfile(data)
+          setStoreProfile(data)
+        }
       })
       .catch((err) => console.error('Error fetching user:', err))
 
@@ -85,6 +100,7 @@ export default function DashboardPage() {
       const activeGoals = goals.filter(g => g.status === 'in_progress').length
 
       setStats({ activeTodos, upcomingEvents, activeGoals })
+      setDashboardData({ todos, goals, events })
 
       // Build recent items from real data
       const items: RecentItem[] = []
@@ -174,63 +190,43 @@ export default function DashboardPage() {
       <Header title="Home" icon={Home} />
 
       <div className="p-6 md:p-12 max-w-5xl mx-auto space-y-12">
-        {/* 1. Hero Greeting */}
-        <section className="text-center space-y-4 pt-4 md:pt-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-2"
-          >
-            <div className="text-5xl md:text-7xl mb-2">
-              {greeting === 'Good Night' ? '🌙' : greeting === 'Good Morning' ? '🌅' : '☀️'}
-            </div>
-            <h1 className="text-3xl md:text-6xl font-bold text-foreground font-sans tracking-tight">
-              {greeting}
-            </h1>
-            <p className="text-lg md:text-2xl text-muted-foreground font-medium">
-              {profile?.display_name || '...'}
-            </p>
-          </motion.div>
-        </section>
-
-        {/* 1.5 Relationship & Pre-Wedding Banner */}
+        {/* 1. Header Overview Banner */}
         <motion.section
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.05 }}
-          className="bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-primary/10 border border-pink-500/20 rounded-2xl p-5 shadow-sm"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-card border border-border rounded-xl p-6 shadow-xs space-y-4"
         >
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-2xl flex-shrink-0 animate-pulse">
-                💍
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                  AeggPepp Workspace
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
               </div>
-              <div>
-                <div className="flex items-center justify-center sm:justify-start gap-2">
-                  <h3 className="text-base font-bold text-foreground">
-                    Aegg ⭐ & Peppaa 🌙
-                  </h3>
-                  <span className="text-[10px] font-bold bg-pink-500/20 text-pink-600 dark:text-pink-400 px-2 py-0.5 rounded-full">
-                    Pacaran Menuju Pelaminan 💖
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Setiap hari melangkah bersama membangun masa depan sampai hari tua
-                </p>
-              </div>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
+                {greeting}, {profile?.display_name || 'Aegg & Peppaa'}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Ringkasan agenda, target pernikahan, dan keuangan bersama hari ini.
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2.5">
               <Link
                 href="/goals"
-                className="px-3.5 py-1.5 rounded-xl bg-card border border-border text-xs font-semibold hover:border-pink-500/40 text-foreground transition-all shadow-sm"
+                className="px-3.5 py-2 rounded-lg bg-secondary text-foreground text-xs font-semibold hover:bg-secondary/80 border border-border transition-colors flex items-center gap-1.5"
               >
-                🎯 Target Nikah
+                <Target className="w-3.5 h-3.5" />
+                Target Bersama
               </Link>
               <Link
                 href="/finance"
-                className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-all shadow-sm flex items-center gap-1.5"
+                className="px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-xs"
               >
-                <Zap className="w-3.5 h-3.5 fill-current" />
+                <Plus className="w-3.5 h-3.5" />
                 Catat Keuangan
               </Link>
             </div>

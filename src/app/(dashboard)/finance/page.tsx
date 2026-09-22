@@ -34,6 +34,8 @@ import { RecapTab } from '@/components/features/finance/recap-tab'
 import { GamifiedOverview } from '@/components/features/finance/gamified-overview'
 import { QuickExpenseDrawer } from '@/components/features/finance/quick-expense-drawer'
 
+import { useWorkspaceStore } from '@/stores/workspace-store'
+
 type TransactionTypeFilter = 'all' | 'income' | 'expense'
 
 const categoryIcons: Record<string, any> = {
@@ -41,25 +43,25 @@ const categoryIcons: Record<string, any> = {
     investment: TrendingUp, gift: Heart, other_income: DollarSign,
     food: Coffee, daily_needs: Building2, shopping: ShoppingCart, transport: Car,
     clothing: ShoppingCart, treatment: Droplets, sedekah: HandHeart, gift_giving: Gift,
-    vacation: MapPin, entertainment: Gamepad2, bills: Receipt,
+    vacation: MapPin, entertainment: Activity, bills: Receipt,
     utilities: Zap, internet: Globe, health: Activity, vehicle: Settings,
     furniture: SofaIcon, education: BookOpen, saving: PiggyBank, ewallet: Smartphone,
     date: Heart, other_expense: Receipt, other: Receipt,
 }
 
-const CHART_COLORS = ['#ff7dda', '#a855f7', '#3b82f6', '#22c55e', '#eab308', '#f97316', '#ef4444', '#64748b']
+const CHART_COLORS = ['#e11d48', '#f43f5e', '#fb7185', '#38bdf8', '#34d399', '#fbbf24', '#a78bfa', '#94a3b8']
 
 const BANK_OPTIONS = [
-    { code: 'cash', label: '💵 Cash', icon: '💵' },
-    { code: 'bca', label: '🏦 BCA', icon: '🏦' },
-    { code: 'bni', label: '🏦 BNI', icon: '🏦' },
-    { code: 'bri', label: '🏦 BRI', icon: '🏦' },
-    { code: 'mandiri', label: '🏦 Mandiri', icon: '🏦' },
-    { code: 'dana', label: '💜 DANA', icon: '💜' },
-    { code: 'gopay', label: '💚 GoPay', icon: '💚' },
-    { code: 'ovo', label: '💜 OVO', icon: '💜' },
-    { code: 'shopeepay', label: '🧡 ShopeePay', icon: '🧡' },
-    { code: 'other', label: '💰 Other', icon: '💰' },
+    { code: 'cash', label: 'Tunai / Cash', icon: '💵' },
+    { code: 'bca', label: 'Bank BCA', icon: '🏦' },
+    { code: 'bni', label: 'Bank BNI', icon: '🏦' },
+    { code: 'bri', label: 'Bank BRI', icon: '🏦' },
+    { code: 'mandiri', label: 'Bank Mandiri', icon: '🏦' },
+    { code: 'dana', label: 'DANA', icon: '📱' },
+    { code: 'gopay', label: 'GoPay', icon: '📱' },
+    { code: 'ovo', label: 'OVO', icon: '📱' },
+    { code: 'shopeepay', label: 'ShopeePay', icon: '📱' },
+    { code: 'other', label: 'Rekening Lainnya', icon: '💳' },
 ]
 
 const formatCurrency = (amount: number) => {
@@ -76,10 +78,18 @@ const formatShort = (amount: number) => {
 }
 
 export default function FinancePage() {
-    const [transactions, setTransactions] = useState<Transaction[]>([])
-    const [budgets, setBudgets] = useState<Budget[]>([])
-    const [savings, setSavings] = useState<SavingsAccount[]>([])
-    const [loading, setLoading] = useState(true)
+    const {
+        transactions: cachedTransactions,
+        budgets: cachedBudgets,
+        savings: cachedSavings,
+        financeLoaded,
+        setFinanceData,
+    } = useWorkspaceStore()
+
+    const [transactions, setTransactions] = useState<Transaction[]>(cachedTransactions)
+    const [budgets, setBudgets] = useState<Budget[]>(cachedBudgets)
+    const [savings, setSavings] = useState<SavingsAccount[]>(cachedSavings)
+    const [loading, setLoading] = useState(!financeLoaded)
     const [saving, setSaving] = useState(false)
     const [showModal, setShowModal] = useState(false)
     const [modalType, setModalType] = useState<'transaction' | 'budget' | 'savings' | 'savings_tx'>('transaction')
@@ -96,7 +106,6 @@ export default function FinancePage() {
     // Partner View Stats
     const [viewMode, setViewMode] = useState<'me' | 'partner' | 'combined'>('me')
     const [userProfile, setUserProfile] = useState<{ id: string; role: string; partnerId?: string } | null>(null)
-    const [uiMode, setUiMode] = useState<'gamified' | 'detailed'>('gamified')
     const [quickExpenseOpen, setQuickExpenseOpen] = useState(false)
 
     const formRef = useRef<HTMLFormElement>(null)
@@ -115,7 +124,7 @@ export default function FinancePage() {
     }, [viewMode])
 
     const fetchData = async (profile: typeof userProfile, mode: typeof viewMode) => {
-        setLoading(true)
+        if (!financeLoaded) setLoading(true)
         try {
             let targetId: string | 'all' | undefined = undefined
             if (mode === 'combined') targetId = 'all'
@@ -130,6 +139,11 @@ export default function FinancePage() {
             setTransactions(txData)
             setBudgets(budgetsData)
             setSavings(savingsData)
+            setFinanceData({
+                transactions: txData,
+                budgets: budgetsData,
+                savings: savingsData,
+            })
         } catch (error) {
             console.error('Error fetching data:', error)
         } finally {
@@ -336,73 +350,61 @@ export default function FinancePage() {
                 <div className="flex-1 overflow-y-auto">
                     <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
 
-                        {/* View Mode Toggle */}
-                        <div className="flex justify-center mb-8">
+                        {/* View Mode & Actions Header */}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
                             <div className="bg-secondary/30 p-1.5 rounded-full flex items-center gap-1 border border-border/50 backdrop-blur-sm">
                                 <button
                                     onClick={() => setViewMode('me')}
                                     className={cn(
-                                        "px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2",
+                                        "px-5 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2",
                                         viewMode === 'me'
-                                            ? "bg-background shadow-sm text-primary font-semibold ring-1 ring-black/5 dark:ring-white/10"
+                                            ? "bg-background shadow-xs text-primary font-bold ring-1 ring-black/5 dark:ring-white/10"
                                             : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                                     )}
                                 >
-                                    My Finance
+                                    Keuangan Saya
                                 </button>
                                 {userProfile?.partnerId && (
                                     <button
                                         onClick={() => setViewMode('partner')}
                                         className={cn(
-                                            "px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2",
+                                            "px-5 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2",
                                             viewMode === 'partner'
-                                                ? "bg-background shadow-sm text-primary font-semibold ring-1 ring-black/5 dark:ring-white/10"
+                                                ? "bg-background shadow-xs text-primary font-bold ring-1 ring-black/5 dark:ring-white/10"
                                                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                                         )}
                                     >
-                                        Partner
+                                        Pasangan
                                     </button>
                                 )}
                                 <button
                                     onClick={() => setViewMode('combined')}
                                     className={cn(
-                                        "px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2",
+                                        "px-5 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-2",
                                         viewMode === 'combined'
-                                            ? "bg-background shadow-sm text-primary font-semibold ring-1 ring-black/5 dark:ring-white/10"
+                                            ? "bg-background shadow-xs text-primary font-bold ring-1 ring-black/5 dark:ring-white/10"
                                             : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                                     )}
                                 >
-                                    Combined
+                                    Gabungan Bersama
                                 </button>
                             </div>
 
-                            {/* UI Mode Toggle (Mode Santai vs Mode Rinci) */}
-                            {activeTab === 'overview' && (
-                                <div className="flex items-center gap-1 bg-secondary/80 p-1 rounded-full border border-border">
-                                    <button
-                                        onClick={() => setUiMode('gamified')}
-                                        className={cn(
-                                            "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5",
-                                            uiMode === 'gamified'
-                                                ? "bg-background shadow-sm text-primary font-bold ring-1 ring-black/5 dark:ring-white/10"
-                                                : "text-muted-foreground hover:text-foreground"
-                                        )}
-                                    >
-                                        🎮 Mode Santai
-                                    </button>
-                                    <button
-                                        onClick={() => setUiMode('detailed')}
-                                        className={cn(
-                                            "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5",
-                                            uiMode === 'detailed'
-                                                ? "bg-background shadow-sm text-primary font-bold ring-1 ring-black/5 dark:ring-white/10"
-                                                : "text-muted-foreground hover:text-foreground"
-                                        )}
-                                    >
-                                        📊 Mode Rinci
-                                    </button>
-                                </div>
-                            )}
+                            <div className="flex items-center gap-2.5">
+                                <Button
+                                    onClick={() => setQuickExpenseOpen(true)}
+                                    variant="outline"
+                                    className="rounded-full text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 h-9 px-4"
+                                >
+                                    <Zap className="w-3.5 h-3.5 mr-1.5" /> Catat Cepat
+                                </Button>
+                                <Button
+                                    onClick={() => openAddModal('transaction')}
+                                    className="rounded-full text-xs font-semibold h-9 px-4"
+                                >
+                                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Catat Manual
+                                </Button>
+                            </div>
                         </div>
 
                         {loading && (
@@ -411,9 +413,9 @@ export default function FinancePage() {
                             </div>
                         )}
 
-                        {/* ========== OVERVIEW ========== */}
+                        {/* ========== OVERVIEW (UNIFIED & INTUITIVE) ========== */}
                         {!loading && activeTab === 'overview' && (
-                            uiMode === 'gamified' ? (
+                            <div className="space-y-8">
                                 <GamifiedOverview
                                     transactions={transactions}
                                     budgets={budgets}
@@ -421,9 +423,8 @@ export default function FinancePage() {
                                     viewMode={viewMode}
                                     userRole={userProfile?.role}
                                     onOpenQuickExpense={() => setQuickExpenseOpen(true)}
-                                    onSwitchToAdvanced={() => setUiMode('detailed')}
+                                    onSwitchToAdvanced={() => setActiveTab('analytics')}
                                 />
-                            ) : (
                             <div className="space-y-6">
                                 {/* Top Row: Balance + Income/Expense Summary */}
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -628,7 +629,9 @@ export default function FinancePage() {
                                 {savings.length > 0 && (
                                     <div className="bg-card border border-border rounded-xl p-5">
                                         <div className="flex items-center justify-between mb-3">
-                                            <h3 className="text-sm font-semibold text-foreground">🐷 Tabungan</h3>
+                                            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                                <PiggyBank className="w-4 h-4 text-primary" /> Rincian Rekening Simpanan
+                                            </h3>
                                             <span className="text-sm font-bold text-primary">{formatCurrency(totalSavings)}</span>
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -637,7 +640,7 @@ export default function FinancePage() {
                                                 return (
                                                     <div key={account.id} className="bg-secondary/50 rounded-lg p-3">
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-lg">{account.icon || bankInfo?.icon || '💰'}</span>
+                                                            <span className="text-sm font-semibold">{account.icon || bankInfo?.icon || '💳'}</span>
                                                             <span className="text-sm font-medium text-foreground truncate">{account.name}</span>
                                                         </div>
                                                         <p className="text-base font-bold text-foreground">{formatCurrency(account.balance)}</p>
@@ -648,7 +651,7 @@ export default function FinancePage() {
                                     </div>
                                 )}
                             </div>
-                            )
+                            </div>
                         )}
 
                         {/* ========== TRANSACTIONS ========== */}
@@ -666,9 +669,9 @@ export default function FinancePage() {
                                         </div>
                                         <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}
                                             className="px-2.5 py-1.5 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20">
-                                            <option value="all">All People</option>
-                                            <option value="aegg">⭐ Aegg</option>
-                                            <option value="peppaa">🌙 Peppaa</option>
+                                            <option value="all">Semua Orang</option>
+                                            <option value="aegg">Aegg</option>
+                                            <option value="peppaa">Peppaa</option>
                                         </select>
                                     </div>
                                     <Button onClick={() => openAddModal('transaction')}>

@@ -16,13 +16,13 @@ interface FinanceSidebarProps {
 }
 
 const FINANCE_NAV = [
-    { id: 'overview' as FinanceTab, label: 'Overview', icon: LayoutDashboard, emoji: '📊' },
-    { id: 'transactions' as FinanceTab, label: 'Transaksi', icon: ArrowLeftRight, emoji: '💳' },
-    { id: 'ledger' as FinanceTab, label: 'Ledger', icon: BookOpen, emoji: '📒' },
-    { id: 'analytics' as FinanceTab, label: 'Analytics', icon: BarChart3, emoji: '📈' },
-    { id: 'budgets' as FinanceTab, label: 'Budget', icon: Target, emoji: '🎯' },
-    { id: 'savings' as FinanceTab, label: 'Tabungan', icon: PiggyBank, emoji: '🐷' },
-    { id: 'recap' as FinanceTab, label: 'Rekap', icon: FileText, emoji: '🗂️' },
+    { id: 'overview' as FinanceTab, label: 'Ringkasan', icon: LayoutDashboard },
+    { id: 'transactions' as FinanceTab, label: 'Transaksi', icon: ArrowLeftRight },
+    { id: 'budgets' as FinanceTab, label: 'Anggaran', icon: Target },
+    { id: 'savings' as FinanceTab, label: 'Tabungan', icon: PiggyBank },
+    { id: 'ledger' as FinanceTab, label: 'Buku Kas', icon: BookOpen },
+    { id: 'analytics' as FinanceTab, label: 'Analisis', icon: BarChart3 },
+    { id: 'recap' as FinanceTab, label: 'Rekap', icon: FileText },
 ]
 
 export function FinanceSidebar({ activeTab, onTabChange }: FinanceSidebarProps) {
@@ -102,7 +102,7 @@ export function FinanceSidebar({ activeTab, onTabChange }: FinanceSidebarProps) 
                                         : 'bg-card border-border text-muted-foreground hover:bg-secondary/50'
                                 )}
                             >
-                                {isActive ? <item.icon className="w-3.5 h-3.5" /> : <span>{item.emoji}</span>}
+                                <item.icon className={cn("w-3.5 h-3.5", isActive ? "text-primary" : "text-muted-foreground")} />
                                 <span>{item.label}</span>
                             </button>
                         )

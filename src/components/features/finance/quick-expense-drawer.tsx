@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, X, Coffee, Utensils, Car, Heart, ShoppingBag, Check, Loader2 } from 'lucide-react'
+import { Plus, X, Coffee, Utensils, Car, Heart, ShoppingBag, Check, Loader2 } from 'lucide-react'
 import { createTransaction } from '@/lib/actions/finance'
 import { CurrencyInput } from '@/components/ui/currency-input'
 import { cn } from '@/lib/utils'
@@ -14,11 +14,11 @@ interface QuickExpenseDrawerProps {
 }
 
 const PRESET_CATEGORIES = [
-  { label: 'Kopi / Jajan', category: 'food', icon: Coffee, defaultAmount: 25000, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
-  { label: 'Makan', category: 'food', icon: Utensils, defaultAmount: 35000, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
-  { label: 'Transport / Bensin', category: 'transport', icon: Car, defaultAmount: 20000, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
-  { label: 'Ngedate Berdua', category: 'date', icon: Heart, defaultAmount: 100000, color: 'text-pink-500 bg-pink-500/10 border-pink-500/20' },
-  { label: 'Belanja / Kebutuhan', category: 'shopping', icon: ShoppingBag, defaultAmount: 50000, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
+  { label: 'Kopi & Minum', category: 'food', icon: Coffee, defaultAmount: 25000 },
+  { label: 'Makan', category: 'food', icon: Utensils, defaultAmount: 35000 },
+  { label: 'Transportasi', category: 'transport', icon: Car, defaultAmount: 20000 },
+  { label: 'Agenda Bersama', category: 'date', icon: Heart, defaultAmount: 100000 },
+  { label: 'Belanja Harian', category: 'shopping', icon: ShoppingBag, defaultAmount: 50000 },
 ]
 
 export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseDrawerProps) {
@@ -49,7 +49,7 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
       formData.append('type', 'expense')
       formData.append('category', category)
       formData.append('amount', amount.toString())
-      formData.append('description', description || 'Pengeluaran Cepat')
+      formData.append('description', description || 'Pengeluaran')
       formData.append('date', new Date().toISOString().split('T')[0])
       formData.append('is_shared', isShared ? 'true' : 'false')
 
@@ -64,7 +64,7 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
           setAmount(0)
           setDescription('')
           onClose()
-        }, 1000)
+        }, 800)
       }
     } catch (err) {
       console.error('Error quick logging expense:', err)
@@ -92,56 +92,51 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-lg bg-card border border-border rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl z-10 space-y-4"
+            className="relative w-full max-w-lg bg-card border border-border rounded-t-2xl sm:rounded-2xl p-5 shadow-xl z-10 space-y-4"
           >
             {/* Header */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
-                  <Zap className="w-5 h-5 fill-current" />
-                </span>
-                <div>
-                  <h3 className="text-base font-bold text-foreground">Catat Pengeluaran Kilat</h3>
-                  <p className="text-xs text-muted-foreground">Isi cepat tanpa ribet dalam 5 detik</p>
-                </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Catat Pengeluaran</h3>
+                <p className="text-xs text-muted-foreground">Input cepat transaksi pengeluaran harian</p>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {submitted ? (
               <div className="py-8 flex flex-col items-center justify-center text-center space-y-2">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center animate-bounce">
-                  <Check className="w-6 h-6 stroke-[3]" />
+                <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <Check className="w-5 h-5 stroke-[2.5]" />
                 </div>
-                <h4 className="text-lg font-bold text-foreground">Tercatat Kilat! 🚀</h4>
-                <p className="text-xs text-muted-foreground">Pengeluaran berhasil disimpan ke sistem.</p>
+                <h4 className="text-sm font-semibold text-foreground">Transaksi Berhasil Disimpan</h4>
+                <p className="text-xs text-muted-foreground">Data pengeluaran telah masuk ke sistem keuangan.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Amount Input */}
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                    Nominal (Rp)
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
+                    Nominal Transaksi
                   </label>
                   <CurrencyInput
                     value={amount}
                     onChange={(val) => setAmount(val)}
-                    placeholder="Contoh: 25.000"
-                    className="text-2xl font-bold py-3 text-center"
+                    placeholder="Rp 0"
+                    className="text-xl font-bold py-2.5 text-center"
                   />
                 </div>
 
                 {/* Quick Presets */}
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                    Pilih Kategori Cepat:
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    Kategori Cepat:
                   </label>
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {PRESET_CATEGORIES.map((preset) => {
                       const Icon = preset.icon
                       const isSelected = category === preset.category && description === preset.label
@@ -151,14 +146,14 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
                           type="button"
                           onClick={() => handleSelectPreset(preset)}
                           className={cn(
-                            'flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all text-xs font-medium gap-1',
+                            'flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all text-xs font-medium gap-1',
                             isSelected
-                              ? 'border-primary ring-2 ring-primary/20 bg-primary/5 text-primary'
+                              ? 'border-primary bg-primary/10 text-primary font-semibold'
                               : 'border-border hover:bg-secondary text-muted-foreground hover:text-foreground'
                           )}
                         >
-                          <Icon className="w-4 h-4" />
-                          <span className="truncate w-full">{preset.label}</span>
+                          <Icon className="w-3.5 h-3.5" />
+                          <span className="truncate w-full text-[11px]">{preset.label}</span>
                         </button>
                       )
                     })}
@@ -171,30 +166,30 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Keterangan (misal: Kopi Kenangan, Bensin Shell)"
-                    className="w-full text-xs px-3 py-2.5 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    placeholder="Keterangan transaksi (opsional)"
+                    className="w-full text-xs px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
                 {/* Pocket Selector: Personal vs Joint */}
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/50 border border-border">
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/60 border border-border">
                   <div className="text-xs">
-                    <span className="font-semibold text-foreground">Sumber Dana:</span>
+                    <span className="font-medium text-foreground">Alokasi:</span>
                     <span className="ml-1 text-muted-foreground">
-                      {isShared ? '💑 Bersama / Kencan' : '👤 Dompet Pribadi'}
+                      {isShared ? 'Dana Bersama' : 'Dana Pribadi'}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsShared(!isShared)}
                     className={cn(
-                      'text-xs font-semibold px-3 py-1 rounded-lg border transition-all',
+                      'text-xs font-medium px-2.5 py-1 rounded-md border transition-all',
                       isShared
-                        ? 'bg-pink-500/10 text-pink-600 border-pink-500/30'
-                        : 'bg-primary/10 text-primary border-primary/30'
+                        ? 'bg-primary/15 text-primary border-primary/30 font-semibold'
+                        : 'bg-background text-muted-foreground border-border hover:text-foreground'
                     )}
                   >
-                    {isShared ? 'Ubah ke Pribadi' : 'Jadikan Patungan/Bersama'}
+                    {isShared ? 'Beralih ke Pribadi' : 'Jadikan Dana Bersama'}
                   </button>
                 </div>
 
@@ -202,17 +197,17 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
                 <button
                   type="submit"
                   disabled={loading || amount <= 0}
-                  className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs shadow-xs hover:opacity-90 active:scale-98 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       Menyimpan...
                     </>
                   ) : (
                     <>
-                      <Zap className="w-4 h-4 fill-current" />
-                      Simpan Sekarang
+                      <Plus className="w-3.5 h-3.5" />
+                      Simpan Transaksi
                     </>
                   )}
                 </button>

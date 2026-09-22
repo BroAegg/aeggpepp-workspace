@@ -21,60 +21,73 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
-import { APP_NAME } from '@/lib/constants'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { getUser } from '@/lib/actions/auth'
+import { StatusIndicator } from '@/components/status-indicator'
 
-const mainNavItems = [
-  { title: 'Home', href: '/', icon: Home },
+interface NavItem {
+  title: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+const mainNavItems: NavItem[] = [
+  { title: 'Dashboard', href: '/', icon: Home },
   { title: 'Calendar', href: '/calendar', icon: Calendar },
   { title: 'Goals', href: '/goals', icon: Target },
-  { title: 'Todos', href: '/todos', icon: CheckSquare },
+  { title: 'Tasks', href: '/todos', icon: CheckSquare },
 ]
 
-const privatePages = [
+const recordNavItems: NavItem[] = [
+  { title: 'Finance', href: '/finance', icon: Wallet },
+  { title: 'Wishlist', href: '/wishlist', icon: Gift },
   { title: 'Gallery', href: '/gallery', icon: Image },
   { title: 'Portfolio', href: '/portfolio', icon: Briefcase },
-  { title: 'Wishlist', href: '/wishlist', icon: Gift },
-  { title: 'Finance', href: '/finance', icon: Wallet },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const { isOpen, isCollapsed, toggle, setCollapsed } = useSidebarStore()
-  const [userName, setUserName] = useState('')
-  const [userInitial, setUserInitial] = useState('')
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-  const [userRole, setUserRole] = useState('')
+  const [userProfile, setUserProfile] = useState<{ name: string; role: string; initial: string } | null>(null)
 
   useEffect(() => {
-    getUser().then(user => {
+    getUser().then((user) => {
       if (user) {
-        setUserName(user.display_name || 'User')
-        setUserInitial((user.display_name || 'U').charAt(0).toUpperCase())
-        setAvatarUrl(user.avatar_url || null)
-        setUserRole(user.role || '')
+        const name = user.display_name || (user.role === 'peppaa' ? 'Peppaa' : 'Aegg')
+        setUserProfile({
+          name,
+          role: user.role || 'member',
+          initial: name.charAt(0).toUpperCase(),
+        })
       }
     })
   }, [])
 
-  const NavLink = ({ item, collapsed }: { item: typeof mainNavItems[0]; collapsed: boolean }) => {
+  const NavLink = ({ item, collapsed }: { item: NavItem; collapsed: boolean }) => {
     const isActive = pathname === item.href
     const Icon = item.icon
+
     return (
       <Link
         href={item.href}
-        onClick={() => { if (window.innerWidth < 768) toggle() }}
+        onClick={() => {
+          if (window.innerWidth < 768) toggle()
+        }}
         className={cn(
-          'flex items-center gap-2 px-2 py-[6px] rounded-md transition-colors duration-100 text-[14px]',
-          collapsed && 'justify-center px-0',
+          'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-all duration-150 text-[13px] font-medium group',
+          collapsed ? 'justify-center px-0' : '',
           isActive
-            ? 'bg-sidebar-active text-sidebar-active-text font-medium'
-            : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-active-text'
+            ? 'bg-primary/10 text-primary font-semibold'
+            : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground'
         )}
         title={collapsed ? item.title : undefined}
       >
-        <Icon className="w-[18px] h-[18px] shrink-0" />
+        <Icon
+          className={cn(
+            'w-4 h-4 shrink-0 transition-colors',
+            isActive ? 'text-primary' : 'text-sidebar-muted group-hover:text-foreground'
+          )}
+        />
         {!collapsed && <span className="truncate">{item.title}</span>}
       </Link>
     )
@@ -82,7 +95,7 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* Mobile Backdrop */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -90,129 +103,138 @@ export function Sidebar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={toggle}
-            className="fixed inset-0 bg-black/40 z-40 md:hidden"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden"
           />
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* Sidebar Container */}
       <motion.aside
         initial={false}
         animate={{
-          width: isCollapsed ? 48 : 240,
-          x: isOpen ? 0 : -240,
+          width: isCollapsed ? 56 : 240,
+          x: isOpen ? 0 : typeof window !== 'undefined' && window.innerWidth < 768 ? -240 : 0,
         }}
-        transition={{ duration: 0.15, ease: 'easeOut' }}
+        transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
         className={cn(
-          'fixed md:relative h-screen',
-          'bg-sidebar text-sidebar-foreground',
-          'flex flex-col z-50',
-          'md:translate-x-0',
-          'select-none'
+          'fixed md:relative h-screen bg-sidebar text-sidebar-foreground flex flex-col z-50 select-none border-r border-sidebar-border',
+          'md:translate-x-0'
         )}
       >
-        {/* Header - Workspace Switcher */}
-        <div className="flex items-center justify-between px-3 py-2.5 min-h-[44px]">
+        {/* Workspace Brand Header */}
+        <div className="flex items-center justify-between px-3 h-14 border-b border-sidebar-border shrink-0">
           {!isCollapsed && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-2 flex-1 min-w-0"
-            >
-              <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shrink-0">
-                <span className="text-white text-[10px] font-bold">A</span>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0 shadow-xs">
+                <span className="text-[11px] font-bold text-primary tracking-wider">AP</span>
               </div>
-              <span className="font-semibold text-[14px] text-sidebar-active-text truncate">
-                {APP_NAME}
-              </span>
-            </motion.div>
+              <div className="min-w-0 leading-tight">
+                <h2 className="text-xs font-bold text-foreground truncate tracking-tight">
+                  AeggPepp
+                </h2>
+                <p className="text-[10px] text-sidebar-muted truncate font-medium">
+                  Workspace
+                </p>
+              </div>
+            </div>
           )}
 
-          {/* Desktop: Collapse */}
+          {isCollapsed && (
+            <div className="w-full flex justify-center">
+              <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shadow-xs">
+                <span className="text-[11px] font-bold text-primary tracking-wider">AP</span>
+              </div>
+            </div>
+          )}
+
+          {/* Desktop Collapse Toggle */}
           <button
             onClick={() => setCollapsed(!isCollapsed)}
-            className="hidden md:flex items-center justify-center w-6 h-6 rounded hover:bg-sidebar-hover transition-colors"
+            className="hidden md:flex items-center justify-center w-6 h-6 rounded-md hover:bg-sidebar-hover text-sidebar-muted hover:text-foreground transition-colors ml-auto"
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? (
-              <ChevronRight className="w-4 h-4 text-sidebar-foreground" />
+              <ChevronRight className="w-3.5 h-3.5" />
             ) : (
-              <ChevronLeft className="w-4 h-4 text-sidebar-foreground" />
+              <ChevronLeft className="w-3.5 h-3.5" />
             )}
           </button>
 
-          {/* Mobile: Close */}
+          {/* Mobile Close Button */}
           <button
             onClick={toggle}
-            className="md:hidden flex items-center justify-center w-6 h-6 rounded hover:bg-sidebar-hover"
+            className="md:hidden flex items-center justify-center w-6 h-6 rounded-md hover:bg-sidebar-hover text-sidebar-muted hover:text-foreground ml-auto"
           >
-            <X className="w-4 h-4 text-sidebar-foreground" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Scrollable Nav Area */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          {/* Main Nav */}
-          <nav className="px-2 pt-1 space-y-0.5">
+        {/* Scrollable Navigation Body */}
+        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+          {/* Main Section */}
+          <div className="space-y-0.5">
+            {!isCollapsed && (
+              <p className="px-2 mb-1.5 text-[10px] font-semibold text-sidebar-muted uppercase tracking-wider">
+                Workspace
+              </p>
+            )}
             {mainNavItems.map((item) => (
               <NavLink key={item.href} item={item} collapsed={isCollapsed} />
             ))}
-          </nav>
+          </div>
 
-          {/* Divider + Private Section */}
-          <div className="px-2 mt-4">
+          {/* Records & Finance Section */}
+          <div className="space-y-0.5 pt-2">
             {!isCollapsed && (
-              <div className="px-2 mb-1">
-                <span className="text-[11px] font-semibold text-sidebar-muted uppercase tracking-wider">
-                  Private
-                </span>
-              </div>
+              <p className="px-2 mb-1.5 text-[10px] font-semibold text-sidebar-muted uppercase tracking-wider">
+                Finance & Records
+              </p>
             )}
-            <div className="space-y-0.5">
-              {privatePages.map((item) => (
-                <NavLink key={item.href} item={item} collapsed={isCollapsed} />
-              ))}
-            </div>
+            {recordNavItems.map((item) => (
+              <NavLink key={item.href} item={item} collapsed={isCollapsed} />
+            ))}
           </div>
         </div>
 
-        {/* Bottom Section - Always visible */}
-        <div className="shrink-0 px-2 py-2 space-y-0.5 border-t border-sidebar-border">
-          {/* Settings */}
+        {/* Footer Area: Settings, Theme & Partner Status */}
+        <div className="shrink-0 p-2 border-t border-sidebar-border space-y-1">
           <NavLink
             item={{ title: 'Settings', href: '/settings', icon: Settings }}
             collapsed={isCollapsed}
           />
 
-          {/* Theme Toggle Row */}
           {!isCollapsed && (
-            <div className="flex items-center justify-between px-2 py-[6px]">
-              <span className="text-[13px] text-sidebar-muted">Theme</span>
-              <ThemeToggle />
-            </div>
+            <>
+              {/* Theme Switch Row */}
+              <div className="flex items-center justify-between px-2.5 py-1 text-xs text-sidebar-muted">
+                <span>Theme</span>
+                <ThemeToggle />
+              </div>
+
+              {/* Partner Presence Bar */}
+              <div className="mt-2 p-2 rounded-lg bg-sidebar-hover/60 border border-sidebar-border flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {userProfile?.initial || 'A'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-foreground truncate">
+                      {userProfile?.name || 'AeggPepp'}
+                    </p>
+                    <p className="text-[10px] text-sidebar-muted truncate capitalize">
+                      {userProfile?.role || 'Member'}
+                    </p>
+                  </div>
+                </div>
+                <StatusIndicator />
+              </div>
+            </>
           )}
 
-          {/* User Profile */}
-          {!isCollapsed && (
-            <Link href="/settings" className="block mt-1 px-2 py-2 rounded-md hover:bg-sidebar-hover cursor-pointer transition-colors">
-              <div className="flex items-center gap-2">
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt={userName}
-                    className="w-6 h-6 rounded-full object-cover shrink-0"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-bold text-white">{userInitial || 'U'}</span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-sidebar-active-text truncate">
-                    {userName || 'Loading...'}
-                  </p>
-                </div>
-              </div>
-            </Link>
+          {isCollapsed && (
+            <div className="py-2 flex justify-center">
+              <StatusIndicator />
+            </div>
           )}
         </div>
       </motion.aside>
@@ -220,16 +242,16 @@ export function Sidebar() {
   )
 }
 
-// Mobile menu button (untuk header)
 export function MobileMenuButton() {
   const { toggle } = useSidebarStore()
 
   return (
     <button
       onClick={toggle}
-      className="md:hidden flex items-center justify-center w-9 h-9 rounded-md hover:bg-secondary/80 transition-colors"
+      className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+      aria-label="Toggle menu"
     >
-      <Menu className="w-5 h-5 text-muted-foreground" />
+      <Menu className="w-4 h-4" />
     </button>
   )
 }
