@@ -527,7 +527,12 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
    • <code>jadwal: Nonton bioskop besok jam 3 sore</code>
    • Ketik <code>/agenda</code> untuk melihat jadwal minggu ini
 
-<b>4. 📝 Catatan Bersama:</b>
+<b>4. 🛒 Daftar Belanja (Smart Grocery):</b>
+   • <code>/belanja Susu kotak & Telur 1kg</code>
+   • Ketik <code>/belanja</code> untuk melihat daftar belanjaan
+   • <i>Kirim foto struk saat belanja, item belanjaan otomatis dicoret selesai!</i>
+
+<b>5. 📝 Catatan Bersama:</b>
    • <code>/note Ide liburan akhir tahun ke Bandung</code>
    • <code>catatan: Ukuran baju Peppaa M, sepatu 38</code>
 
@@ -646,6 +651,60 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
 
         const prioTag = priority === 'high' ? '🔴 Tinggi' : priority === 'low' ? '🟢 Ringan' : '🟡 Menengah'
         const msg = `✅ <b>Tugas Berhasil Ditambahkan!</b>\n\n• <b>Tugas:</b> ${rawTodo}\n• <b>Prioritas:</b> ${prioTag}\n• <b>Dibuat untuk:</b> ${displayName}\n\n<i>Tersinkronisasi otomatis ke Dashboard Tasks.</i>`
+        if (botToken && chatId) await sendTelegramMessage(chatId, msg, botToken)
+        return NextResponse.json({ ok: true, todo_id: newTodo?.id })
+      }
+    }
+
+    // 4b. Handle /belanja (tanpa teks) or /grocery (List shopping items)
+    if (text === '/belanja' || text === '/grocery' || lowerText === 'daftar belanja') {
+      const { data: shoppingTodos } = await supabase
+        .from('todos')
+        .select('id, title')
+        .eq('category', 'shopping')
+        .eq('completed', false)
+        .order('created_at', { ascending: false })
+
+      if (!shoppingTodos || shoppingTodos.length === 0) {
+        if (botToken && chatId) {
+          await sendTelegramMessage(
+            chatId,
+            `🛒 <b>Daftar Belanjaan Bersama Kosong!</b>\n\nSemua kebutuhan sudah terbeli. Ketik <code>/belanja &lt;nama barang&gt;</code> untuk menambah barang baru.`,
+            botToken
+          )
+        }
+        return NextResponse.json({ ok: true })
+      }
+
+      const listStr = shoppingTodos.map((t, idx) => `${idx + 1}. 🛒 <b>${t.title}</b>`).join('\n')
+      const msg = `🛒 <b>Daftar Belanjaan Belum Dibeli (${shoppingTodos.length})</b>\n\n${listStr}\n\n<i>Kirim foto struk saat belanja untuk mencoret otomatis!</i>`
+      if (botToken && chatId) await sendTelegramMessage(chatId, msg, botToken)
+      return NextResponse.json({ ok: true })
+    }
+
+    // 4c. Handle /belanja <item> or "belanja: <item>" or "beli: <item>" (Add shopping item)
+    if (text.startsWith('/belanja ') || lowerText.startsWith('belanja:') || lowerText.startsWith('beli:')) {
+      const rawItem = text.replace(/^\/belanja\s+|^belanja:\s*|^beli:\s*/i, '').trim()
+      if (rawItem && userId) {
+        const { data: newTodo, error: todoErr } = await supabase
+          .from('todos')
+          .insert({
+            user_id: userId,
+            title: rawItem,
+            category: 'shopping',
+            status: 'todo',
+            priority: 'medium',
+            completed: false,
+          })
+          .select()
+          .single()
+
+        if (todoErr) {
+          if (botToken && chatId) await sendTelegramMessage(chatId, `❌ Gagal menambah belanjaan: ${todoErr.message}`, botToken)
+          return NextResponse.json({ error: todoErr.message }, { status: 500 })
+        }
+
+        const msg = `🛒 <b>Barang Belanjaan Ditambahkan!</b>\n\n• <b>Barang:</b> ${rawItem}\n• <b>Dicatat oleh:</b> ${displayName}\n\n<i>Otomatis dicoret jika struk belanja dikirimkan nanti.</i>`
         if (botToken && chatId) await sendTelegramMessage(chatId, msg, botToken)
         return NextResponse.json({ ok: true, todo_id: newTodo?.id })
       }
@@ -906,18 +965,59 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
       console.error('Failed to log telegram activity:', logErr)
     }
 
-    // 7. Send confirmation to Telegram
+    // 7. Auto check-off grocery / shopping items if receipt items match
+    const checkedOffItems: string[] = []
+    if (parsedResult.items && parsedResult.items.length > 0) {
+      try {
+        const { data: shoppingTodos } = await supabase
+          .from('todos')
+          .select('id, title')
+          .eq('category', 'shopping')
+          .eq('completed', false)
+
+        if (shoppingTodos && shoppingTodos.length > 0) {
+          for (const item of parsedResult.items) {
+            const itemLower = item.name.toLowerCase()
+            const matched = shoppingTodos.find((t) => {
+              const todoLower = t.title.toLowerCase()
+              return todoLower.includes(itemLower) || itemLower.includes(todoLower)
+            })
+
+            if (matched && !checkedOffItems.includes(matched.title)) {
+              await supabase
+                .from('todos')
+                .update({
+                  completed: true,
+                  status: 'completed',
+                  completed_at: new Date().toISOString(),
+                })
+                .eq('id', matched.id)
+
+              checkedOffItems.push(matched.title)
+            }
+          }
+        }
+      } catch (checkErr) {
+        console.error('Failed to auto check-off grocery items:', checkErr)
+      }
+    }
+
+    // 8. Send confirmation to Telegram
     const typeLabel = parsedResult.type === 'income' ? 'Pemasukan 💰' : 'Pengeluaran 💳'
-    const confirmationText = `✅ <b>Berhasil Dicatat!</b>
+    let confirmationText = `✅ <b>Berhasil Dicatat!</b>
 
 • <b>Jenis:</b> ${typeLabel}
 • <b>Toko / Ket:</b> ${parsedResult.store}
 • <b>Nominal:</b> <b>${formatIDR(parsedResult.total_amount)}</b>
 • <b>Kategori:</b> ${cleanCategory}
 • <b>Tanggal:</b> ${parsedResult.date}
-• <b>Dicatat untuk:</b> ${displayName}
+• <b>Dicatat untuk:</b> ${displayName}`
 
-<i>Tersimpan otomatis di AeggPepp Workspace.</i>`
+    if (checkedOffItems.length > 0) {
+      confirmationText += `\n\n🛒 <b>Daftar Belanjaan Dicoret Otomatis:</b>\n` + checkedOffItems.map((i) => `• <s>${i}</s> ✅`).join('\n')
+    }
+
+    confirmationText += `\n\n<i>Tersimpan otomatis di AeggPepp Workspace.</i>`
 
     if (botToken && chatId) {
       await sendTelegramMessage(chatId, confirmationText, botToken)
