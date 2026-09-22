@@ -87,20 +87,132 @@ interface ParsedTransaction {
 }
 
 // Telegram reply helper
-async function sendTelegramMessage(chatId: number | string, text: string, botToken: string) {
+async function sendTelegramMessage(
+  chatId: number | string,
+  text: string,
+  botToken: string,
+  replyMarkup?: any
+) {
   try {
-    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    const payload: any = {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+    }
+    if (replyMarkup) {
+      payload.reply_markup = replyMarkup
+    }
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-      }),
+      body: JSON.stringify(payload),
     })
+    return await res.json()
   } catch (err) {
     console.error('Failed to send Telegram message:', err)
   }
+}
+
+// Telegram edit message helper
+async function editTelegramMessage(
+  chatId: number | string,
+  messageId: number,
+  text: string,
+  botToken: string,
+  replyMarkup?: any
+) {
+  try {
+    const payload: any = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'HTML',
+    }
+    if (replyMarkup !== undefined) {
+      payload.reply_markup = replyMarkup
+    }
+    await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (err) {
+    console.error('Failed to edit Telegram message:', err)
+  }
+}
+
+// Telegram answer callback query (toast / notification)
+async function answerTelegramCallback(
+  callbackQueryId: string,
+  text: string,
+  botToken: string
+) {
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        callback_query_id: callbackQueryId,
+        text,
+        show_alert: false,
+      }),
+    })
+  } catch (err) {
+    console.error('Failed to answer Telegram callback query:', err)
+  }
+}
+
+// Interactive Category Inline Keyboard (Shopee-style click buttons)
+function buildCategoryKeyboard(txId: string, activeCat?: string) {
+  const categories = [
+    { code: 'food', label: '🍽️ Makanan' },
+    { code: 'daily_needs', label: '🏪 Kebutuhan' },
+    { code: 'shopping', label: '🛍️ Belanja' },
+    { code: 'transport', label: '🚗 Transport' },
+    { code: 'date', label: '🌹 Kencan' },
+    { code: 'bills', label: '💡 Tagihan' },
+    { code: 'health', label: '🏥 Kesehatan' },
+    { code: 'other_expense', label: '💳 Lainnya' },
+  ]
+
+  const inlineKeyboard: any[][] = []
+  for (let i = 0; i < categories.length; i += 2) {
+    const row = []
+    const cat1 = categories[i]
+    row.push({
+      text: (activeCat === cat1.code ? '✓ ' : '') + cat1.label,
+      callback_data: `c:${cat1.code}:${txId}`,
+    })
+    if (categories[i + 1]) {
+      const cat2 = categories[i + 1]
+      row.push({
+        text: (activeCat === cat2.code ? '✓ ' : '') + cat2.label,
+        callback_data: `c:${cat2.code}:${txId}`,
+      })
+    }
+    inlineKeyboard.push(row)
+  }
+
+  // Cancel / Delete button
+  inlineKeyboard.push([
+    {
+      text: '❌ Batalkan & Hapus Transaksi',
+      callback_data: `d:${txId}`,
+    },
+  ])
+
+  return { inline_keyboard: inlineKeyboard }
+}
+
+// Persistent bottom menu (Shopee-style quick action buttons)
+const persistentMenuMarkup = {
+  keyboard: [
+    [{ text: '🛒 Daftar Belanja' }, { text: '💳 Cek Saldo' }],
+    [{ text: '📅 Jadwal Minggu Ini' }, { text: '📋 Daftar Tugas' }],
+    [{ text: '❓ Bantuan' }],
+  ],
+  resize_keyboard: true,
+  is_persistent: true,
 }
 
 // Format currency IDR
@@ -459,7 +571,79 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, id: tx.id })
     }
 
-    // 2. Telegram Update Handling
+    // 2. Telegram Callback Query Handling (Shopee-style Interactive Category Buttons & Undo)
+    const callbackQuery = body?.callback_query
+    if (callbackQuery) {
+      const cqId = callbackQuery.id
+      const data = callbackQuery.data || ''
+      const msg = callbackQuery.message
+      const chatId = msg?.chat?.id
+      const messageId = msg?.message_id
+      const sender = callbackQuery.from || {}
+      const senderName = sender.first_name || 'Partner'
+
+      // Check if it's category update: c:<cat>:<txId>
+      if (data.startsWith('c:')) {
+        const parts = data.split(':')
+        const newCat = parts[1]
+        const txId = parts[2]
+
+        if (txId && newCat) {
+          const { data: updatedTx, error: upErr } = await supabase
+            .from('transactions')
+            .update({ category: newCat })
+            .eq('id', txId)
+            .select('amount, description, date, type')
+            .single()
+
+          if (!upErr && updatedTx) {
+            const catMap: Record<string, string> = {
+              food: '🍽️ Makanan & Minuman',
+              daily_needs: '🏪 Kebutuhan Harian',
+              shopping: '🛍️ Belanja Keperluan',
+              transport: '🚗 Transportasi & Bensin',
+              date: '🌹 Agenda Berdua (Kencan)',
+              bills: '💡 Tagihan & Utilitas',
+              health: '🏥 Kesehatan & Obat',
+              other_expense: '💳 Pengeluaran Lainnya',
+            }
+            const cleanCat = catMap[newCat] || newCat
+            if (botToken) {
+              await answerTelegramCallback(cqId, `✅ Kategori diubah ke ${cleanCat}!`, botToken)
+              const updatedText = `✅ <b>Berhasil Dicatat!</b>\n\n• <b>Jenis:</b> Pengeluaran 💳\n• <b>Toko / Ket:</b> ${updatedTx.description || 'Pengeluaran'}\n• <b>Nominal:</b> <b>${formatIDR(Number(updatedTx.amount))}</b>\n• <b>Kategori:</b> ${cleanCat}\n• <b>Tanggal:</b> ${updatedTx.date}\n• <b>Diperbarui oleh:</b> ${senderName}\n\n<i>Kategori tersinkronisasi otomatis ke AeggPepp Workspace.</i>`
+              await editTelegramMessage(chatId, messageId, updatedText, botToken, buildCategoryKeyboard(txId, newCat))
+            }
+            return NextResponse.json({ ok: true, updated_category: newCat })
+          }
+        }
+        if (botToken) await answerTelegramCallback(cqId, 'Gagal memperbarui kategori.', botToken)
+        return NextResponse.json({ ok: true })
+      }
+
+      // Check if it's transaction cancellation: d:<txId>
+      if (data.startsWith('d:')) {
+        const txId = data.replace('d:', '').trim()
+        if (txId) {
+          const { data: deletedTx } = await supabase
+            .from('transactions')
+            .delete()
+            .eq('id', txId)
+            .select('description, amount')
+            .single()
+
+          if (botToken) {
+            await answerTelegramCallback(cqId, 'Transaksi berhasil dibatalkan dan dihapus.', botToken)
+            const cancelText = `❌ <b>Transaksi Dibatalkan</b>\n\n<s>${deletedTx?.description || 'Pengeluaran'} (${formatIDR(Number(deletedTx?.amount || 0))})</s>\n\n<i>Dihapus dari buku kas oleh ${senderName}.</i>`
+            await editTelegramMessage(chatId, messageId, cancelText, botToken, { inline_keyboard: [] })
+          }
+          return NextResponse.json({ ok: true, deleted_tx: txId })
+        }
+      }
+
+      return NextResponse.json({ ok: true })
+    }
+
+    // 3. Telegram Message Handling
     const message = body?.message || body?.edited_message
     if (!message) {
       return NextResponse.json({ ok: true, note: 'No message in update' })
@@ -505,7 +689,7 @@ export async function POST(request: Request) {
     const lowerText = text.toLowerCase()
 
     // 1. Handle /start or /help command
-    if (text === '/start' || text === '/help') {
+    if (text === '/start' || text === '/help' || text === '/menu' || lowerText === 'bantuan' || lowerText === 'menu' || lowerText === '❓ bantuan') {
       const welcome = `🌸 <b>Halo ${displayName}!</b>
 
 Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berdua.
@@ -513,36 +697,35 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
 <b>1. 💳 Catat Keuangan Cepat:</b>
    • Ketik langsung: <code>Kopi kenangan 24rb</code>
    • <code>Makan siang soto 35000</code>, <code>Gaji 8.5jt</code>
-   • Kirim <b>Foto Struk / Nota</b> (AI akan membaca otomatis)
+   • Kirim <b>Foto Struk / Nota</b> (AI membaca otomatis & muncul tombol kategori)
    • Ketik <code>/saldo</code> untuk ringkasan bulan ini
 
-<b>2. 📋 Kelola Tugas & Todo:</b>
-   • <code>/todo Beli tiket konser</code>
-   • <code>todo: Belanja bulanan ke supermarket</code>
-   • Ketik <code>/todos</code> untuk melihat tugas pending
-   • <code>/done 1</code> untuk menyelesaikan tugas
-
-<b>3. 📅 Jadwal & Kalender:</b>
-   • <code>/event Kencan dinner di Senopati Sabtu 19:00</code>
-   • <code>jadwal: Nonton bioskop besok jam 3 sore</code>
-   • Ketik <code>/agenda</code> untuk melihat jadwal minggu ini
-
-<b>4. 🛒 Daftar Belanja (Smart Grocery):</b>
+<b>2. 🛒 Daftar Belanja (Smart Grocery):</b>
    • <code>/belanja Susu kotak & Telur 1kg</code>
    • Ketik <code>/belanja</code> untuk melihat daftar belanjaan
    • <i>Kirim foto struk saat belanja, item belanjaan otomatis dicoret selesai!</i>
 
+<b>3. 📅 Jadwal & Kalender:</b>
+   • <code>/jadwal Kencan dinner di Senopati Sabtu 19:00</code>
+   • <code>jadwal: Nonton bioskop besok jam 3 sore</code>
+   • Ketik <code>/agenda</code> untuk melihat jadwal minggu ini
+
+<b>4. 📋 Kelola Tugas & Todo:</b>
+   • <code>/todo Beli tiket konser</code>
+   • Ketik <code>/todos</code> untuk melihat tugas pending
+   • <code>/done 1</code> untuk menyelesaikan tugas
+
 <b>5. 📝 Catatan Bersama:</b>
    • <code>/note Ide liburan akhir tahun ke Bandung</code>
-   • <code>catatan: Ukuran baju Peppaa M, sepatu 38</code>
+   • <code>catatan: Ukuran cincin nikah</code>
 
-<i>Semua data otomatis tersinkronisasi ke Dashboard web secara real-time.</i>`
-      if (botToken && chatId) await sendTelegramMessage(chatId, welcome, botToken)
+<i>Sentuh tombol menu di bawah layar untuk akses cepat instan!</i>`
+      if (botToken && chatId) await sendTelegramMessage(chatId, welcome, botToken, persistentMenuMarkup)
       return NextResponse.json({ ok: true })
     }
 
     // 2. Handle /todos or /tugas (List pending tasks)
-    if (text === '/todos' || text === '/tugas' || lowerText === 'daftar tugas') {
+    if (text === '/todos' || text === '/tugas' || lowerText === 'daftar tugas' || lowerText === '📋 daftar tugas') {
       const { data: pendingTodos } = await supabase
         .from('todos')
         .select('id, title, priority, due_date')
@@ -657,7 +840,7 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
     }
 
     // 4b. Handle /belanja (tanpa teks) or /grocery (List shopping items)
-    if (text === '/belanja' || text === '/grocery' || lowerText === 'daftar belanja') {
+    if (text === '/belanja' || text === '/grocery' || lowerText === 'daftar belanja' || lowerText === '🛒 daftar belanja') {
       const { data: shoppingTodos } = await supabase
         .from('todos')
         .select('id, title')
@@ -711,7 +894,7 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
     }
 
     // 5. Handle /agenda or /jadwal (Upcoming events & deadlines)
-    if (text === '/agenda' || text === '/jadwal' || lowerText === 'jadwal hari ini') {
+    if (text === '/agenda' || text === '/jadwal' || lowerText === 'jadwal hari ini' || lowerText === 'jadwal minggu ini' || lowerText === '📅 jadwal minggu ini') {
       const now = new Date()
       const todayIso = now.toISOString()
       const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
@@ -845,7 +1028,7 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
     }
 
     // 8. Handle /saldo or /rekap command
-    if (text === '/saldo' || text === '/rekap') {
+    if (text === '/saldo' || text === '/rekap' || lowerText === 'cek saldo' || lowerText === '💳 cek saldo') {
       const now = new Date()
       const cm = now.getMonth(), cy = now.getFullYear()
       const { data: monthlyTxs } = await supabase
@@ -1014,12 +1197,29 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
 
     // 8. Send confirmation to Telegram
     const typeLabel = parsedResult.type === 'income' ? 'Pemasukan 💰' : 'Pengeluaran 💳'
+    const catMap: Record<string, string> = {
+      food: '🍽️ Makanan & Minuman',
+      daily_needs: '🏪 Kebutuhan Harian',
+      shopping: '🛍️ Belanja Keperluan',
+      transport: '🚗 Transportasi & Bensin',
+      date: '🌹 Agenda Berdua (Kencan)',
+      bills: '💡 Tagihan & Utilitas',
+      health: '🏥 Kesehatan & Obat',
+      other_expense: '💳 Pengeluaran Lainnya',
+      salary: '💰 Gaji',
+      freelance: '💻 Freelance',
+      investment: '📈 Investasi',
+      gift: '🎁 Hadiah',
+      other_income: '💵 Pemasukan Lainnya',
+    }
+    const cleanCategoryDisplay = catMap[cleanCategory] || cleanCategory
+
     let confirmationText = `✅ <b>Berhasil Dicatat!</b>
 
 • <b>Jenis:</b> ${typeLabel}
 • <b>Toko / Ket:</b> ${parsedResult.store}
 • <b>Nominal:</b> <b>${formatIDR(parsedResult.total_amount)}</b>
-• <b>Kategori:</b> ${cleanCategory}
+• <b>Kategori:</b> ${cleanCategoryDisplay}
 • <b>Tanggal:</b> ${parsedResult.date}
 • <b>Dicatat untuk:</b> ${displayName}`
 
@@ -1027,10 +1227,18 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
       confirmationText += `\n\n🛒 <b>Daftar Belanjaan Dicoret Otomatis:</b>\n` + checkedOffItems.map((i) => `• <s>${i}</s> ✅`).join('\n')
     }
 
-    confirmationText += `\n\n<i>Tersimpan otomatis di AeggPepp Workspace.</i>`
+    if (parsedResult.type === 'expense' && newTx?.id) {
+      confirmationText += `\n\n<i>Kategori kurang sesuai? Klik tombol di bawah untuk langsung ubah:</i>`
+    } else {
+      confirmationText += `\n\n<i>Tersimpan otomatis di AeggPepp Workspace.</i>`
+    }
+
+    const keyboard = parsedResult.type === 'expense' && newTx?.id
+      ? buildCategoryKeyboard(newTx.id, cleanCategory)
+      : undefined
 
     if (botToken && chatId) {
-      await sendTelegramMessage(chatId, confirmationText, botToken)
+      await sendTelegramMessage(chatId, confirmationText, botToken, keyboard)
     }
 
     return NextResponse.json({
