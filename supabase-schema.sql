@@ -410,8 +410,10 @@ create table if not exists savings_accounts (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
   name text not null,
-  target_amount decimal(14,2) not null,
-  current_amount decimal(14,2) default 0,
+  type text default 'cash',
+  bank_code text,
+  balance decimal(14,2) default 0,
+  target_amount decimal(14,2) default 0,
   color text default '#10B981',
   icon text default 'PiggyBank',
   is_shared boolean default false,
@@ -420,10 +422,27 @@ create table if not exists savings_accounts (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Ensure all columns exist if table was previously created
+alter table savings_accounts add column if not exists type text default 'cash';
+alter table savings_accounts add column if not exists bank_code text;
+alter table savings_accounts add column if not exists balance decimal(14,2) default 0;
+alter table savings_accounts add column if not exists target_amount decimal(14,2) default 0;
+alter table savings_accounts add column if not exists color text default '#10B981';
+alter table savings_accounts add column if not exists icon text default 'PiggyBank';
+alter table savings_accounts add column if not exists is_shared boolean default false;
+alter table savings_accounts add column if not exists target_date date;
+
 alter table savings_accounts enable row level security;
+drop policy if exists "Users can view all savings accounts" on savings_accounts;
 create policy "Users can view all savings accounts" on savings_accounts for select using ( true );
+
+drop policy if exists "Users can create savings accounts" on savings_accounts;
 create policy "Users can create savings accounts" on savings_accounts for insert with check ( auth.uid() = user_id );
+
+drop policy if exists "Users can update savings accounts" on savings_accounts;
 create policy "Users can update savings accounts" on savings_accounts for update using ( auth.uid() = user_id or is_shared = true );
+
+drop policy if exists "Users can delete own savings accounts" on savings_accounts;
 create policy "Users can delete own savings accounts" on savings_accounts for delete using ( auth.uid() = user_id );
 
 -- =====================================================
