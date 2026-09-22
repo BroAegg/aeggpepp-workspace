@@ -22,8 +22,12 @@ import {
     updateTodoCategory,
     deleteTodoCategory,
 } from '@/lib/actions/todo-categories'
+import dynamic from 'next/dynamic'
 import { TableView } from '@/components/todos/table-view'
-import { KanbanView } from '@/components/todos/kanban-view'
+const KanbanView = dynamic(() => import('@/components/todos/kanban-view').then((m) => m.KanbanView), {
+    loading: () => <div className="py-16 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>,
+    ssr: false,
+})
 import { TodoSidePeek } from '@/components/todos/side-peek'
 import { AddTodoModal } from '@/components/todos/add-todo-modal'
 import { useWorkspaceStore } from '@/stores/workspace-store'

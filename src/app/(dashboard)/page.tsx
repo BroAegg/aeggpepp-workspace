@@ -9,12 +9,11 @@ import {
   Target, CheckSquare, Wallet, Gift, Home,
   Zap, Heart, Sparkles,
 } from 'lucide-react'
-import { getUser } from '@/lib/actions/auth'
 import { getTodos } from '@/lib/actions/todos'
 import { getGoals } from '@/lib/actions/goals'
 import { getEvents } from '@/lib/actions/calendar'
 import { cn } from '@/lib/utils'
-
+import { useAuth } from '@/providers/auth-provider'
 import { useWorkspaceStore } from '@/stores/workspace-store'
 
 interface RecentItem {
@@ -31,17 +30,15 @@ interface RecentItem {
 }
 
 export default function DashboardPage() {
+  const { profile } = useAuth()
   const {
     todos: cachedTodos,
     goals: cachedGoals,
     events: cachedEvents,
     dashboardLoaded,
     setDashboardData,
-    profile: cachedProfile,
-    setProfile: setStoreProfile,
   } = useWorkspaceStore()
 
-  const [profile, setProfile] = useState<any>(cachedProfile)
   const [greeting, setGreeting] = useState('')
   const [recentItems, setRecentItems] = useState<RecentItem[]>([])
 
@@ -50,20 +47,10 @@ export default function DashboardPage() {
     upcomingEvents: cachedEvents.filter(e => new Date(e.start_date) >= new Date()).length,
     activeGoals: cachedGoals.filter(g => g.status === 'in_progress').length,
   })
-  const [loading, setLoading] = useState(!dashboardLoaded)
+  const [loading, setLoading] = useState(!dashboardLoaded && cachedTodos.length === 0)
 
   useEffect(() => {
-    // 1. Fetch User Profile
-    getUser()
-      .then((data) => {
-        if (data) {
-          setProfile(data)
-          setStoreProfile(data)
-        }
-      })
-      .catch((err) => console.error('Error fetching user:', err))
-
-    // 2. Set Greeting
+    // 1. Set Greeting
     const updateTime = () => {
       const hours = new Date().getHours()
       if (hours >= 5 && hours < 11) setGreeting('Good Morning')
@@ -75,7 +62,7 @@ export default function DashboardPage() {
     updateTime()
     const interval = setInterval(updateTime, 60000)
 
-    // 3. Fetch real data
+    // 2. Fetch real data
     fetchDashboardData()
 
     return () => clearInterval(interval)

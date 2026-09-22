@@ -26,11 +26,26 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
     Area, AreaChart,
 } from 'recharts'
-import { FinanceSidebar, type FinanceTab } from '@/components/features/finance/finance-sidebar'
-import { LedgerTab } from '@/components/features/finance/ledger-tab'
-import { AnalyticsTab } from '@/components/features/finance/analytics-tab'
-import { BudgetsTab } from '@/components/features/finance/budgets-tab'
-import { RecapTab } from '@/components/features/finance/recap-tab'
+import dynamic from 'next/dynamic'
+import { FinanceNavTabs, type FinanceTab } from '@/components/features/finance/finance-nav-tabs'
+
+const LedgerTab = dynamic(() => import('@/components/features/finance/ledger-tab').then((m) => m.LedgerTab), {
+    loading: () => <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>,
+    ssr: false,
+})
+const AnalyticsTab = dynamic(() => import('@/components/features/finance/analytics-tab').then((m) => m.AnalyticsTab), {
+    loading: () => <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>,
+    ssr: false,
+})
+const BudgetsTab = dynamic(() => import('@/components/features/finance/budgets-tab').then((m) => m.BudgetsTab), {
+    loading: () => <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>,
+    ssr: false,
+})
+const RecapTab = dynamic(() => import('@/components/features/finance/recap-tab').then((m) => m.RecapTab), {
+    loading: () => <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>,
+    ssr: false,
+})
+
 import { GamifiedOverview } from '@/components/features/finance/gamified-overview'
 import { QuickExpenseDrawer } from '@/components/features/finance/quick-expense-drawer'
 
@@ -341,14 +356,9 @@ export default function FinancePage() {
     return (
         <>
             <Header title="Finance" icon={Wallet} />
+            <FinanceNavTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-            <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
-                {/* Sub-Sidebar */}
-                <FinanceSidebar activeTab={activeTab} onTabChange={setActiveTab} />
-
-                {/* Main Content */}
-                <div className="flex-1 overflow-y-auto">
-                    <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
+            <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
 
                         {/* View Mode & Actions Header */}
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
@@ -834,8 +844,6 @@ export default function FinancePage() {
                             />
                         )}
                     </div>
-                </div>
-            </div>
 
             {/* ========== MODALS ========== */}
             <AnimatePresence>

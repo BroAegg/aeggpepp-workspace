@@ -196,7 +196,77 @@ Kembalikan HANYA format JSON valid tanpa tanda markdown (blok code json):
   }
 }
 
-// Gemini 1.5 Flash Vision receipt image parsing
+interface ParsedEvent {
+  title: string
+  start_date: string
+  end_date?: string
+  all_day: boolean
+  description?: string
+}
+
+async function parseEventWithGemini(text: string, geminiKey: string): Promise<ParsedEvent | null> {
+  const now = new Date()
+  const todayIso = now.toISOString()
+  const prompt = `Anda adalah asisten penjadwalan kalender cerdas untuk pasangan di Indonesia.
+Ekstrak detail acara dari pesan berikut: "${text}".
+Waktu saat ini (ISO): ${todayIso}, Hari ini: ${now.toLocaleDateString('id-ID', { weekday: 'long' })}.
+
+Aturan:
+- Cari judul acara (e.g. "Dinner di Senopati", "Nonton Bioskop", "Kencan").
+- Tentukan tanggal dan jam mulai (start_date ISO YYYY-MM-DDTHH:mm:ss).
+- Jika ada perkiraan durasi atau jam selesai, tentukan end_date (ISO YYYY-MM-DDTHH:mm:ss). Jika tidak ada, buat 1-2 jam setelah start_date.
+- Jika pengguna hanya menyebut tanggal tanpa jam, set all_day = true.
+- Catat deskripsi singkat jika ada.
+
+Kembalikan HANYA format JSON valid tanpa markdown backticks:
+{
+  "title": "<judul acara>",
+  "start_date": "YYYY-MM-DDTHH:mm:ss",
+  "end_date": "YYYY-MM-DDTHH:mm:ss",
+  "all_day": false,
+  "description": "<deskripsi>"
+}`
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            response_mime_type: 'application/json',
+            temperature: 0.1,
+          },
+        }),
+      }
+    )
+
+    if (!res.ok) return null
+    const data = await res.json()
+    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!content) return null
+
+    const parsed = JSON.parse(content)
+    if (!parsed.title || !parsed.start_date) return null
+
+    return {
+      title: parsed.title,
+      start_date: new Date(parsed.start_date).toISOString(),
+      end_date: parsed.end_date
+        ? new Date(parsed.end_date).toISOString()
+        : new Date(new Date(parsed.start_date).getTime() + 3600000).toISOString(),
+      all_day: Boolean(parsed.all_day),
+      description: parsed.description || 'Dibuat via Telegram Bot',
+    }
+  } catch (err) {
+    console.error('Gemini event parsing error:', err)
+    return null
+  }
+}
+
+// Gemini Vision receipt image parsing
 async function parseReceiptImageWithGemini(
   base64Image: string,
   caption: string | undefined,
@@ -431,31 +501,281 @@ export async function POST(request: Request) {
     const userId = profile?.id
     const displayName = profile?.display_name || (targetRole === 'peppaa' ? 'Peppaa' : 'Aegg')
 
-    // Handle /start or /help command
+    // Lowercase version for easy matching
+    const lowerText = text.toLowerCase()
+
+    // 1. Handle /start or /help command
     if (text === '/start' || text === '/help') {
       const welcome = `🌸 <b>Halo ${displayName}!</b>
 
-Bot Pencatatan Keuangan <b>AeggPepp Workspace</b> siap menemani hari-hari kalian berdua.
+Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berdua.
 
-<b>Cara Menggunakan:</b>
-1. <b>Ketik Catatan Cepat:</b>
-   • <code>Beli kopi kenangan 24rb</code>
-   • <code>Makan siang soto ayam 25000</code>
-   • <code>Isi bensin pertamax 50rb</code>
-   • <code>Gaji kantor masuk 8.5jt</code>
+<b>1. 💳 Catat Keuangan Cepat:</b>
+   • Ketik langsung: <code>Kopi kenangan 24rb</code>
+   • <code>Makan siang soto 35000</code>, <code>Gaji 8.5jt</code>
+   • Kirim <b>Foto Struk / Nota</b> (AI akan membaca otomatis)
+   • Ketik <code>/saldo</code> untuk ringkasan bulan ini
 
-2. <b>Kirim Foto Struk / Nota:</b>
-   Cukup kirim foto struk belanjaanmu. AI Gemini Flash akan otomatis membaca total belanja, nama toko, dan kategorinya!
+<b>2. 📋 Kelola Tugas & Todo:</b>
+   • <code>/todo Beli tiket konser</code>
+   • <code>todo: Belanja bulanan ke supermarket</code>
+   • Ketik <code>/todos</code> untuk melihat tugas pending
+   • <code>/done 1</code> untuk menyelesaikan tugas
 
-3. <b>Cek Keuangan:</b>
-   Ketik <code>/saldo</code> atau <code>/rekap</code> untuk melihat ringkasan bulan ini.
+<b>3. 📅 Jadwal & Kalender:</b>
+   • <code>/event Kencan dinner di Senopati Sabtu 19:00</code>
+   • <code>jadwal: Nonton bioskop besok jam 3 sore</code>
+   • Ketik <code>/agenda</code> untuk melihat jadwal minggu ini
 
-<i>Data langsung tersinkronisasi ke Dashboard web secara real-time.</i>`
-      if (botToken) await sendTelegramMessage(chatId, welcome, botToken)
+<b>4. 📝 Catatan Bersama:</b>
+   • <code>/note Ide liburan akhir tahun ke Bandung</code>
+   • <code>catatan: Ukuran baju Peppaa M, sepatu 38</code>
+
+<i>Semua data otomatis tersinkronisasi ke Dashboard web secara real-time.</i>`
+      if (botToken && chatId) await sendTelegramMessage(chatId, welcome, botToken)
       return NextResponse.json({ ok: true })
     }
 
-    // Handle /saldo or /rekap command
+    // 2. Handle /todos or /tugas (List pending tasks)
+    if (text === '/todos' || text === '/tugas' || lowerText === 'daftar tugas') {
+      const { data: pendingTodos } = await supabase
+        .from('todos')
+        .select('id, title, priority, due_date')
+        .eq('completed', false)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (!pendingTodos || pendingTodos.length === 0) {
+        if (botToken && chatId) {
+          await sendTelegramMessage(chatId, `✨ <b>Tidak ada tugas pending!</b> Semua tugas sudah selesai.`, botToken)
+        }
+        return NextResponse.json({ ok: true })
+      }
+
+      const listStr = pendingTodos.map((t, idx) => {
+        const pLabel = t.priority === 'high' ? '🔴' : t.priority === 'medium' ? '🟡' : '🟢'
+        const dueStr = t.due_date ? ` <i>(Jatuh tempo: ${t.due_date})</i>` : ''
+        return `${idx + 1}. ${pLabel} <b>${t.title}</b>${dueStr}`
+      }).join('\n')
+
+      const msg = `📋 <b>Daftar Tugas Pending (${pendingTodos.length})</b>\n\n${listStr}\n\n<i>Ketik <code>/done &lt;nomor&gt;</code> untuk menyelesaikan tugas.</i>`
+      if (botToken && chatId) await sendTelegramMessage(chatId, msg, botToken)
+      return NextResponse.json({ ok: true })
+    }
+
+    // 3. Handle /done or /selesai (Complete a task)
+    if (text.startsWith('/done') || text.startsWith('/selesai')) {
+      const query = text.replace(/^\/(done|selesai)\s*/i, '').trim()
+      if (!query) {
+        if (botToken && chatId) await sendTelegramMessage(chatId, `Ketik nomor atau nama tugas yang selesai, contoh: <code>/done 1</code>`, botToken)
+        return NextResponse.json({ ok: true })
+      }
+
+      const num = parseInt(query, 10)
+      let targetTodoId: string | null = null
+      let targetTitle = ''
+
+      if (!isNaN(num) && num > 0) {
+        const { data: pendingTodos } = await supabase
+          .from('todos')
+          .select('id, title')
+          .eq('completed', false)
+          .order('created_at', { ascending: false })
+          .limit(15)
+        if (pendingTodos && pendingTodos[num - 1]) {
+          targetTodoId = pendingTodos[num - 1].id
+          targetTitle = pendingTodos[num - 1].title
+        }
+      } else {
+        const { data: matched } = await supabase
+          .from('todos')
+          .select('id, title')
+          .ilike('title', `%${query}%`)
+          .eq('completed', false)
+          .limit(1)
+          .maybeSingle()
+        if (matched) {
+          targetTodoId = matched.id
+          targetTitle = matched.title
+        }
+      }
+
+      if (!targetTodoId) {
+        if (botToken && chatId) await sendTelegramMessage(chatId, `⚠️ Tugas "${query}" tidak ditemukan atau sudah selesai.`, botToken)
+        return NextResponse.json({ ok: true })
+      }
+
+      await supabase.from('todos').update({
+        completed: true,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      }).eq('id', targetTodoId)
+
+      if (botToken && chatId) {
+        await sendTelegramMessage(chatId, `🎉 <b>Tugas Selesai!</b>\n\n✅ <b>${targetTitle}</b>\nDiselesaikan oleh: ${displayName}`, botToken)
+      }
+      return NextResponse.json({ ok: true })
+    }
+
+    // 4. Handle /todo or "todo:" or "tugas:" (Create task)
+    if (text.startsWith('/todo ') || lowerText.startsWith('todo:') || lowerText.startsWith('tugas:')) {
+      let rawTodo = text.replace(/^\/todo\s+|^todo:\s*|^tugas:\s*/i, '').trim()
+      if (rawTodo && userId) {
+        let priority: 'low' | 'medium' | 'high' = 'medium'
+        if (rawTodo.includes('!high') || rawTodo.includes('!tinggi') || rawTodo.includes('!urgent')) {
+          priority = 'high'
+          rawTodo = rawTodo.replace(/!(high|tinggi|urgent)/gi, '').trim()
+        } else if (rawTodo.includes('!low') || rawTodo.includes('!rendah')) {
+          priority = 'low'
+          rawTodo = rawTodo.replace(/!(low|rendah)/gi, '').trim()
+        }
+
+        const { data: newTodo, error: todoErr } = await supabase.from('todos').insert({
+          user_id: userId,
+          title: rawTodo,
+          priority,
+          category: 'general',
+          completed: false,
+          status: 'todo',
+        }).select().single()
+
+        if (todoErr) {
+          if (botToken && chatId) await sendTelegramMessage(chatId, `❌ Gagal menyimpan tugas: ${todoErr.message}`, botToken)
+          return NextResponse.json({ error: todoErr.message }, { status: 500 })
+        }
+
+        const prioTag = priority === 'high' ? '🔴 Tinggi' : priority === 'low' ? '🟢 Ringan' : '🟡 Menengah'
+        const msg = `✅ <b>Tugas Berhasil Ditambahkan!</b>\n\n• <b>Tugas:</b> ${rawTodo}\n• <b>Prioritas:</b> ${prioTag}\n• <b>Dibuat untuk:</b> ${displayName}\n\n<i>Tersinkronisasi otomatis ke Dashboard Tasks.</i>`
+        if (botToken && chatId) await sendTelegramMessage(chatId, msg, botToken)
+        return NextResponse.json({ ok: true, todo_id: newTodo?.id })
+      }
+    }
+
+    // 5. Handle /agenda or /jadwal (Upcoming events & deadlines)
+    if (text === '/agenda' || text === '/jadwal' || lowerText === 'jadwal hari ini') {
+      const now = new Date()
+      const todayIso = now.toISOString()
+      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+      const { data: upcomingEvents } = await supabase
+        .from('events')
+        .select('title, start_date, all_day')
+        .gte('start_date', todayIso.split('T')[0])
+        .lte('start_date', nextWeek)
+        .order('start_date', { ascending: true })
+        .limit(8)
+
+      const { data: dueTodos } = await supabase
+        .from('todos')
+        .select('title, due_date')
+        .eq('completed', false)
+        .not('due_date', 'is', null)
+        .gte('due_date', todayIso.split('T')[0])
+        .lte('due_date', nextWeek.split('T')[0])
+        .order('due_date', { ascending: true })
+        .limit(5)
+
+      let agendaMsg = `📅 <b>Agenda & Jadwal Bersama (7 Hari ke Depan)</b>\n\n`
+      if ((!upcomingEvents || upcomingEvents.length === 0) && (!dueTodos || dueTodos.length === 0)) {
+        agendaMsg += `<i>Belum ada agenda atau deadline dalam 7 hari ini. Waktu santai berdua! ✨</i>`
+      } else {
+        if (upcomingEvents && upcomingEvents.length > 0) {
+          agendaMsg += `<b>Acara / Kencan:</b>\n`
+          for (const ev of upcomingEvents) {
+            const evDate = new Date(ev.start_date)
+            const dateStr = evDate.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })
+            const timeStr = ev.all_day ? 'Seharian' : evDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            agendaMsg += `• <b>${ev.title}</b> (${dateStr}, ${timeStr})\n`
+          }
+          agendaMsg += `\n`
+        }
+
+        if (dueTodos && dueTodos.length > 0) {
+          agendaMsg += `<b>Deadline Tugas:</b>\n`
+          for (const td of dueTodos) {
+            agendaMsg += `• ${td.title} (${td.due_date})\n`
+          }
+        }
+      }
+
+      if (botToken && chatId) await sendTelegramMessage(chatId, agendaMsg, botToken)
+      return NextResponse.json({ ok: true })
+    }
+
+    // 6. Handle /event or "event:" or "jadwal:" (Create calendar event)
+    if (text.startsWith('/event ') || lowerText.startsWith('event:') || lowerText.startsWith('jadwal:')) {
+      const rawEventText = text.replace(/^\/event\s+|^event:\s*|^jadwal:\s*/i, '').trim()
+      if (rawEventText && userId) {
+        let parsedEv: ParsedEvent | null = null
+        if (geminiKey) {
+          parsedEv = await parseEventWithGemini(rawEventText, geminiKey)
+        }
+        if (!parsedEv) {
+          const tomorrow = new Date(Date.now() + 86400000)
+          parsedEv = {
+            title: rawEventText,
+            start_date: tomorrow.toISOString(),
+            end_date: new Date(tomorrow.getTime() + 3600000).toISOString(),
+            all_day: false,
+            description: 'Dibuat via Telegram Bot',
+          }
+        }
+
+        const { data: newEv, error: evErr } = await supabase.from('events').insert({
+          user_id: userId,
+          title: parsedEv.title,
+          description: parsedEv.description || 'Dibuat via Telegram Bot',
+          start_date: parsedEv.start_date,
+          end_date: parsedEv.end_date,
+          all_day: parsedEv.all_day,
+          color: '#E11D48',
+        }).select().single()
+
+        if (evErr) {
+          if (botToken && chatId) await sendTelegramMessage(chatId, `❌ Gagal menyimpan jadwal: ${evErr.message}`, botToken)
+          return NextResponse.json({ error: evErr.message }, { status: 500 })
+        }
+
+        const dateFormatted = new Date(parsedEv.start_date).toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+        const timeFormatted = parsedEv.all_day ? 'Sepanjang Hari' : new Date(parsedEv.start_date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+
+        const confMsg = `📅 <b>Jadwal Berhasil Disimpan!</b>\n\n• <b>Acara:</b> ${parsedEv.title}\n• <b>Hari & Tanggal:</b> ${dateFormatted}\n• <b>Waktu:</b> ${timeFormatted}\n• <b>Dibuat oleh:</b> ${displayName}\n\n<i>Tersinkronisasi otomatis ke Kalender Web & Google Calendar.</i>`
+        if (botToken && chatId) await sendTelegramMessage(chatId, confMsg, botToken)
+        return NextResponse.json({ ok: true, event_id: newEv?.id })
+      }
+    }
+
+    // 7. Handle /note or "note:" or "catatan:" (Create note)
+    if (text.startsWith('/note ') || lowerText.startsWith('note:') || lowerText.startsWith('catatan:')) {
+      const noteContent = text.replace(/^\/note\s+|^note:\s*|^catatan:\s*/i, '').trim()
+      if (noteContent && userId) {
+        try {
+          await supabase.from('activity_logs').insert({
+            user_id: userId,
+            action: 'add_note',
+            page: 'Notes',
+            metadata: {
+              content: noteContent,
+              author: displayName,
+              created_at: new Date().toISOString(),
+            },
+          })
+        } catch (logErr) {
+          console.error('Failed to log note:', logErr)
+        }
+
+        const noteMsg = `📝 <b>Catatan Berhasil Disimpan!</b>\n\n"<i>${noteContent}</i>"\n\n• <b>Penulis:</b> ${displayName}\n<i>Tersimpan aman di AeggPepp Workspace.</i>`
+        if (botToken && chatId) await sendTelegramMessage(chatId, noteMsg, botToken)
+        return NextResponse.json({ ok: true })
+      }
+    }
+
+    // 8. Handle /saldo or /rekap command
     if (text === '/saldo' || text === '/rekap') {
       const now = new Date()
       const cm = now.getMonth(), cy = now.getFullYear()

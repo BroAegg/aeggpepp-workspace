@@ -22,7 +22,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useSidebarStore } from '@/stores/sidebar-store'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { getUser } from '@/lib/actions/auth'
+import { useAuth } from '@/providers/auth-provider'
 import { StatusIndicator } from '@/components/status-indicator'
 
 interface NavItem {
@@ -45,52 +45,57 @@ const recordNavItems: NavItem[] = [
   { title: 'Portfolio', href: '/portfolio', icon: Briefcase },
 ]
 
+function NavLink({
+  item,
+  collapsed,
+  pathname,
+  onItemClick,
+}: {
+  item: NavItem
+  collapsed: boolean
+  pathname: string
+  onItemClick?: () => void
+}) {
+  const isActive = pathname === item.href
+  const Icon = item.icon
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onItemClick}
+      className={cn(
+        'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-all duration-150 text-[13px] font-medium group',
+        collapsed ? 'justify-center px-0' : '',
+        isActive
+          ? 'bg-primary/10 text-primary font-semibold'
+          : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground'
+      )}
+      title={collapsed ? item.title : undefined}
+    >
+      <Icon
+        className={cn(
+          'w-4 h-4 shrink-0 transition-colors',
+          isActive ? 'text-primary' : 'text-sidebar-muted group-hover:text-foreground'
+        )}
+      />
+      {!collapsed && <span className="truncate">{item.title}</span>}
+    </Link>
+  )
+}
+
 export function Sidebar() {
   const pathname = usePathname()
   const { isOpen, isCollapsed, toggle, setCollapsed } = useSidebarStore()
-  const [userProfile, setUserProfile] = useState<{ name: string; role: string; initial: string } | null>(null)
+  const { profile } = useAuth()
 
-  useEffect(() => {
-    getUser().then((user) => {
-      if (user) {
-        const name = user.display_name || (user.role === 'peppaa' ? 'Peppaa' : 'Aegg')
-        setUserProfile({
-          name,
-          role: user.role || 'member',
-          initial: name.charAt(0).toUpperCase(),
-        })
-      }
-    })
-  }, [])
+  const displayName = profile?.display_name || (profile?.role === 'peppaa' ? 'Peppaa' : 'Aegg')
+  const userInitial = displayName.charAt(0).toUpperCase()
+  const userRole = profile?.role || 'Member'
 
-  const NavLink = ({ item, collapsed }: { item: NavItem; collapsed: boolean }) => {
-    const isActive = pathname === item.href
-    const Icon = item.icon
-
-    return (
-      <Link
-        href={item.href}
-        onClick={() => {
-          if (window.innerWidth < 768) toggle()
-        }}
-        className={cn(
-          'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-all duration-150 text-[13px] font-medium group',
-          collapsed ? 'justify-center px-0' : '',
-          isActive
-            ? 'bg-primary/10 text-primary font-semibold'
-            : 'text-sidebar-foreground hover:bg-sidebar-hover hover:text-foreground'
-        )}
-        title={collapsed ? item.title : undefined}
-      >
-        <Icon
-          className={cn(
-            'w-4 h-4 shrink-0 transition-colors',
-            isActive ? 'text-primary' : 'text-sidebar-muted group-hover:text-foreground'
-          )}
-        />
-        {!collapsed && <span className="truncate">{item.title}</span>}
-      </Link>
-    )
+  const handleMobileNavClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      toggle()
+    }
   }
 
   return (
@@ -179,7 +184,13 @@ export function Sidebar() {
               </p>
             )}
             {mainNavItems.map((item) => (
-              <NavLink key={item.href} item={item} collapsed={isCollapsed} />
+              <NavLink
+                key={item.href}
+                item={item}
+                collapsed={isCollapsed}
+                pathname={pathname}
+                onItemClick={handleMobileNavClick}
+              />
             ))}
           </div>
 
@@ -191,7 +202,13 @@ export function Sidebar() {
               </p>
             )}
             {recordNavItems.map((item) => (
-              <NavLink key={item.href} item={item} collapsed={isCollapsed} />
+              <NavLink
+                key={item.href}
+                item={item}
+                collapsed={isCollapsed}
+                pathname={pathname}
+                onItemClick={handleMobileNavClick}
+              />
             ))}
           </div>
         </div>
@@ -201,6 +218,8 @@ export function Sidebar() {
           <NavLink
             item={{ title: 'Settings', href: '/settings', icon: Settings }}
             collapsed={isCollapsed}
+            pathname={pathname}
+            onItemClick={handleMobileNavClick}
           />
 
           {!isCollapsed && (
@@ -215,14 +234,14 @@ export function Sidebar() {
               <div className="mt-2 p-2 rounded-lg bg-sidebar-hover/60 border border-sidebar-border flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                    {userProfile?.initial || 'A'}
+                    {userInitial}
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-foreground truncate">
-                      {userProfile?.name || 'AeggPepp'}
+                      {displayName}
                     </p>
                     <p className="text-[10px] text-sidebar-muted truncate capitalize">
-                      {userProfile?.role || 'Member'}
+                      {userRole}
                     </p>
                   </div>
                 </div>

@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { MobileMenuButton } from './sidebar'
 import { Bell } from 'lucide-react'
-import { getUser } from '@/lib/actions/auth'
+import { useAuth } from '@/providers/auth-provider'
 import { StatusIndicator } from '../status-indicator'
 
 interface HeaderProps {
@@ -13,17 +12,9 @@ interface HeaderProps {
 }
 
 export function Header({ title, icon: Icon }: HeaderProps) {
-  const [userInitial, setUserInitial] = useState('U')
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-
-  useEffect(() => {
-    getUser().then((user) => {
-      if (user) {
-        setUserInitial((user.display_name || 'U').charAt(0).toUpperCase())
-        setAvatarUrl(user.avatar_url || null)
-      }
-    })
-  }, [])
+  const { profile } = useAuth()
+  const userInitial = (profile?.display_name || profile?.role || 'U').charAt(0).toUpperCase()
+  const avatarUrl = profile?.avatar_url || null
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between px-4 md:px-8 h-14 bg-background/80 backdrop-blur-md border-b border-border transition-all">
