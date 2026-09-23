@@ -730,13 +730,15 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
 
 <b>1. 💳 Catat Keuangan Cepat:</b>
    • Ketik langsung: <code>Kopi kenangan 24rb</code>
-   • <code>Makan siang soto 35000</code>, <code>Gaji 8.5jt</code>
+   • <code>Makan siang soto 35000</code>, <code>Bensin 50rb</code>
    • Kirim <b>Foto Struk / Nota</b> (AI membaca otomatis & muncul tombol kategori)
-   • Ketik <code>/saldo</code> untuk ringkasan bulan ini
+   • <code>/gaji 8.5jt</code> — catat gaji / pemasukan bulanan
+   • <code>/pemasukan Freelance logo 500rb</code> — catat pemasukan lainnya
+   • Ketik <code>/saldo</code> untuk ringkasan + breakdown kategori bulan ini
 
 <b>2. 🛒 Daftar Belanja (Smart Grocery):</b>
    • <code>/belanja Susu kotak & Telur 1kg</code>
-   • Ketik <code>/belanja</code> untuk melihat daftar belanjaan
+   • Ketik <code>/belanja</code> untuk melihat daftar belanjaan (tampil siapa yang tambah)
    • <i>Kirim foto struk saat belanja, item belanjaan otomatis dicoret selesai!</i>
 
 <b>3. 📅 Jadwal & Kalender:</b>
@@ -877,7 +879,7 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
     if (text === '/belanja' || text === '/grocery' || lowerText === 'daftar belanja' || lowerText === '🛒 daftar belanja') {
       const { data: shoppingTodos } = await supabase
         .from('todos')
-        .select('id, title')
+        .select('id, title, user_id')
         .eq('category', 'shopping')
         .eq('completed', false)
         .order('created_at', { ascending: false })
@@ -893,8 +895,18 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
         return NextResponse.json({ ok: true })
       }
 
-      const listStr = shoppingTodos.map((t, idx) => `${idx + 1}. 🛒 <b>${t.title}</b>`).join('\n')
-      const msg = `🛒 <b>Daftar Belanjaan Belum Dibeli (${shoppingTodos.length})</b>\n\n${listStr}\n\n<i>Kirim foto struk saat belanja untuk mencoret otomatis!</i>`
+      // Aegg & Peppaa profile IDs for badge resolution
+      const AEGG_ID = 'dc59b2fc-d4bc-48da-bb41-ac112a562ea7'
+      const PEPPAA_ID = '5ad432db-a45d-49a5-8b03-ed09e1afd97d'
+
+      const listStr = shoppingTodos.map((t, idx) => {
+        let badge = ''
+        if (t.user_id === AEGG_ID) badge = ' <b>[A]</b>'
+        else if (t.user_id === PEPPAA_ID) badge = ' <b>[P]</b>'
+        return `${idx + 1}. 🛒 <b>${t.title}</b>${badge}`
+      }).join('\n')
+
+      const msg = `🛒 <b>Daftar Belanjaan Belum Dibeli (${shoppingTodos.length})</b>\n\n${listStr}\n\n<i><b>[A]</b> = Aegg | <b>[P]</b> = Peppaa</i>\n<i>Kirim foto struk saat belanja untuk mencoret otomatis!</i>`
       if (botToken && chatId) await sendTelegramMessage(chatId, msg, botToken)
       return NextResponse.json({ ok: true })
     }
@@ -1061,44 +1073,168 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
       }
     }
 
-    // 8. Handle /saldo or /rekap command
+    // 8a. Handle /gaji or /pemasukan — quick income shortcut
+    if (text.startsWith('/gaji') || text.startsWith('/pemasukan') || lowerText.startsWith('gaji:') || lowerText.startsWith('pemasukan:')) {
+      const rawIncome = text.replace(/^\/(gaji|pemasukan)\s*|^(gaji|pemasukan):\s*/i, '').trim()
+      if (rawIncome && userId) {
+        let parsedIncome: ParsedTransaction | null = null
+        if (geminiKey) {
+          parsedIncome = await parseTextWithGemini(`${rawIncome} (ini adalah pemasukan / income)`, geminiKey)
+        }
+        if (!parsedIncome) {
+          const numMatch = rawIncome.match(/(\d[\d.,]*)\s*(rb|k|ribu|jt|juta)?/i)
+          if (numMatch) {
+            let amt = parseFloat(numMatch[1].replace(/[.,]/g, ''))
+            const unit = (numMatch[2] || '').toLowerCase()
+            if (unit === 'rb' || unit === 'k' || unit === 'ribu') amt *= 1000
+            else if (unit === 'jt' || unit === 'juta') amt *= 1000000
+            parsedIncome = {
+              type: 'income',
+              total_amount: Math.round(amt),
+              store: 'Pemasukan',
+              description: rawIncome,
+              category: text.startsWith('/gaji') ? 'salary' : 'other_income',
+              date: new Date().toISOString().split('T')[0],
+            }
+          }
+        }
+
+        if (!parsedIncome || !parsedIncome.total_amount) {
+          if (botToken && chatId) await sendTelegramMessage(chatId, `⚠️ Nominal tidak terbaca. Contoh: <code>/gaji 8.5jt</code> atau <code>/gaji Gaji Kantor 8500000</code>`, botToken)
+          return NextResponse.json({ ok: true })
+        }
+
+        parsedIncome.type = 'income'
+        const incomeCategory = parsedIncome.category === 'salary' || text.startsWith('/gaji') ? 'salary' : parsedIncome.category || 'other_income'
+
+        const { data: newTx, error: insertErr } = await supabase.from('transactions').insert({
+          user_id: userId,
+          type: 'income',
+          category: incomeCategory,
+          amount: parsedIncome.total_amount,
+          description: parsedIncome.description || parsedIncome.store || 'Pemasukan',
+          date: parsedIncome.date || new Date().toISOString().split('T')[0],
+          paid_by: userId,
+          is_split: false,
+          is_settled: true,
+        }).select().single()
+
+        if (insertErr) {
+          if (botToken && chatId) await sendTelegramMessage(chatId, `❌ Gagal menyimpan pemasukan: ${insertErr.message}`, botToken)
+          return NextResponse.json({ error: insertErr.message }, { status: 500 })
+        }
+
+        const catLabel = incomeCategory === 'salary' ? '💰 Gaji' : incomeCategory === 'freelance' ? '💻 Freelance' : '💵 Pemasukan Lainnya'
+        const incMsg = `💰 <b>Pemasukan Berhasil Dicatat!</b>\n\n• <b>Nominal:</b> <b>${formatIDR(parsedIncome.total_amount)}</b>\n• <b>Kategori:</b> ${catLabel}\n• <b>Tanggal:</b> ${parsedIncome.date}\n• <b>Dicatat untuk:</b> ${displayName}\n\n<i>Tersimpan otomatis di AeggPepp Workspace.</i>`
+        if (botToken && chatId) await sendTelegramMessage(chatId, incMsg, botToken)
+        return NextResponse.json({ ok: true, transaction_id: newTx?.id })
+      }
+      if (botToken && chatId) await sendTelegramMessage(chatId, `Contoh penggunaan:\n<code>/gaji 8.5jt</code>\n<code>/pemasukan Freelance desain logo 500rb</code>`, botToken)
+      return NextResponse.json({ ok: true })
+    }
+
+    // 8b. Handle /saldo or /rekap command — detail per kategori + perbandingan bulan lalu
     if (text === '/saldo' || text === '/rekap' || lowerText === 'cek saldo' || lowerText === '💳 cek saldo') {
       const now = new Date()
-      const cm = now.getMonth(), cy = now.getFullYear()
-      const { data: monthlyTxs } = await supabase
-        .from('transactions')
-        .select('type, amount, date')
+      const cm = now.getMonth()
+      const cy = now.getFullYear()
+      const prevMonth = cm === 0 ? 11 : cm - 1
+      const prevYear = cm === 0 ? cy - 1 : cy
 
-      const currentMonthTxs = (monthlyTxs || []).filter(t => {
+      // Fetch current + previous month transactions with category
+      const { data: allTxs } = await supabase
+        .from('transactions')
+        .select('type, amount, category, date')
+        .order('date', { ascending: false })
+
+      const currentTxs = (allTxs || []).filter(t => {
         const d = new Date(t.date)
         return d.getMonth() === cm && d.getFullYear() === cy
       })
+      const prevTxs = (allTxs || []).filter(t => {
+        const d = new Date(t.date)
+        return d.getMonth() === prevMonth && d.getFullYear() === prevYear
+      })
 
-      const totalIncome = currentMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
-      const totalExpense = currentMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+      const totalIncome = currentTxs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+      const totalExpense = currentTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+      const prevExpense = prevTxs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
       const cashFlow = totalIncome - totalExpense
 
+      // Per-category breakdown (expenses only, top 5)
+      const catTotals: Record<string, number> = {}
+      currentTxs.filter(t => t.type === 'expense').forEach(t => {
+        const cat = t.category || 'other_expense'
+        catTotals[cat] = (catTotals[cat] || 0) + Number(t.amount)
+      })
+      const catEmoji: Record<string, string> = {
+        food: '🍽️', daily_needs: '🏪', shopping: '🛍️', transport: '🚗',
+        date: '🌹', bills: '💡', health: '🏥', utilities: '💡',
+        internet: '📶', clothing: '👕', vehicle: '🔧', sedekah: '🤲',
+        treatment: '💆', vacation: '✈️', other_expense: '💳',
+      }
+      const topCats = Object.entries(catTotals)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+
+      // Savings
       const { data: savings } = await supabase.from('savings_accounts').select('balance')
       const totalSavings = (savings || []).reduce((s, a) => s + Number(a.balance), 0)
 
-      const rekapMsg = `📊 <b>Ringkasan Keuangan (${now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })})</b>
+      // Month comparison
+      const diffExpense = totalExpense - prevExpense
+      const diffSign = diffExpense > 0 ? '▲' : diffExpense < 0 ? '▼' : '='
+      const diffColor = diffExpense > 0 ? '🔴' : diffExpense < 0 ? '🟢' : '⚪'
+      const prevMonthName = new Date(prevYear, prevMonth, 1).toLocaleDateString('id-ID', { month: 'long' })
+      const currentMonthName = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
 
-• <b>Pemasukan:</b> ${formatIDR(totalIncome)}
-• <b>Pengeluaran:</b> ${formatIDR(totalExpense)}
-• <b>Arus Kas:</b> ${formatIDR(cashFlow)}
-• <b>Total Tabungan:</b> ${formatIDR(totalSavings)}
+      let catBreakdown = ''
+      if (topCats.length > 0) {
+        catBreakdown = '\n\n<b>📂 Pengeluaran per Kategori:</b>\n'
+        catBreakdown += topCats.map(([cat, amt]) => {
+          const pct = totalExpense > 0 ? Math.round((amt / totalExpense) * 100) : 0
+          const emoji = catEmoji[cat] || '💳'
+          const catLabel = cat.replace(/_/g, ' ')
+          return `  ${emoji} <b>${catLabel}:</b> ${formatIDR(amt)} (${pct}%)`
+        }).join('\n')
+      }
 
-<i>Selalu jaga kesehatan finansial bersama untuk masa depan yang tenang ✨</i>`
+      const rekapMsg = `📊 <b>Ringkasan Keuangan — ${currentMonthName}</b>
+
+• <b>💰 Pemasukan:</b> ${formatIDR(totalIncome)}
+• <b>💳 Pengeluaran:</b> ${formatIDR(totalExpense)}
+• <b>🏦 Arus Kas:</b> ${formatIDR(cashFlow)}
+• <b>🐷 Total Tabungan:</b> ${formatIDR(totalSavings)}
+${catBreakdown}
+
+<b>📈 vs Bulan Lalu (${prevMonthName}):</b>
+  ${diffColor} Pengeluaran ${diffSign} ${formatIDR(Math.abs(diffExpense))} ${diffExpense > 0 ? '(lebih boros)' : diffExpense < 0 ? '(lebih hemat!)' : '(sama)'}
+
+<i>Selalu jaga kesehatan finansial bersama ✨</i>`
+
       if (botToken) await sendTelegramMessage(chatId, rekapMsg, botToken)
       return NextResponse.json({ ok: true })
     }
 
     let parsedResult: ParsedTransaction | null = null
 
-    // 3. Process Photo / Receipt
+    // 3. Process Photo / Receipt (supports single photo AND multi-photo album/media_group)
     if (message.photo && message.photo.length > 0) {
       if (!botToken) {
         return NextResponse.json({ error: 'TELEGRAM_BOT_TOKEN not configured' }, { status: 500 })
+      }
+
+      const mediaGroupId = message.media_group_id
+
+      if (mediaGroupId) {
+        // Multi-photo: inform user we'll process this photo and ask them to wait
+        // (Telegram sends each photo in album as separate webhook calls)
+        // We process the current photo normally — the caption from first photo applies to all
+        await sendTelegramMessage(
+          chatId,
+          `📸 Menerima bagian struk... Memproses foto ini.`,
+          botToken
+        )
       }
 
       // Pick the highest resolution photo
