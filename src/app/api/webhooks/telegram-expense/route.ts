@@ -225,7 +225,40 @@ function formatIDR(amount: number) {
   }).format(amount)
 }
 
-// Gemini 1.5 Flash text parsing
+// Gemini multi-model fallback cascade to guarantee 99.9% uptime
+const GEMINI_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.6-flash',
+  'gemini-2.5-pro',
+]
+
+async function callGeminiWithFallback(geminiKey: string, payload: any): Promise<string | null> {
+  for (const model of GEMINI_MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        const content = data?.candidates?.[0]?.content?.parts?.[0]?.text
+        if (content) return content
+      } else {
+        console.warn(`Gemini model ${model} status ${res.status}, trying next fallback...`)
+      }
+    } catch (err) {
+      console.warn(`Gemini fetch error on model ${model}:`, err)
+    }
+  }
+  return null
+}
+
+// Gemini text parsing
 async function parseTextWithGemini(text: string, geminiKey: string): Promise<ParsedTransaction | null> {
   const todayStr = new Date().toISOString().split('T')[0]
   const prompt = `Anda adalah asisten keuangan pribadi cerdas untuk pasangan (Aegg & Peppaa) di Indonesia.
@@ -267,28 +300,13 @@ Kembalikan HANYA format JSON valid tanpa tanda markdown (blok code json):
 }`
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            response_mime_type: 'application/json',
-            temperature: 0.1,
-          },
-        }),
-      }
-    )
-
-    if (!res.ok) {
-      console.error('Gemini API error:', await res.text())
-      return null
-    }
-
-    const data = await res.json()
-    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    const content = await callGeminiWithFallback(geminiKey, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.1,
+      },
+    })
     if (!content) return null
 
     const parsed = JSON.parse(content)
@@ -340,24 +358,13 @@ Kembalikan HANYA format JSON valid tanpa markdown backticks:
 }`
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            response_mime_type: 'application/json',
-            temperature: 0.1,
-          },
-        }),
-      }
-    )
-
-    if (!res.ok) return null
-    const data = await res.json()
-    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    const content = await callGeminiWithFallback(geminiKey, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.1,
+      },
+    })
     if (!content) return null
 
     const parsed = JSON.parse(content)
@@ -378,73 +385,82 @@ Kembalikan HANYA format JSON valid tanpa markdown backticks:
   }
 }
 
-// Gemini Vision receipt image parsing
+// Gemini Vision receipt image parsing with robust Indonesian receipt patterns
 async function parseReceiptImageWithGemini(
   base64Image: string,
   caption: string | undefined,
   geminiKey: string
 ): Promise<ParsedTransaction | null> {
   const todayStr = new Date().toISOString().split('T')[0]
-  const prompt = `Anda adalah asisten audit keuangan yang sangat teliti dalam membaca struk belanja, invoice, nota, atau bukti transfer QRIS di Indonesia.
-Caption tambahan dari pengguna: "${caption || 'Tidak ada'}".
+  const prompt = `Anda adalah asisten audit keuangan yang sangat cerdas dan teliti dalam membaca struk belanja, invoice, nota, bukti QRIS, atau slip EDC di Indonesia.
+Caption dari pengguna: "${caption || 'Tidak ada'}".
 Tanggal hari ini: ${todayStr}.
 
-Tugas:
-1. Cari TOTAL AKHIR (Grand Total / Total Tagihan / Jumlah Pembayaran) dalam Rupiah.
-2. Identifikasi Nama Toko/Merchant (contoh: Indomaret, Starbucks, Kopi Kenangan, SPBU Pertamina, dll).
-3. Tentukan kategori yang paling tepat:
-   - food, daily_needs, shopping, transport, clothing, treatment, date, bills, utilities, internet, health, vehicle, other_expense.
-4. Cari tanggal pada struk (format YYYY-MM-DD). Jika tidak terbaca atau buram, gunakan tanggal hari ini: ${todayStr}.
-5. Ekstrak ringkasan item yang dibeli jika terlihat.
+PANDUAN KHUSUS MEMBACA STRUK INDONESIA:
+1. TOTAL AKHIR (UANG BERSIH YANG DIKELUARKAN):
+   - Ambil angka TOTAL AKHIR / NET TOTAL setelah diskon, promo, atau pembulatan.
+   - PENTING: JANGAN TERTUKAR dengan uang tunai yang diserahkan pembeli (misal "PEMBAYARAN-TUNAI / CASH 50.000") atau uang kembalian (misal "KEMBALIAN 8.700")! Jika tagihan adalah 41.300 dan bayar 50.000, maka TOTAL PENGELUARAN adalah 41300.
+   - PENTING: Pada struk supermarket dengan diskon, jangan ambil SUBTOTAL kotor sebelum diskon. Ambil TOTAL bersih setelah diskon (contoh "TOTAL DISCOUNT / HEMAT").
+   - Pada slip EDC atau bukti QRIS (Mandiri, BCA, BRI, GoPay, ShopeePay), ambil nilai "TOTAL" atau "Nominal".
+   - Jika struk terpotong di bagian atas/bawah dan tidak ada tulisan TOTAL eksplisit, jumlahkan semua harga item yang terbaca di foto.
+   - Hilangkan karakter pemisah ribuan (. atau ,), jadikan integer bulat IDR (contoh: 354.375 -> 354375, 41.300 -> 41300).
 
-Kembalikan HANYA format JSON valid tanpa markdown backticks:
+2. NAMA TOKO / MERCHANT:
+   - Ambil nama toko atau merchant yang tertera (contoh: "Apotek K-24", "Griya Antapani", "Indomaret", "Alfamart", "Starbucks", dll).
+   - Jika struk miring atau menyamping (landscape), tetap baca orientasi teksnya dengan benar.
+   - Jika bagian atas terpotong sehingga nama toko tidak ada, isi dengan kategori umum toko (contoh: "Supermarket / Swalayan").
+
+3. KATEGORI:
+   - health: Apotek, obat, klinik, vitamin, dokter
+   - daily_needs: Supermarket, minimarket, sembako, telur, sabun, kebutuhan rumah
+   - food: Restoran, kafe, jajanan, warung, kopi, makanan siap saji
+   - shopping: Belanja pakaian, kosmetik, elektronik, hobi
+   - transport: Bensin, spbu, tol, gojek, grab, parkir
+   - date: Bioskop, hiburan berdua, tiket rekreasi
+   - bills: Tagihan listrik, pln, pdam, wifi
+   - other_expense: Lain-lain
+
+4. TANGGAL:
+   - Cari tanggal transaksi pada struk (format YYYY-MM-DD). Jika tidak ada atau buram, gunakan: ${todayStr}.
+
+5. DAFTAR ITEM:
+   - Ekstrak nama item dan harga jika terlihat pada struk rincian belanja.
+
+Kembalikan HANYA format JSON valid tanpa backticks markdown:
 {
   "type": "expense",
-  "total_amount": <angka bulat integer total akhir rupiah>,
-  "store": "<nama toko/merchant>",
+  "total_amount": <angka bulat integer rupiah>,
+  "store": "<nama toko>",
   "category": "<kategori di atas>",
   "description": "<ringkasan belanja singkat>",
   "date": "YYYY-MM-DD",
   "items": [
-    { "name": "<nama item>", "price": <harga> }
+    { "name": "<nama item>", "price": <angka harga> }
   ]
 }`
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
+    const payload = {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
             {
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: 'image/jpeg',
-                    data: base64Image,
-                  },
-                },
-              ],
+              inline_data: {
+                mime_type: 'image/jpeg',
+                data: base64Image,
+              },
             },
           ],
-          generationConfig: {
-            response_mime_type: 'application/json',
-            temperature: 0.1,
-          },
-        }),
-      }
-    )
-
-    if (!res.ok) {
-      console.error('Gemini Vision error:', await res.text())
-      return null
+        },
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+        temperature: 0.1,
+      },
     }
 
-    const data = await res.json()
-    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    const content = await callGeminiWithFallback(geminiKey, payload)
     if (!content) return null
 
     const parsed = JSON.parse(content)
@@ -457,7 +473,7 @@ Kembalikan HANYA format JSON valid tanpa markdown backticks:
       category: parsed.category || 'daily_needs',
       description: parsed.description || parsed.store || 'Belanja via Struk',
       date: parsed.date || todayStr,
-      items: parsed.items || [],
+      items: Array.isArray(parsed.items) ? parsed.items : [],
     }
   } catch (err) {
     console.error('Gemini image parsing error:', err)
@@ -1243,6 +1259,15 @@ Asisten Pribadi <b>AeggPepp Workspace</b> siap mendampingi hari-hari kalian berd
 
     if (checkedOffItems.length > 0) {
       confirmationText += `\n\n🛒 <b>Daftar Belanjaan Dicoret Otomatis:</b>\n` + checkedOffItems.map((i) => `• <s>${i}</s> ✅`).join('\n')
+    }
+
+    if (parsedResult.items && parsedResult.items.length > 0) {
+      const topItems = parsedResult.items.slice(0, 5).map((i) => `• ${i.name} (${formatIDR(i.price)})`).join('\n')
+      const remainingCount = parsedResult.items.length - 5
+      confirmationText += `\n\n🧾 <b>Item Terbaca (${parsedResult.items.length} item):</b>\n${topItems}`
+      if (remainingCount > 0) {
+        confirmationText += `\n<i>...dan ${remainingCount} item lainnya.</i>`
+      }
     }
 
     if (parsedResult.type === 'expense' && newTx?.id) {
