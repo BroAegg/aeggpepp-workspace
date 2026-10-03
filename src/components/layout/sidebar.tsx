@@ -13,6 +13,7 @@ import {
   Gift,
   Wallet,
   Settings,
+  Gem,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -41,6 +42,7 @@ const recordNavItems: NavItem[] = [
   { title: 'Finance', href: '/finance', icon: Wallet },
   { title: 'Wishlist', href: '/wishlist', icon: Gift },
   { title: 'Gallery', href: '/gallery', icon: Image },
+  { title: 'Wedding Prep', href: '/wedding', icon: Gem },
 ]
 
 function NavLink({

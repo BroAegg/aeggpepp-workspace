@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type {
   Transaction, Budget, SavingsAccount, Todo, TodoCategoryItem,
-  Goal, CalendarEvent, GalleryItem, WishlistItem, PortfolioLink
+  Goal, CalendarEvent, GalleryItem, WishlistItem, PortfolioLink,
+  WeddingBudgetItem, WeddingGuest, WeddingRundownItem, WeddingRsvpStatus
 } from '@/types'
 
 interface WorkspaceState {
@@ -68,6 +69,22 @@ interface WorkspaceState {
   setPortfolioData: (portfolio: PortfolioLink[]) => void
   removePortfolioOptimistic: (id: string) => void
   invalidatePortfolio: () => void
+
+  // Wedding Cache
+  weddingBudgetItems: WeddingBudgetItem[]
+  weddingGuests: WeddingGuest[]
+  weddingRundown: WeddingRundownItem[]
+  weddingLoaded: boolean
+  setWeddingData: (data: {
+    budgetItems?: WeddingBudgetItem[]
+    guests?: WeddingGuest[]
+    rundown?: WeddingRundownItem[]
+  }) => void
+  toggleGuestRSVPOptimistic: (id: string, status: WeddingRsvpStatus) => void
+  removeWeddingBudgetItemOptimistic: (id: string) => void
+  removeWeddingGuestOptimistic: (id: string) => void
+  removeWeddingRundownOptimistic: (id: string) => void
+  invalidateWedding: () => void
 
   // Dashboard Combined Cache
   dashboardLoaded: boolean
@@ -259,6 +276,47 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       portfolioLoaded: false,
     }),
 
+  // Wedding
+  weddingBudgetItems: [],
+  weddingGuests: [],
+  weddingRundown: [],
+  weddingLoaded: false,
+
+  setWeddingData: (data) =>
+    set((state) => ({
+      weddingBudgetItems: data.budgetItems !== undefined ? data.budgetItems : state.weddingBudgetItems,
+      weddingGuests: data.guests !== undefined ? data.guests : state.weddingGuests,
+      weddingRundown: data.rundown !== undefined ? data.rundown : state.weddingRundown,
+      weddingLoaded: true,
+    })),
+
+  toggleGuestRSVPOptimistic: (id, status) =>
+    set((state) => ({
+      weddingGuests: state.weddingGuests.map((g) =>
+        g.id === id ? { ...g, rsvp_status: status } : g
+      ),
+    })),
+
+  removeWeddingBudgetItemOptimistic: (id) =>
+    set((state) => ({
+      weddingBudgetItems: state.weddingBudgetItems.filter((i) => i.id !== id),
+    })),
+
+  removeWeddingGuestOptimistic: (id) =>
+    set((state) => ({
+      weddingGuests: state.weddingGuests.filter((g) => g.id !== id),
+    })),
+
+  removeWeddingRundownOptimistic: (id) =>
+    set((state) => ({
+      weddingRundown: state.weddingRundown.filter((r) => r.id !== id),
+    })),
+
+  invalidateWedding: () =>
+    set({
+      weddingLoaded: false,
+    }),
+
   // Dashboard
   dashboardLoaded: false,
   dashboardLastFetched: null,
@@ -292,6 +350,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       galleryLoaded: false,
       wishlistLoaded: false,
       portfolioLoaded: false,
+      weddingLoaded: false,
       dashboardLoaded: false,
       dashboardLastFetched: null,
     })
@@ -319,6 +378,10 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         wishlistLoaded: state.wishlistLoaded,
         portfolio: state.portfolio,
         portfolioLoaded: state.portfolioLoaded,
+        weddingBudgetItems: state.weddingBudgetItems,
+        weddingGuests: state.weddingGuests,
+        weddingRundown: state.weddingRundown,
+        weddingLoaded: state.weddingLoaded,
         dashboardLoaded: state.dashboardLoaded,
         dashboardLastFetched: state.dashboardLastFetched,
       }),

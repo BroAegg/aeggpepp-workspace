@@ -183,4 +183,9 @@ declare module 'lucide-react' {
   // Network & Connectivity
   export const Wifi: Icon
   export const WifiOff: Icon
+
+  // Wedding & Milestones
+  export const Gem: Icon
+  export const HeartHandshake: Icon
+  export const Phone: Icon
 }

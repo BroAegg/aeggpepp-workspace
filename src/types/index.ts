@@ -240,6 +240,74 @@ export interface NavItem {
   emoji: string
 }
 
+// Wedding Types
+export type WeddingCategory =
+  | 'kua'
+  | 'venue'
+  | 'catering'
+  | 'attire_mua'
+  | 'documentation'
+  | 'ring'
+  | 'decor'
+  | 'invitation_souvenir'
+  | 'other'
+
+export type WeddingItemStatus = 'planned' | 'booked_dp' | 'paid_off'
+
+export interface WeddingBudgetItem {
+  id: string
+  user_id: string
+  category: WeddingCategory
+  title: string
+  estimated_cost: number
+  actual_cost: number
+  paid_amount: number
+  status: WeddingItemStatus
+  due_date: string | null
+  vendor_name: string | null
+  vendor_contact: string | null
+  notes: string | null
+  created_at: string
+  updated_at?: string
+  profiles?: ItemOwner
+}
+
+export type WeddingGuestGroup =
+  | 'family_aegg'
+  | 'family_peppaa'
+  | 'friends_aegg'
+  | 'friends_peppaa'
+  | 'vip'
+  | 'other'
+
+export type WeddingRsvpStatus = 'pending' | 'attending' | 'declined'
+
+export interface WeddingGuest {
+  id: string
+  user_id: string
+  name: string
+  group_type: WeddingGuestGroup
+  pax: number
+  rsvp_status: WeddingRsvpStatus
+  phone: string | null
+  notes: string | null
+  created_at: string
+  profiles?: ItemOwner
+}
+
+export interface WeddingRundownItem {
+  id: string
+  user_id: string
+  time_start: string
+  time_end: string | null
+  title: string
+  pic: string | null
+  notes: string | null
+  position: number
+  created_at: string
+  profiles?: ItemOwner
+}
+
 // Database Types (Supabase format)
 export type Database = {
   public: {

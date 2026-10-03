@@ -58,6 +58,13 @@
   - **Persistent LocalStorage Cache**: Zustand `useWorkspaceStore` menggunakan `persist` middleware (`aeggpepp-workspace-offline-cache`). Data keuangan, todo, goals, kalender, galeri, dan wishlist tetap ada saat web ditutup/dibuka kembali saat offline.
   - **Offline Indicator Banner**: Komponen `src/components/offline-banner.tsx` memunculkan badge amber mengambang saat koneksi internet terputus dan toast hijau saat kembali online.
   - **Offline Guard & Auto-Revalidate**: Seluruh 8 halaman dashboard memblokir network error saat offline dan otomatis menyinkronkan data terbaru saat koneksi internet pulih.
+- [x] **Phase 17.7: Wedding Preparation Hub (Budget Rp 25 Juta & Guest Management)** —
+  - **Database Migration**: Schema `setup-wedding-system.sql` untuk tabel `wedding_budget_items`, `wedding_guests`, dan `wedding_rundown` dengan RLS multi-user & index performa.
+  - **Budget Tracker (Rp 25.000.000 Target)**: Auto-seeding 8 pos realistis intimate wedding (KUA, Venue, Catering 70 pax, MUA/Busana, Dokumentasi, Cincin Kawin, Dekorasi, Souvenir/Undangan). Tracking estimasi, realisasi, DP terbayar, dan sisa pelunasan vendor.
+  - **Guest List & RSVP**: Manajemen 50–100 pax tamu intimate, filter kelompok (Keluarga/Teman Aegg & Peppaa, VIP), 0ms optimistic RSVP toggle, dan direct WhatsApp follow-up link.
+  - **Hari-H Rundown**: Timeline susunan acara akad & resepsi dengan penanggung jawab (PIC) dan checklist sesi.
+  - **Offline & Zero-Delay**: Terintegrasi ke Zustand persist cache-first dengan offline safety guard.
+  - **Sidebar Navigation**: Menu Wedding Prep ditambahkan ke sidebar dengan icon `Gem`.
 
 ---
 
@@ -175,5 +182,5 @@
 
 ---
 
-*Terakhir diperbarui: 13 September 2026*  
+*Terakhir diperbarui: 3 Oktober 2026*  
 *Pembuat: Aegg & Antigravity AI*
