@@ -44,9 +44,17 @@ export default function GoalsPage() {
     // Restore view preference
     const saved = localStorage.getItem('goals-view-mode')
     if (saved === 'kanban' || saved === 'table') setViewMode(saved)
+
+    const handleOnline = () => fetchGoals()
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
   }, [])
 
   const fetchGoals = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false)
+      return
+    }
     try {
       const data = await getGoals()
       setGoals(data)

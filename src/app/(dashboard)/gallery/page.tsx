@@ -102,9 +102,17 @@ export default function GalleryPage() {
   // Fetch photos on mount (SWR: revalidate in background)
   useEffect(() => {
     fetchPhotos()
+
+    const handleOnline = () => fetchPhotos()
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
   }, [])
 
   const fetchPhotos = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false)
+      return
+    }
     if (!galleryLoaded && cachedGallery.length === 0) setLoading(true)
     try {
       const data = await getGalleryItems()

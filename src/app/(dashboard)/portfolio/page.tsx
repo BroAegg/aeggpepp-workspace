@@ -42,9 +42,17 @@ export default function PortfolioPage() {
 
   useEffect(() => {
     fetchLinks()
+
+    const handleOnline = () => fetchLinks()
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
   }, [])
 
   const fetchLinks = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false)
+      return
+    }
     if (!portfolioLoaded && cachedPortfolio.length === 0) setLoading(true)
     try {
       const data = await getPortfolioLinks()

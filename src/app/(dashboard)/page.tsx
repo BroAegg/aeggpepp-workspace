@@ -71,10 +71,20 @@ export default function DashboardPage() {
     // 2. Fetch real data
     fetchDashboardData()
 
-    return () => clearInterval(interval)
+    const handleOnline = () => fetchDashboardData()
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('online', handleOnline)
+    }
   }, [])
 
   const fetchDashboardData = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false)
+      return
+    }
     try {
       const results = await Promise.allSettled([
         getTodos(),

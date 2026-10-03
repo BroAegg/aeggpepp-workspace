@@ -133,13 +133,20 @@ export default function FinancePage() {
         })
     }, [])
 
-    // Re-fetch when viewMode changes
+    // Auto-revalidate when back online
     useEffect(() => {
-        if (!userProfile) return
-        fetchData(userProfile, viewMode)
-    }, [viewMode])
+        const handleOnline = () => {
+            if (userProfile) fetchData(userProfile, viewMode)
+        }
+        window.addEventListener('online', handleOnline)
+        return () => window.removeEventListener('online', handleOnline)
+    }, [userProfile, viewMode])
 
     const fetchData = async (profile: typeof userProfile, mode: typeof viewMode) => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setLoading(false)
+            return
+        }
         if (!financeLoaded) setLoading(true)
         try {
             let targetId: string | 'all' | undefined = undefined

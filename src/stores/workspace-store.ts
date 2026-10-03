@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type {
   Transaction, Budget, SavingsAccount, Todo, TodoCategoryItem,
   Goal, CalendarEvent, GalleryItem, WishlistItem, PortfolioLink
@@ -82,9 +83,11 @@ interface WorkspaceState {
   invalidateAll: () => void
 }
 
-export const useWorkspaceStore = create<WorkspaceState>((set) => ({
-  // Profile
-  profile: null,
+export const useWorkspaceStore = create<WorkspaceState>()(
+  persist(
+    (set) => ({
+      // Profile
+      profile: null,
   setProfile: (profile) => set({ profile }),
 
   // Finance
@@ -291,5 +294,34 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       portfolioLoaded: false,
       dashboardLoaded: false,
       dashboardLastFetched: null,
-    }),
-}))
+    })
+  }),
+  {
+    name: 'aeggpepp-workspace-offline-cache',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        profile: state.profile,
+        transactions: state.transactions,
+        budgets: state.budgets,
+        savings: state.savings,
+        financeLoaded: state.financeLoaded,
+        financeLastFetched: state.financeLastFetched,
+        todos: state.todos,
+        todoCategories: state.todoCategories,
+        todosLoaded: state.todosLoaded,
+        goals: state.goals,
+        goalsLoaded: state.goalsLoaded,
+        events: state.events,
+        eventsLoaded: state.eventsLoaded,
+        gallery: state.gallery,
+        galleryLoaded: state.galleryLoaded,
+        wishlist: state.wishlist,
+        wishlistLoaded: state.wishlistLoaded,
+        portfolio: state.portfolio,
+        portfolioLoaded: state.portfolioLoaded,
+        dashboardLoaded: state.dashboardLoaded,
+        dashboardLastFetched: state.dashboardLastFetched,
+      }),
+    }
+  )
+)

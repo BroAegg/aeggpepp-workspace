@@ -53,6 +53,11 @@
   - **Database Index Optimization**: Script SQL `optimize-database-indexes.sql` untuk mengeliminasi sequential scan di tabel `budgets`, `savings_accounts`, `wishlist`, `goal_tasks`, `todo_tasks`, dan `activity_logs`.
   - **Network Deconfliction**: Debounce server action `page_view` di `ActivityTracker` agar tidak mengganggu antrean data utama.
   - **N8N Purge**: Menghapus `n8n-receipt-workflow-template.json` karena integrasi otomatis dialihkan ke Native Serverless Next.js API Route.
+- [x] **Phase 17.6: Offline-Ready PWA & Persistent Local Storage** —
+  - **Service Worker Registered**: Komponen `src/components/pwa-register.tsx` terpasang di root layout untuk mendaftarkan `/sw.js`.
+  - **Persistent LocalStorage Cache**: Zustand `useWorkspaceStore` menggunakan `persist` middleware (`aeggpepp-workspace-offline-cache`). Data keuangan, todo, goals, kalender, galeri, dan wishlist tetap ada saat web ditutup/dibuka kembali saat offline.
+  - **Offline Indicator Banner**: Komponen `src/components/offline-banner.tsx` memunculkan badge amber mengambang saat koneksi internet terputus dan toast hijau saat kembali online.
+  - **Offline Guard & Auto-Revalidate**: Seluruh 8 halaman dashboard memblokir network error saat offline dan otomatis menyinkronkan data terbaru saat koneksi internet pulih.
 
 ---
 

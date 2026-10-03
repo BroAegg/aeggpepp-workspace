@@ -112,7 +112,21 @@ export default function TodosPage() {
         localStorage.setItem('todos-view-mode', mode)
     }
 
+    // Auto-revalidate when back online
+    useEffect(() => {
+        const handleOnline = () => {
+            fetchTodos()
+            fetchCategories()
+        }
+        window.addEventListener('online', handleOnline)
+        return () => window.removeEventListener('online', handleOnline)
+    }, [])
+
     const fetchTodos = async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setLoading(false)
+            return
+        }
         try {
             const data = await getTodos()
             setTodos(data)
@@ -125,6 +139,7 @@ export default function TodosPage() {
     }
 
     const fetchCategories = async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return
         try {
             const data = await getTodoCategories()
             setCategories(data)

@@ -79,9 +79,17 @@ export default function CalendarPage() {
 
   useEffect(() => {
     fetchData()
+
+    const handleOnline = () => fetchData()
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
   }, [])
 
   const fetchData = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false)
+      return
+    }
     try {
       const [eventsData, itemsData] = await Promise.all([
         getEvents(),

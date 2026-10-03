@@ -179,4 +179,8 @@ declare module 'lucide-react' {
   export const Linkedin: Icon
   export const Twitter: Icon
   export const Code: Icon
+
+  // Network & Connectivity
+  export const Wifi: Icon
+  export const WifiOff: Icon
 }

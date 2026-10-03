@@ -31,6 +31,8 @@ export const viewport: Viewport = {
   userScalable: false,
 }
 import { ThemeProvider } from "@/components/theme-provider"
+import { ServiceWorkerRegister } from "@/components/pwa-register"
+import { OfflineBanner } from "@/components/offline-banner"
 
 export default function RootLayout({
   children,
@@ -46,6 +48,8 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
+          <OfflineBanner />
+          <ServiceWorkerRegister />
           {children}
         </ThemeProvider>
       </body>

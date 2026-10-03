@@ -43,9 +43,17 @@ export default function WishlistPage() {
 
   useEffect(() => {
     fetchItems()
+
+    const handleOnline = () => fetchItems()
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
   }, [])
 
   const fetchItems = async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false)
+      return
+    }
     try {
       const data = await getWishlistItems()
       setItems(data)
