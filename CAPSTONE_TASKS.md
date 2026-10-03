@@ -68,14 +68,16 @@
 
 ---
 
-## 🚀 3. Grand Roadmap: Tasks Kiblat (Phases 18–23)
+## 🚀 3. Grand Roadmap: Tasks Kiblat
 
 ```
-[Phase 18: Native Telegram Webhook & Gemini Vision] 
+[Phase M: Native Mobile App (React Native Expo)] ────┐
+                                                     ▼
+[Phase 18: Native Telegram Webhook & Gemini Vision] ───► [Unified Supabase Backend]
+                                                     ▲
+[Phase 19: AI OCR Receipt & Expense Parser Engine] ──┘
                       ↓
-[Phase 19: AI OCR Receipt & Expense Parser Engine] 
-                      ↓
-[Phase 20: Web Dashboard Receipt View & Upload] 
+[Phase 20: Web & Mobile Dashboard Receipt View] 
                       ↓
 [Phase 21: Financial Health Engine & Alerts] 
                       ↓
@@ -83,6 +85,21 @@
                       ↓
 [Phase 23: Notion-like Goals Overhaul (Side Peek + Sub-pages)]
 ```
+
+---
+
+### 📱 PHASE M: Native Mobile App for Android & iOS (In Progress ⏳)
+**Target**: Aplikasi mobile native murni (React Native Expo) terhubung ke database Supabase yang sama, memiliki autentikasi biometrik, haptic feedback, wedding hub, dan quick expense. (Ref: [`MOBILE_APP_PLAN.md`](file:///d:/Peppakuu/Our%20Project/aeggpepp-workspace/MOBILE_APP_PLAN.md)).
+
+- [ ] **M.1** Inisialisasi folder `mobile/` dengan React Native Expo SDK 52 (TypeScript).
+- [ ] **M.2** Setup Supabase client di mobile dengan `expo-secure-store` untuk persistensi auth session terenkripsi.
+- [ ] **M.3** Konfigurasi Android package (`com.broaegg.aeggpepp`), ikon aplikasi, dan splash screen.
+- [ ] **M.4** Navigasi Bottom Tabs: Home, Wedding Hub, Finance, Todos, Settings.
+- [ ] **M.5** Layar Wedding Hub Mobile (Budget 25jt, Guest List RSVP dengan WhatsApp direct launcher, Rundown Hari-H).
+- [ ] **M.6** Quick Expense input dengan numpad native satu tangan.
+- [ ] **M.7** Integrasi Haptic Feedback (`expo-haptics`) pada interaksi centang checklist & RSVP.
+- [ ] **M.8** Pemasangan master icon & splash screen resmi karya Peppaa di `mobile/assets/`.
+- [ ] **M.9** Kompilasi file APK mandiri via Android Studio SDK lokal (`C:\Users\Aegner\AppData\Local\Android\Sdk`).
 
 ---
 
