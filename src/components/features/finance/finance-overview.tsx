@@ -19,6 +19,8 @@ import {
 import type { Transaction, Budget, SavingsAccount } from '@/types'
 import { cn } from '@/lib/utils'
 import { OwnerBadge } from '@/components/ui/owner-badge'
+import { calculateFinancialHealth } from '@/lib/financial-health'
+import { FinancialHealthCard } from '@/components/features/finance/financial-health-card'
 
 interface FinanceOverviewProps {
   transactions: Transaction[]
@@ -119,8 +121,15 @@ export function FinanceOverview({
     }
   }, [stats.budgetPercent])
 
+  const healthReport = useMemo(() => {
+    return calculateFinancialHealth(transactions, budgets, savings)
+  }, [transactions, budgets, savings])
+
   return (
     <div className="space-y-6">
+      {/* 0. Intelligent Financial Health Score & Alerts */}
+      <FinancialHealthCard report={healthReport} />
+
       {/* 1. Monthly Budget Meter */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}

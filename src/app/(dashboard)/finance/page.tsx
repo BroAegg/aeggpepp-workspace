@@ -49,6 +49,7 @@ const RecapTab = dynamic(() => import('@/components/features/finance/recap-tab')
 import { FinanceOverview } from '@/components/features/finance/finance-overview'
 import { OwnerBadge } from '@/components/ui/owner-badge'
 import { QuickExpenseDrawer } from '@/components/features/finance/quick-expense-drawer'
+import { ReceiptDetailModal } from '@/components/features/finance/receipt-detail-modal'
 
 import { useWorkspaceStore } from '@/stores/workspace-store'
 
@@ -150,6 +151,7 @@ export default function FinancePage() {
     const [modalType, setModalType] = useState<'transaction' | 'budget' | 'savings' | 'savings_tx'>('transaction')
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
     const [viewingReceipt, setViewingReceipt] = useState<string | null>(null)
+    const [receiptModalTx, setReceiptModalTx] = useState<Transaction | null>(null)
     const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
     const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('all')
     const [selectedType, setSelectedType] = useState<'income' | 'expense'>('expense')
@@ -871,12 +873,17 @@ export default function FinancePage() {
                                                             {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                                                         </p>
                                                         <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                                            {transaction.receipt_url && (
-                                                                <button onClick={() => setViewingReceipt(transaction.receipt_url!)}
-                                                                    className="p-1.5 hover:bg-secondary rounded-lg transition-colors" title="Lihat Struk">
-                                                                    <Receipt className="w-3.5 h-3.5 text-blue-500" />
+                                                            {transaction.receipt_url ? (
+                                                                <button onClick={() => setReceiptModalTx(transaction)}
+                                                                    className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-emerald-600 dark:text-emerald-400" title="Lihat Struk & Rincian Item">
+                                                                    <Receipt className="w-3.5 h-3.5" />
                                                                 </button>
-                                                            )}
+                                                            ) : transaction.type === 'expense' ? (
+                                                                <button onClick={() => setReceiptModalTx(transaction)}
+                                                                    className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground" title="Lampirkan / Scan Struk">
+                                                                    <Upload className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            ) : null}
                                                             <button onClick={() => { setEditingTransaction(transaction); setSelectedType(transaction.type as 'income' | 'expense'); setModalType('transaction'); setShowModal(true) }}
                                                                 className="p-1.5 hover:bg-secondary rounded-lg transition-colors">
                                                                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
@@ -903,7 +910,11 @@ export default function FinancePage() {
 
                         {/* ========== LEDGER ========== */}
                         {activeTab === 'ledger' && (
-                            <LedgerTab transactions={transactions} formatCurrency={formatCurrency} />
+                            <LedgerTab
+                                transactions={transactions}
+                                formatCurrency={formatCurrency}
+                                onRefresh={() => fetchData(userProfile, viewMode)}
+                            />
                         )}
 
                         {/* ========== ANALYTICS ========== */}
@@ -1264,6 +1275,17 @@ export default function FinancePage() {
                         </motion.div>
                     </motion.div>
                 )}
+
+                {/* Receipt Line Items & Direct Upload Modal */}
+                <ReceiptDetailModal
+                    isOpen={!!receiptModalTx}
+                    onClose={() => setReceiptModalTx(null)}
+                    transaction={receiptModalTx}
+                    onReceiptUpdated={(txId, newUrl) => {
+                        setTransactions(prev => prev.map(t => t.id === txId ? { ...t, receipt_url: newUrl } : t))
+                        if (userProfile) fetchData(userProfile, viewMode)
+                    }}
+                />
 
                 {showModal && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

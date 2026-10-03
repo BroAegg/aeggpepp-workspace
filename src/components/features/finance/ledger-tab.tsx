@@ -2,16 +2,19 @@
 
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { BookOpen, ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight, Receipt, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Transaction } from '@/types'
+import { ReceiptDetailModal } from '@/components/features/finance/receipt-detail-modal'
 
 interface LedgerTabProps {
     transactions: Transaction[]
     formatCurrency: (amount: number) => string
+    onRefresh?: () => void
 }
 
-export function LedgerTab({ transactions, formatCurrency }: LedgerTabProps) {
+export function LedgerTab({ transactions, formatCurrency, onRefresh }: LedgerTabProps) {
+    const [selectedTxForReceipt, setSelectedTxForReceipt] = useState<Transaction | null>(null)
     const [ledgerMonth, setLedgerMonth] = useState(() => {
         const now = new Date()
         return { month: now.getMonth(), year: now.getFullYear() }
@@ -94,6 +97,7 @@ export function LedgerTab({ transactions, formatCurrency }: LedgerTabProps) {
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tanggal</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Keterangan</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tag</th>
+                                <th className="text-center px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-24">Struk</th>
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">In</th>
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider">Out</th>
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-primary uppercase tracking-wider">Saldo</th>
@@ -107,7 +111,7 @@ export function LedgerTab({ transactions, formatCurrency }: LedgerTabProps) {
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: i * 0.015 }}
                                     className={cn(
-                                        'hover:bg-secondary/30 transition-colors',
+                                        'hover:bg-secondary/30 transition-colors group',
                                         row.type === 'income' ? 'bg-emerald-500/[0.03]' : ''
                                     )}
                                 >
@@ -121,6 +125,29 @@ export function LedgerTab({ transactions, formatCurrency }: LedgerTabProps) {
                                         <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-muted-foreground capitalize">
                                             {row.category}
                                         </span>
+                                    </td>
+                                    <td className="px-3 py-2.5 text-center">
+                                        {row.receipt_url ? (
+                                            <button
+                                                onClick={() => setSelectedTxForReceipt(row)}
+                                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
+                                                title="Lihat foto & rincian item struk"
+                                            >
+                                                <Receipt className="w-3 h-3" />
+                                                <span>Lihat</span>
+                                            </button>
+                                        ) : row.type === 'expense' ? (
+                                            <button
+                                                onClick={() => setSelectedTxForReceipt(row)}
+                                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] text-muted-foreground hover:text-foreground hover:bg-secondary border border-dashed border-border/70 transition-colors"
+                                                title="Unggah foto struk belanja"
+                                            >
+                                                <Upload className="w-2.5 h-2.5" />
+                                                <span>+ Struk</span>
+                                            </button>
+                                        ) : (
+                                            <span className="text-muted-foreground/40 text-xs">-</span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-2.5 text-right font-medium text-emerald-600 dark:text-emerald-400">
                                         {row.inAmt > 0 ? formatCurrency(row.inAmt) : ''}
@@ -140,7 +167,7 @@ export function LedgerTab({ transactions, formatCurrency }: LedgerTabProps) {
                         {ledgerData.rows.length > 0 && (
                             <tfoot>
                                 <tr className="border-t-2 border-border bg-secondary/30">
-                                    <td colSpan={3} className="px-4 py-3 text-sm font-bold text-foreground">TOTAL</td>
+                                    <td colSpan={4} className="px-4 py-3 text-sm font-bold text-foreground">TOTAL</td>
                                     <td className="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
                                         {formatCurrency(ledgerData.totalIn)}
                                     </td>
@@ -166,6 +193,19 @@ export function LedgerTab({ transactions, formatCurrency }: LedgerTabProps) {
                     </div>
                 )}
             </div>
+
+            {/* Receipt Details Modal */}
+            <ReceiptDetailModal
+                isOpen={!!selectedTxForReceipt}
+                onClose={() => setSelectedTxForReceipt(null)}
+                transaction={selectedTxForReceipt}
+                onReceiptUpdated={(txId, newUrl) => {
+                    if (selectedTxForReceipt && selectedTxForReceipt.id === txId) {
+                        setSelectedTxForReceipt({ ...selectedTxForReceipt, receipt_url: newUrl })
+                    }
+                    if (onRefresh) onRefresh()
+                }}
+            />
         </div>
     )
 }

@@ -122,8 +122,63 @@ export interface Transaction {
   paid_by: string | null
   is_settled: boolean
   receipt_url?: string | null
+  source?: 'web' | 'telegram' | null
   created_at: string
   profiles?: ItemOwner
+}
+
+// Receipt Item Detail Type
+export interface ReceiptItem {
+  id: string
+  transaction_id: string
+  item_name: string
+  quantity: number
+  unit_price: number | null
+  total_price: number
+  category?: string | null
+  created_at: string
+}
+
+// Financial Health & Intelligence Types
+export type FinancialHealthStatus = 'excellent' | 'good' | 'warning' | 'critical'
+
+export interface FinancialHealthAlert {
+  id: string
+  type: 'danger' | 'warning' | 'info' | 'success'
+  title: string
+  message: string
+  metric?: string
+}
+
+export interface FinancialHealthReport {
+  score: number // 0 - 100
+  status: FinancialHealthStatus
+  statusLabel: string
+  statusColor: string
+  savingsRate: number // percentage
+  expenseRatio: number // percentage of income spent
+  burnRateVelocity: {
+    daysElapsed: number
+    daysInMonth: number
+    dailyAverage: number
+    projectedMonthEnd: number
+    budgetRunwayDays: number | null
+    isOnTrack: boolean
+  }
+  coupleSplit: {
+    aeggTotal: number
+    aeggPercent: number
+    peppaaTotal: number
+    peppaaPercent: number
+    fairnessRatio: string
+  }
+  liquidBufferMonths: number
+  totalLiquidAssets: number
+  monthlyIncome: number
+  monthlyExpense: number
+  netSavings: number
+  alerts: FinancialHealthAlert[]
+  recommendations: string[]
 }
 
 // Savings / Asset Pocket Types

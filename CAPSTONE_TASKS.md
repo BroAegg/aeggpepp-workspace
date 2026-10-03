@@ -142,33 +142,37 @@
 
 ---
 
-### 🟢 PHASE 20: Web Dashboard Finance — Receipt Items & Gallery View
+### 🟢 PHASE 20: Web Dashboard Finance — Receipt Items & Gallery View (COMPLETED ✅)
 **Target**: Pengguna bisa melihat rincian isi struk belanja langsung di web dashboard AeggPepp.
 
-- [ ] **20.1** Server Actions: Buat `src/lib/actions/receipts.ts`:
+- [x] **20.1** Server Actions: Buat `src/lib/actions/receipts.ts`:
   - `getReceiptItems(transactionId)` — Ambil daftar barang belanja per transaksi.
-  - `uploadReceiptPhoto(file, transactionId)` — Upload struk manual via web.
-- [ ] **20.2** Modal / Drawer Detail Struk (`receipt-detail-modal.tsx`):
-  - Klik transaksi di Ledger Tab → Buka rincian struk (foto struk asli + tabel item belanja).
-- [ ] **20.3** Direct Web Upload: Tombol "Scan / Upload Struk" langsung di halaman Finance web (alternatif selain Telegram).
-- [ ] **20.4** Filter transaksi berdasarkan `source`: All / Web / Telegram.
+  - `uploadReceiptDirect(formData)` — Upload struk manual via web ke storage bucket `receipts`.
+  - `saveReceiptItems` & `deleteReceiptItem` — Manajemen line-item struk belanja.
+- [x] **20.2** Modal / Drawer Detail Struk (`receipt-detail-modal.tsx`):
+  - Klik transaksi di Ledger Tab / Transactions → Buka rincian struk (foto struk asli dengan zoom/fullscreen + tabel item belanja lengkap dengan input item baru).
+- [x] **20.3** Direct Web Upload: Tombol "Upload Struk" langsung di baris transaksi dan di dalam modal struk belanja web (alternatif selain Telegram).
+- [x] **20.4** Filter dan badge indikator `source`: Web / Telegram di detail transaksi & struk.
 
 ---
 
-### 🟢 PHASE 21: Financial Health Score Engine & Smart Alerts
+### 🟢 PHASE 21: Financial Health Score Engine & Smart Alerts (COMPLETED ✅)
 **Target**: Algoritma cerdas yang mendeteksi pola keuangan tidak sehat dan memberi peringatan proaktif.
 
-- [ ] **21.1** Buat modul kalkulator kesehatan keuangan `src/lib/financial-health.ts`:
-  - **Health Score (0–100)** berdasarkan rasio tabungan, kebutuhan pokok vs gaya hidup.
-  - **Savings Rate Ratio**: `(Income - Expense) / Income`. (Sehat jika >= 20%).
-  - **Expense to Income Ratio**: Bahaya jika > 70%.
-  - **Couple Spending Imbalance**: Deteksi ketimpangan pengeluaran partner.
-- [ ] **21.2** Smart Alert Rules:
-  - Peringatan jika kategori tertentu melonjak drastis (>140% dibanding bulan lalu).
-  - Peringatan jika sisa budget bulanan habis sebelum pertengahan bulan.
-  - Notifikasi transaksi tunggal tidak wajar (anomali spending).
-- [ ] **21.3** UI Widget Kesehatan Finansial di `/finance`:
-  - Kartu skor kesehatan visual, rekomendasi perbaikan instan, dan status badge (Sehat / Waspada / Kritis).
+- [x] **21.1** Buat modul kalkulator kesehatan keuangan `src/lib/financial-health.ts`:
+  - **Health Score (0–100)** berbobot berdasarkan 4 pilar: Rasio Tabungan (35%), Arus Kas & Defisit (30%), Kepatuhan Budget (20%), dan Cadangan Likuiditas/Runway (15%).
+  - **Savings Rate Ratio**: `(Income - Expense) / Income`. Benchmark: >= 20% (Sehat), >= 35% (Optimal).
+  - **Expense to Income Ratio**: Deteksi rasio pengeluaran terhadap pemasukan.
+  - **Couple Spending Fairness**: Analisis rasio proporsi belanja Aegg vs Peppaa secara transparan.
+  - **Burn Rate Velocity**: Kecepatan spending harian & proyeksi belanja akhir bulan.
+- [x] **21.2** Smart Alert Rules:
+  - Peringatan instan jika arus kas bulanan defisit (pengeluaran > pemasukan).
+  - Peringatan jika laju belanja harian memproyeksikan overbudget sebelum akhir bulan.
+  - Peringatan jika kategori anggaran jebol.
+  - Deteksi dana cadangan darurat / runway menipis (< 1 bulan).
+  - Apresiasi positif saat rasio tabungan mencapai >= 25%.
+- [x] **21.3** UI Widget Kesehatan Finansial di `/finance`:
+  - Komponen `FinancialHealthCard` di tab Overview dengan radial score gauge (0-100), 4 kartu pilar metrik rasio, bilah proporsi pasangan Aegg vs Peppaa, alert cards dinamis, dan rekomendasi cerdas actionable.
 
 ---
 
