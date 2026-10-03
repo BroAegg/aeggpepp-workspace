@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, ExternalLink, Edit2, Trash2, Link as LinkIcon, Github, Linkedin, Twitter, Globe, Briefcase, Code, Gamepad2, User, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getPortfolioLinks, createPortfolioLink, updatePortfolioLink, deletePortfolioLink } from '@/lib/actions/portfolio'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 import type { PortfolioLink, PortfolioCategory } from '@/types'
 
 type Category = 'all' | 'project' | 'social' | 'other'
@@ -24,8 +25,15 @@ const iconMap: Record<string, any> = {
 type LinkWithUser = PortfolioLink & { profiles?: { display_name: string; role: string } }
 
 export default function PortfolioPage() {
-  const [links, setLinks] = useState<LinkWithUser[]>([])
-  const [loading, setLoading] = useState(true)
+  const {
+    portfolio: cachedPortfolio,
+    portfolioLoaded,
+    setPortfolioData,
+    removePortfolioOptimistic,
+  } = useWorkspaceStore()
+
+  const [links, setLinks] = useState<LinkWithUser[]>(cachedPortfolio as LinkWithUser[])
+  const [loading, setLoading] = useState(!portfolioLoaded && cachedPortfolio.length === 0)
   const [saving, setSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingLink, setEditingLink] = useState<LinkWithUser | null>(null)
@@ -37,10 +45,16 @@ export default function PortfolioPage() {
   }, [])
 
   const fetchLinks = async () => {
-    setLoading(true)
-    const data = await getPortfolioLinks()
-    setLinks(data as LinkWithUser[])
-    setLoading(false)
+    if (!portfolioLoaded && cachedPortfolio.length === 0) setLoading(true)
+    try {
+      const data = await getPortfolioLinks()
+      setLinks(data as LinkWithUser[])
+      setPortfolioData(data)
+    } catch (err) {
+      console.error('Failed to fetch portfolio links:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredLinks = links.filter(link => {
@@ -49,9 +63,20 @@ export default function PortfolioPage() {
   })
 
   const handleDelete = async (id: string) => {
-    const result = await deletePortfolioLink(id)
-    if (result.success) {
-      setLinks(links.filter(l => l.id !== id))
+    const previousLinks = links
+    // ⚡ Optimistic Delete (0ms instant removal)
+    setLinks(links.filter(l => l.id !== id))
+    removePortfolioOptimistic(id)
+
+    try {
+      const result = await deletePortfolioLink(id)
+      if (result && 'error' in result && result.error) {
+        throw new Error(result.error)
+      }
+    } catch (err) {
+      console.error('Failed to delete portfolio link, rolling back:', err)
+      setLinks(previousLinks)
+      setPortfolioData(previousLinks)
     }
   }
 

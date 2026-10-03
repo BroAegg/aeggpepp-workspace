@@ -18,7 +18,12 @@ type GoalStatus = 'backlog' | 'in_progress' | 'completed' | 'archived'
 type ViewMode = 'table' | 'kanban'
 
 export default function GoalsPage() {
-  const { goals: cachedGoals, goalsLoaded, setGoalsData } = useWorkspaceStore()
+  const {
+    goals: cachedGoals,
+    goalsLoaded,
+    setGoalsData,
+    toggleGoalTaskOptimistic,
+  } = useWorkspaceStore()
   const [goals, setGoals] = useState<Goal[]>(cachedGoals)
   const [loading, setLoading] = useState(!goalsLoaded && cachedGoals.length === 0)
   const [viewMode, setViewMode] = useState<ViewMode>('table')
@@ -77,8 +82,58 @@ export default function GoalsPage() {
     const goal = goals.find(g => g.id === goalId)
     const task = goal?.goal_tasks?.find(t => t.id === taskId)
     if (!task) return
-    await toggleGoalTask(taskId, !task.completed)
-    fetchGoals()
+
+    const newCompleted = !task.completed
+
+    // ⚡ 1. Optimistic Update (0ms instant response)
+    const updateGoalInList = (list: Goal[]) =>
+      list.map(g => {
+        if (g.id !== goalId) return g
+        return {
+          ...g,
+          goal_tasks: (g.goal_tasks || []).map(t =>
+            t.id === taskId ? { ...t, completed: newCompleted } : t
+          ),
+        }
+      })
+
+    setGoals(prev => updateGoalInList(prev))
+    if (peekGoal && peekGoal.id === goalId) {
+      setPeekGoal(prev =>
+        prev
+          ? {
+              ...prev,
+              goal_tasks: (prev.goal_tasks || []).map(t =>
+                t.id === taskId ? { ...t, completed: newCompleted } : t
+              ),
+            }
+          : null
+      )
+    }
+    toggleGoalTaskOptimistic(goalId, taskId, newCompleted)
+
+    // ⚡ 2. Background Server Action (non-blocking)
+    try {
+      const res = await toggleGoalTask(taskId, newCompleted)
+      if (res && 'error' in res && res.error) {
+        throw new Error(res.error)
+      }
+    } catch (err) {
+      console.error('Failed to toggle goal task, rolling back:', err)
+      // Rollback on failure
+      setGoals(prev =>
+        prev.map(g => {
+          if (g.id !== goalId) return g
+          return {
+            ...g,
+            goal_tasks: (g.goal_tasks || []).map(t =>
+              t.id === taskId ? { ...t, completed: !newCompleted } : t
+            ),
+          }
+        })
+      )
+      toggleGoalTaskOptimistic(goalId, taskId, !newCompleted)
+    }
   }
 
   const handleOpenPage = (goalId: string, page: GoalPage) => {

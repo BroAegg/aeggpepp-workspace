@@ -8,6 +8,7 @@ import { Plus, X, ExternalLink, Edit2, Trash2, Check, ShoppingCart, Gift, Sparkl
 import { cn } from '@/lib/utils'
 import { getWishlistItems, createWishlistItem, updateWishlistItem, deleteWishlistItem, toggleWishlistPurchased } from '@/lib/actions/wishlist'
 import { OwnerBadge } from '@/components/ui/owner-badge'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 import type { WishlistItem } from '@/types'
 
 type Priority = 'all' | 'high' | 'medium' | 'low'
@@ -23,8 +24,16 @@ const formatCurrency = (amount: number, currency: string) => {
 }
 
 export default function WishlistPage() {
-  const [items, setItems] = useState<WishlistItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const {
+    wishlist: cachedWishlist,
+    wishlistLoaded,
+    setWishlistData,
+    toggleWishlistOptimistic,
+    removeWishlistOptimistic,
+  } = useWorkspaceStore()
+
+  const [items, setItems] = useState<WishlistItem[]>(cachedWishlist)
+  const [loading, setLoading] = useState(!wishlistLoaded && cachedWishlist.length === 0)
   const [saving, setSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null)
@@ -40,6 +49,7 @@ export default function WishlistPage() {
     try {
       const data = await getWishlistItems()
       setItems(data)
+      setWishlistData(data)
     } catch (error) {
       console.error('Error fetching wishlist:', error)
     } finally {
@@ -65,20 +75,45 @@ export default function WishlistPage() {
   }
 
   const handleTogglePurchased = async (id: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus
+
+    // ⚡ 1. Optimistic Update (0ms instant response)
+    setItems(prev => prev.map(item => item.id === id ? { ...item, is_purchased: newStatus } : item))
+    toggleWishlistOptimistic(id, newStatus)
+
+    // ⚡ 2. Background Server Action
     try {
-      await toggleWishlistPurchased(id, !currentStatus)
-      await fetchItems()
+      const res = await toggleWishlistPurchased(id, newStatus)
+      if (res && 'error' in res && res.error) {
+        throw new Error(res.error)
+      }
     } catch (error) {
-      console.error('Error toggling purchased:', error)
+      console.error('Error toggling purchased, rolling back:', error)
+      // Rollback on error
+      setItems(prev => prev.map(item => item.id === id ? { ...item, is_purchased: currentStatus } : item))
+      toggleWishlistOptimistic(id, currentStatus)
     }
   }
 
   const handleDelete = async (id: string) => {
+    const previousItem = items.find(i => i.id === id)
+    if (!previousItem) return
+
+    // ⚡ 1. Optimistic Update (0ms instant removal)
+    setItems(prev => prev.filter(item => item.id !== id))
+    removeWishlistOptimistic(id)
+
+    // ⚡ 2. Background Server Action
     try {
-      await deleteWishlistItem(id)
-      await fetchItems()
+      const res = await deleteWishlistItem(id)
+      if (res && 'error' in res && res.error) {
+        throw new Error(res.error)
+      }
     } catch (error) {
-      console.error('Error deleting item:', error)
+      console.error('Error deleting item, rolling back:', error)
+      // Rollback on error
+      setItems(prev => [previousItem, ...prev])
+      setWishlistData([previousItem, ...items])
     }
   }
 

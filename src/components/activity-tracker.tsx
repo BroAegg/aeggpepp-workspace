@@ -33,12 +33,17 @@ export function ActivityTracker() {
     logActivity('daily_login').catch(() => {})
   }, [])
 
-  // Log page_view on navigation
+  // Log page_view on navigation (deferred by 1.5s so it never competes with initial page data fetching)
   useEffect(() => {
     if (pathname === lastLogged.current) return
     lastLogged.current = pathname
     const pageName = PAGE_NAMES[pathname] || pathname
-    logActivity('page_view', pageName).catch(() => {})
+
+    const timer = setTimeout(() => {
+      logActivity('page_view', pageName).catch(() => {})
+    }, 1500)
+
+    return () => clearTimeout(timer)
   }, [pathname])
 
   return null

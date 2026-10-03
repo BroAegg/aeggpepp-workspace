@@ -1,5 +1,8 @@
 import { create } from 'zustand'
-import type { Transaction, Budget, SavingsAccount, Todo, TodoCategoryItem, Goal, CalendarEvent } from '@/types'
+import type {
+  Transaction, Budget, SavingsAccount, Todo, TodoCategoryItem,
+  Goal, CalendarEvent, GalleryItem, WishlistItem, PortfolioLink
+} from '@/types'
 
 interface WorkspaceState {
   // Profile
@@ -26,12 +29,14 @@ interface WorkspaceState {
   todoCategories: TodoCategoryItem[]
   todosLoaded: boolean
   setTodosData: (todos: Todo[], categories?: TodoCategoryItem[]) => void
+  toggleTodoOptimistic: (id: string, completed: boolean) => void
   invalidateTodos: () => void
 
   // Goals Cache
   goals: Goal[]
   goalsLoaded: boolean
   setGoalsData: (goals: Goal[]) => void
+  toggleGoalTaskOptimistic: (goalId: string, taskId: string, completed: boolean) => void
   invalidateGoals: () => void
 
   // Calendar Cache
@@ -39,6 +44,29 @@ interface WorkspaceState {
   eventsLoaded: boolean
   setEventsData: (events: CalendarEvent[]) => void
   invalidateEvents: () => void
+
+  // Gallery Cache
+  gallery: GalleryItem[]
+  galleryLoaded: boolean
+  setGalleryData: (gallery: GalleryItem[]) => void
+  addGalleryOptimistic: (item: GalleryItem) => void
+  removeGalleryOptimistic: (id: string) => void
+  invalidateGallery: () => void
+
+  // Wishlist Cache
+  wishlist: WishlistItem[]
+  wishlistLoaded: boolean
+  setWishlistData: (wishlist: WishlistItem[]) => void
+  toggleWishlistOptimistic: (id: string, isPurchased: boolean) => void
+  removeWishlistOptimistic: (id: string) => void
+  invalidateWishlist: () => void
+
+  // Portfolio Cache
+  portfolio: PortfolioLink[]
+  portfolioLoaded: boolean
+  setPortfolioData: (portfolio: PortfolioLink[]) => void
+  removePortfolioOptimistic: (id: string) => void
+  invalidatePortfolio: () => void
 
   // Dashboard Combined Cache
   dashboardLoaded: boolean
@@ -103,6 +131,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       todosLoaded: true,
     })),
 
+  toggleTodoOptimistic: (id, completed) =>
+    set((state) => ({
+      todos: state.todos.map((t) => (t.id === id ? { ...t, completed } : t)),
+    })),
+
   invalidateTodos: () =>
     set({
       todosLoaded: false,
@@ -117,6 +150,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       goals,
       goalsLoaded: true,
     }),
+
+  toggleGoalTaskOptimistic: (goalId, taskId, completed) =>
+    set((state) => ({
+      goals: state.goals.map((g) => {
+        if (g.id !== goalId) return g
+        return {
+          ...g,
+          goal_tasks: (g.goal_tasks || []).map((t) =>
+            t.id === taskId ? { ...t, completed } : t
+          ),
+        }
+      }),
+    })),
 
   invalidateGoals: () =>
     set({
@@ -136,6 +182,78 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   invalidateEvents: () =>
     set({
       eventsLoaded: false,
+    }),
+
+  // Gallery
+  gallery: [],
+  galleryLoaded: false,
+
+  setGalleryData: (gallery) =>
+    set({
+      gallery,
+      galleryLoaded: true,
+    }),
+
+  addGalleryOptimistic: (item) =>
+    set((state) => ({
+      gallery: [item, ...state.gallery],
+    })),
+
+  removeGalleryOptimistic: (id) =>
+    set((state) => ({
+      gallery: state.gallery.filter((p) => p.id !== id),
+    })),
+
+  invalidateGallery: () =>
+    set({
+      galleryLoaded: false,
+    }),
+
+  // Wishlist
+  wishlist: [],
+  wishlistLoaded: false,
+
+  setWishlistData: (wishlist) =>
+    set({
+      wishlist,
+      wishlistLoaded: true,
+    }),
+
+  toggleWishlistOptimistic: (id, isPurchased) =>
+    set((state) => ({
+      wishlist: state.wishlist.map((item) =>
+        item.id === id ? { ...item, is_purchased: isPurchased } : item
+      ),
+    })),
+
+  removeWishlistOptimistic: (id) =>
+    set((state) => ({
+      wishlist: state.wishlist.filter((item) => item.id !== id),
+    })),
+
+  invalidateWishlist: () =>
+    set({
+      wishlistLoaded: false,
+    }),
+
+  // Portfolio
+  portfolio: [],
+  portfolioLoaded: false,
+
+  setPortfolioData: (portfolio) =>
+    set({
+      portfolio,
+      portfolioLoaded: true,
+    }),
+
+  removePortfolioOptimistic: (id) =>
+    set((state) => ({
+      portfolio: state.portfolio.filter((p) => p.id !== id),
+    })),
+
+  invalidatePortfolio: () =>
+    set({
+      portfolioLoaded: false,
     }),
 
   // Dashboard
@@ -168,6 +286,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       todosLoaded: false,
       goalsLoaded: false,
       eventsLoaded: false,
+      galleryLoaded: false,
+      wishlistLoaded: false,
+      portfolioLoaded: false,
       dashboardLoaded: false,
       dashboardLastFetched: null,
     }),

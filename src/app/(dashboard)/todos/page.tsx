@@ -251,11 +251,26 @@ export default function TodosPage() {
     }
 
     const handleToggleTask = async (taskId: string, completed: boolean) => {
+        // ⚡ 1. Optimistic Update (0ms instant response)
+        setTodos(prev =>
+            prev.map(todo => {
+                const hasTask = todo.todo_tasks?.some(t => t.id === taskId)
+                if (!hasTask) return todo
+                return {
+                    ...todo,
+                    todo_tasks: (todo.todo_tasks || []).map(t =>
+                        t.id === taskId ? { ...t, completed } : t
+                    ),
+                }
+            })
+        )
+
+        // ⚡ 2. Background Server Action
         try {
             await toggleTodoTask(taskId, completed)
-            await fetchTodos()
         } catch (error) {
-            console.error('Error toggling task:', error)
+            console.error('Error toggling task, rolling back:', error)
+            await fetchTodos()
         }
     }
 

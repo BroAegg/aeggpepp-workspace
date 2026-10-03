@@ -96,23 +96,23 @@
 
 ---
 
-## 4️⃣ Telegram Receipt Scanner → Finance (N8N)
+## 4️⃣ Telegram Receipt Scanner → Finance (Native Next.js Route + Gemini Vision)
 
-### Architecture
+### Architecture (No N8N required! 100% Native Serverless)
 
 ```
-📱 Telegram → 🔄 N8N → 🤖 AI OCR (Gemini) → 🗄️ Supabase → 🌐 Web Dashboard
+📱 Telegram → ⚡ Next.js Webhook (/api/webhooks/telegram-expense) → 🤖 Gemini Vision OCR → 🗄️ Supabase → 🌐 Web Dashboard
 ```
 
 ### Flow Detail
 
-1. User kirim **foto struk** + caption ke Telegram Bot
-2. N8N receive via **Telegram Trigger**
-3. AI (Gemini) melakukan **OCR + parsing**:
-   - Nama toko, daftar item, harga, total, tanggal
-4. Data structured & **INSERT ke Supabase** (transactions + receipt_items)
-5. **Reply confirmation** ke Telegram
-6. **Real-time update** di web dashboard
+1. User kirim **foto struk** atau pesan teks belanja ke Telegram Bot
+2. Next.js Route Handler menerima via **Telegram Webhook** (`/api/webhooks/telegram-expense`)
+3. AI (Google Gemini 2.0 Flash / Pro) melakukan **OCR + parsing multi-model cascade**:
+   - Nama toko, daftar item, harga, total, tanggal, kategori
+4. Data terstruktur langsung di-**INSERT ke Supabase** (`transactions` + `receipt_items`)
+5. Bot membalas otomatis dengan **struk digital rapi Markdown** + **Shopee-style inline keyboard buttons** (ganti kategori / hapus transaksi)
+6. **Real-time update** langsung tampil di web dashboard tanpa reload
 
 ### New Database Tables
 

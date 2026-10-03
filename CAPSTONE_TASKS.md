@@ -45,57 +45,63 @@
   - Removed deprecated Ramadan temporary modules for lean codebase.
   - TypeScript compilation verified 100% clean (`tsc --noEmit`).
   - Cloned and configured 9Router at `D:\Peppakuu\Our Project\9Router` for local token saving.
+- [x] **Phase 17.5: Zero-Delay Performance & PWA Optimization** —
+  - **Optimistic UI Updates**: 0ms instant feedback saat mencentang checkbox subtask Goals, toggle Todo, dan update status Wishlist.
+  - **Universal Cache-First (SWR)**: Zustand `useWorkspaceStore` diperluas mencakup Gallery, Wishlist, dan Portfolio sehingga navigasi antar menu 0ms tanpa full-page spinner.
+  - **Client-Side Image Compression**: Otomatis kompresi gambar (Canvas WebP < 400KB) sebelum upload ke Supabase Storage, memotong upload 8MB-10MB.
+  - **PWA Service Worker**: Implementasi caching aset statis, font, icon, dan shell di `public/sw.js` untuk peluncuran instan di HP & desktop.
+  - **Database Index Optimization**: Script SQL `optimize-database-indexes.sql` untuk mengeliminasi sequential scan di tabel `budgets`, `savings_accounts`, `wishlist`, `goal_tasks`, `todo_tasks`, dan `activity_logs`.
+  - **Network Deconfliction**: Debounce server action `page_view` di `ActivityTracker` agar tidak mengganggu antrean data utama.
+  - **N8N Purge**: Menghapus `n8n-receipt-workflow-template.json` karena integrasi otomatis dialihkan ke Native Serverless Next.js API Route.
 
 ---
 
 ## 🚀 3. Grand Roadmap: Tasks Kiblat (Phases 18–23)
 
 ```
-[Phase 18: N8N & Telegram Setup] 
-            ↓
-[Phase 19: Gemini OCR Receipt Scanner] 
-            ↓
+[Phase 18: Native Telegram Webhook & Gemini Vision] 
+                      ↓
+[Phase 19: AI OCR Receipt & Expense Parser Engine] 
+                      ↓
 [Phase 20: Web Dashboard Receipt View & Upload] 
-            ↓
+                      ↓
 [Phase 21: Financial Health Engine & Alerts] 
-            ↓
+                      ↓
 [Phase 22: AI Financial Advisor Chat & Telegram Digest] 
-            ↓
+                      ↓
 [Phase 23: Notion-like Goals Overhaul (Side Peek + Sub-pages)]
 ```
 
 ---
 
-### 🟢 PHASE 18: Telegram Bot + N8N Cloud Setup (In Progress ⏳)
-**Target**: Bot Telegram siap menerima pesan & foto, terhubung ke N8N yang aktif 24/7 di Cloud.
+### 🟢 PHASE 18: Native Telegram Webhook & Gemini Vision Setup (In Progress ⏳)
+**Target**: Bot Telegram siap menerima pesan & foto struk, terhubung langsung ke Next.js Route Handler (`/api/webhooks/telegram-expense`) tanpa perantara server N8N.
 
-- [ ] **18.1** Buat Bot Telegram baru via `@BotFather` (Simpan Bot Token ke tempat aman).
-- [ ] **18.2** Jalankan SQL Migration `setup-receipts-system.sql` di Supabase SQL Editor:
+- [x] **18.1** Route handler native Telegram expense webhook dibuat (`src/app/api/webhooks/telegram-expense/route.ts`).
+- [x] **18.2** Integrasi fallback Gemini Vision OCR (Gemini 2.0 Flash / Pro) langsung di serverless route.
+- [x] **18.3** Shopee-style interactive inline keyboard buttons untuk konfirmasi kategori dan pembatalan transaksi.
+- [ ] **18.4** Buat Bot Telegram baru via `@BotFather` (Simpan Bot Token ke `.env.local` sebagai `TELEGRAM_BOT_TOKEN`).
+- [ ] **18.5** Jalankan SQL Migration `setup-receipts-system.sql` dan `optimize-database-indexes.sql` di Supabase SQL Editor:
   - Tabel `receipt_items` dibuat.
   - Kolom `receipt_url`, `sub_title`, `source` pada `transactions` ditambahkan.
   - Storage bucket `receipts` disiapkan.
-- [ ] **18.3** Deploy N8N di cloud gratis (Railway template / Render):
-  - Setup environment variables & public URL HTTPS.
-- [ ] **18.4** Import workflow `n8n-receipt-workflow-template.json` ke dashboard N8N.
-- [ ] **18.5** Hubungkan kredensial Telegram Bot Token & Supabase Service Role Key di N8N.
-- [ ] **18.6** Test webhook trigger dengan kirim chat teks pertama dari Telegram ke Bot.
+- [ ] **18.6** Set webhook URL Telegram ke deployment Vercel / ngrok: `https://your-domain.vercel.app/api/webhooks/telegram-expense`.
+- [ ] **18.7** Test webhook trigger dengan kirim chat teks dan foto struk belanja pertama dari Telegram ke Bot.
 
 ---
 
-### 🟢 PHASE 19: AI OCR Receipt & Expense Parser Engine
+### 🟢 PHASE 19: AI OCR Receipt & Expense Parser Engine (Native Serverless)
 **Target**: Foto struk belanja & pesan teks di Telegram otomatis diekstrak menjadi data terstruktur dan masuk ke database Supabase.
 
-- [ ] **19.1** Setup Google Gemini API Key (Gemini 2.0 Flash) di N8N.
-- [ ] **19.2** Implementasi Image Downloader node di N8N (download binary foto struk resolusi penuh dari Telegram).
-- [ ] **19.3** Konfigurasi Gemini Vision Prompt untuk struk fisik Indonesia (Indomaret, Alfamart, Supermarket, Resto, SPBU):
-  - Ekstraksi: Nama merchant/toko, tanggal belanja, kategori, total bayar.
-  - Ekstraksi array item: `[ { name, quantity, unit_price, total_price } ]`.
-- [ ] **19.4** Konfigurasi Text Parser node untuk input cepat (contoh: *"Makan siang Padang 35rb"* atau *"Bensin Shell 100rb"*).
-- [ ] **19.5** Insert data ke Supabase:
-  - Record utama masuk ke tabel `transactions` (`type = 'expense'`, `source = 'telegram'`).
+- [x] **19.1** Setup multi-model fallback cascade Gemini API di Next.js route handler.
+- [x] **19.2** Binary image parser dari Telegram API resolusi penuh (file_id -> getFile -> download buffer -> Base64).
+- [x] **19.3** Prompt khusus ekstraksi struk fisik Indonesia (Indomaret, Alfamart, Superindo, SPBU, Resto) terpasang di Next.js webhook.
+- [x] **19.4** Text parser untuk input cepat (contoh: *"Makan siang Padang 35rb"* atau *"Bensin Shell 100rb"*).
+- [ ] **19.5** Uji end-to-end penulisan ke database Supabase:
+  - Transaksi masuk ke tabel `transactions` (`type = 'expense'`, `source = 'telegram'`).
   - Rincian item masuk ke tabel `receipt_items`.
-  - Foto struk diunggah ke Supabase Storage bucket `receipts`.
-- [ ] **19.6** Telegram Confirmation Reply: Bot membalas dengan struk digital rapi format Markdown + ringkasan item.
+  - Foto struk terunggah ke Supabase Storage bucket `receipts`.
+- [ ] **19.6** Verifikasi balasan struk digital rapi dari bot Telegram beserta keyboard interaktif konfirmasi kategori.
 
 ---
 
