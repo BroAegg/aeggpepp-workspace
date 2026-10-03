@@ -31,7 +31,8 @@ import type {
   WeddingRsvpStatus,
 } from '../types'
 
-const TARGET_BUDGET = 25000000 // Rp 25.000.000 Target Intimate Wedding
+const TARGET_BUDGET = 25000000 // Rp 25.000.000 Target Anggaran
+const TARGET_PAX = 180 // Skala 180 Pax Undangan Aegg & Peppaa
 const colors = theme.dark
 
 export function WeddingScreen() {
@@ -331,21 +332,27 @@ export function WeddingScreen() {
               {/* Guest Metrics */}
               <View style={styles.guestStatsGrid}>
                 <View style={styles.guestStatCard}>
+                  <Text style={styles.guestStatLabel}>Target</Text>
+                  <Text style={[styles.guestStatValue, { color: colors.text }]}>
+                    {TARGET_PAX}
+                  </Text>
+                </View>
+                <View style={styles.guestStatCard}>
                   <Text style={styles.guestStatLabel}>Hadir</Text>
                   <Text style={[styles.guestStatValue, { color: colors.success }]}>
-                    {guestStats.confirmedPax} Pax
+                    {guestStats.confirmedPax}
                   </Text>
                 </View>
                 <View style={styles.guestStatCard}>
                   <Text style={styles.guestStatLabel}>Menunggu</Text>
                   <Text style={[styles.guestStatValue, { color: colors.warning }]}>
-                    {guestStats.pendingPax} Pax
+                    {guestStats.pendingPax}
                   </Text>
                 </View>
                 <View style={styles.guestStatCard}>
-                  <Text style={styles.guestStatLabel}>Berhalangan</Text>
+                  <Text style={styles.guestStatLabel}>Batal</Text>
                   <Text style={[styles.guestStatValue, { color: colors.destructive }]}>
-                    {guestStats.declinedPax} Pax
+                    {guestStats.declinedPax}
                   </Text>
                 </View>
               </View>

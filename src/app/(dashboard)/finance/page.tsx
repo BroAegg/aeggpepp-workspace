@@ -67,18 +67,56 @@ const categoryIcons: Record<string, any> = {
 
 const CHART_COLORS = ['#e11d48', '#f43f5e', '#fb7185', '#38bdf8', '#34d399', '#fbbf24', '#a78bfa', '#94a3b8']
 
-const BANK_OPTIONS = [
-    { code: 'cash', label: 'Tunai / Cash', icon: '💵' },
-    { code: 'bca', label: 'Bank BCA', icon: '🏦' },
-    { code: 'bni', label: 'Bank BNI', icon: '🏦' },
-    { code: 'bri', label: 'Bank BRI', icon: '🏦' },
-    { code: 'mandiri', label: 'Bank Mandiri', icon: '🏦' },
-    { code: 'dana', label: 'DANA', icon: '📱' },
-    { code: 'gopay', label: 'GoPay', icon: '📱' },
-    { code: 'ovo', label: 'OVO', icon: '📱' },
-    { code: 'shopeepay', label: 'ShopeePay', icon: '📱' },
-    { code: 'other', label: 'Rekening Lainnya', icon: '💳' },
+type PocketCategory = 'bank' | 'ewallet' | 'cash' | 'friend_loan' | 'investment'
+
+interface PocketOption {
+    code: string
+    label: string
+    icon: string
+    category: PocketCategory
+    categoryLabel: string
+    color: string
+}
+
+const POCKET_OPTIONS: PocketOption[] = [
+    // Bank
+    { code: 'seabank', label: 'SeaBank', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#f97316' },
+    { code: 'bca', label: 'Bank BCA', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#2563eb' },
+    { code: 'jago', label: 'Bank Jago', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#eab308' },
+    { code: 'mandiri', label: 'Bank Mandiri', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#0284c7' },
+    { code: 'bri', label: 'Bank BRI', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#0369a1' },
+    { code: 'bni', label: 'Bank BNI', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#ea580c' },
+    { code: 'other_bank', label: 'Bank Lainnya', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#64748b' },
+
+    // E-Wallet
+    { code: 'dana', label: 'DANA', icon: '📱', category: 'ewallet', categoryLabel: 'E-Wallet', color: '#0284c7' },
+    { code: 'gopay', label: 'GoPay', icon: '📱', category: 'ewallet', categoryLabel: 'E-Wallet', color: '#10b981' },
+    { code: 'ovo', label: 'OVO', icon: '📱', category: 'ewallet', categoryLabel: 'E-Wallet', color: '#7c3aed' },
+    { code: 'shopeepay', label: 'ShopeePay', icon: '📱', category: 'ewallet', categoryLabel: 'E-Wallet', color: '#f97316' },
+
+    // Tunai
+    { code: 'cash', label: 'Uang Tunai / Dompet', icon: '💵', category: 'cash', categoryLabel: 'Tunai', color: '#16a34a' },
+
+    // Piutang Teman
+    { code: 'friend_loan', label: 'Uang di Teman (Piutang)', icon: '🤝', category: 'friend_loan', categoryLabel: 'Piutang Teman', color: '#d97706' },
+
+    // Investasi
+    { code: 'investment', label: 'Investasi / Reksadana / Emas', icon: '📈', category: 'investment', categoryLabel: 'Investasi', color: '#8b5cf6' },
+    { code: 'other', label: 'Rekening Lainnya', icon: '💳', category: 'cash', categoryLabel: 'Lainnya', color: '#64748b' },
 ]
+
+const BANK_OPTIONS = POCKET_OPTIONS
+
+const getAccountCategory = (account: SavingsAccount): PocketCategory => {
+    if (account.bank_code === 'friend_loan' || account.type === 'friend_loan') return 'friend_loan'
+    const found = POCKET_OPTIONS.find(p => p.code === account.bank_code)
+    if (found) return found.category
+    if (account.type === 'ewallet') return 'ewallet'
+    if (account.type === 'bank' || account.type === 'digital') return 'bank'
+    if (account.type === 'investment') return 'investment'
+    return 'cash'
+}
+
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -119,6 +157,10 @@ export default function FinancePage() {
     const [personFilter, setPersonFilter] = useState<string>('all')
     const [selectedSavingsAccount, setSelectedSavingsAccount] = useState<SavingsAccount | null>(null)
     const [savingsTxType, setSavingsTxType] = useState<'deposit' | 'withdraw'>('deposit')
+    const [pocketFilter, setPocketFilter] = useState<'all' | PocketCategory>('all')
+    const [savingsCategory, setSavingsCategory] = useState<PocketCategory>('bank')
+    const [savingsBankCode, setSavingsBankCode] = useState<string>('seabank')
+    const [savingsIcon, setSavingsIcon] = useState<string>('🏦')
 
     // Partner View Stats
     const [viewMode, setViewMode] = useState<'me' | 'partner' | 'combined'>('me')
@@ -325,6 +367,41 @@ export default function FinancePage() {
 
     const totalSavings = useMemo(() => savings.reduce((s, a) => s + a.balance, 0), [savings])
 
+    // Multi-Pocket Asset Allocation breakdown
+    const assetBreakdown = useMemo(() => {
+        let bankTotal = 0
+        let ewalletTotal = 0
+        let cashTotal = 0
+        let friendLoanTotal = 0
+        let investmentTotal = 0
+
+        savings.forEach(acc => {
+            const cat = getAccountCategory(acc)
+            if (cat === 'bank') bankTotal += acc.balance
+            else if (cat === 'ewallet') ewalletTotal += acc.balance
+            else if (cat === 'cash') cashTotal += acc.balance
+            else if (cat === 'friend_loan') friendLoanTotal += acc.balance
+            else if (cat === 'investment') investmentTotal += acc.balance
+        })
+
+        const total = bankTotal + ewalletTotal + cashTotal + friendLoanTotal + investmentTotal
+        const calcPct = (amt: number) => (total > 0 ? (amt / total) * 100 : 0)
+
+        return {
+            total,
+            bank: { amount: bankTotal, pct: calcPct(bankTotal), count: savings.filter(s => getAccountCategory(s) === 'bank').length },
+            ewallet: { amount: ewalletTotal, pct: calcPct(ewalletTotal), count: savings.filter(s => getAccountCategory(s) === 'ewallet').length },
+            cash: { amount: cashTotal, pct: calcPct(cashTotal), count: savings.filter(s => getAccountCategory(s) === 'cash').length },
+            friendLoan: { amount: friendLoanTotal, pct: calcPct(friendLoanTotal), count: savings.filter(s => getAccountCategory(s) === 'friend_loan').length },
+            investment: { amount: investmentTotal, pct: calcPct(investmentTotal), count: savings.filter(s => getAccountCategory(s) === 'investment').length },
+        }
+    }, [savings])
+
+    const filteredSavings = useMemo(() => {
+        if (pocketFilter === 'all') return savings
+        return savings.filter(acc => getAccountCategory(acc) === pocketFilter)
+    }, [savings, pocketFilter])
+
     const monthlyChartData = useMemo(() => {
         const months: { name: string; income: number; expense: number; balance: number }[] = []
         const now = new Date()
@@ -389,11 +466,19 @@ export default function FinancePage() {
         return { name: catInfo?.label || cat.name, icon: catInfo?.icon || '💰', amount: cat.value }
     }, [categoryPieData])
 
-    const openAddModal = (type: typeof modalType) => {
+    const openAddModal = (type: typeof modalType, defaultPocketCat: PocketCategory = 'bank') => {
         setModalType(type)
         setEditingTransaction(null)
         setEditingBudget(null)
         setSelectedType('expense')
+        if (type === 'savings') {
+            setSavingsCategory(defaultPocketCat)
+            const defOption = POCKET_OPTIONS.find(p => p.category === defaultPocketCat)
+            if (defOption) {
+                setSavingsBankCode(defOption.code)
+                setSavingsIcon(defOption.icon)
+            }
+        }
         setShowModal(true)
     }
 
@@ -493,21 +578,29 @@ export default function FinancePage() {
                                     <SummaryCard label="Income" value={formatCurrency(totals.income)} icon={<TrendingUp className="w-5 h-5" />} color="emerald" sub="Bulan ini" />
                                     <SummaryCard label="Expenses" value={formatCurrency(totals.expense)} icon={<TrendingDown className="w-5 h-5" />} color="red" sub="Bulan ini" />
                                     <SummaryCard label="Savings Rate" value={`${totals.savingsRate.toFixed(1)}%`} icon={<TrendingUp className="w-5 h-5" />} color={totals.savingsRate >= 20 ? 'emerald' : totals.savingsRate >= 0 ? 'amber' : 'red'} sub="Bulan ini" />
-                                    <SummaryCard label="Tabungan" value={formatCurrency(totalSavings)} icon={<PiggyBank className="w-5 h-5" />} color="purple" sub={`${savings.length} akun`} />
+                                    <SummaryCard label="Lokasi Uang" value={formatCurrency(totalSavings)} icon={<Building2 className="w-5 h-5" />} color="purple" sub={`${savings.length} kantong / akun`} />
                                 </div>
 
                                 {/* Account Breakdown (compact list) */}
                                 {savings.length > 0 && (
                                     <div className="bg-card border border-border rounded-xl p-5">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h3 className="text-sm font-semibold text-foreground">💳 Saldo per Akun</h3>
-                                            <button onClick={() => setActiveTab('savings')} className="text-xs text-primary hover:underline">Kelola →</button>
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                                                    <Building2 className="w-4 h-4 text-primary" /> Di Mana Saja Uang Kita? (Lokasi Uang)
+                                                </h3>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Bank: {formatCurrency(assetBreakdown.bank.amount)} · E-Wallet: {formatCurrency(assetBreakdown.ewallet.amount)} · Tunai: {formatCurrency(assetBreakdown.cash.amount)} · Piutang: {formatCurrency(assetBreakdown.friendLoan.amount)}
+                                                </p>
+                                            </div>
+                                            <button onClick={() => setActiveTab('savings')} className="text-xs text-primary hover:underline self-start sm:self-auto font-medium">Kelola & Detail →</button>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                                             {savings.map((account) => {
-                                                const bankInfo = BANK_OPTIONS.find(b => b.code === account.bank_code)
+                                                const bankInfo = POCKET_OPTIONS.find(b => b.code === account.bank_code)
+                                                const isFriendLoan = account.bank_code === 'friend_loan' || account.type === 'friend_loan'
                                                 return (
-                                                    <div key={account.id} className="bg-secondary/50 rounded-lg p-3 flex items-center gap-2.5">
+                                                    <div key={account.id} onClick={() => setActiveTab('savings')} className={cn("rounded-lg p-3 flex items-center gap-2.5 cursor-pointer transition-all hover:scale-[1.01]", isFriendLoan ? "bg-amber-500/10 border border-amber-500/30" : "bg-secondary/50")}>
                                                         <span className="text-xl">{account.icon || bankInfo?.icon || '💰'}</span>
                                                         <div className="min-w-0">
                                                             <p className="text-xs text-muted-foreground truncate">{account.name}</p>
@@ -831,61 +924,320 @@ export default function FinancePage() {
                         )}
 
                         {/* ========== SAVINGS ========== */}
-                        {activeTab === 'savings' && (<div>
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <h3 className="text-lg font-semibold text-foreground">Tabungan</h3>
-                                    <p className="text-sm text-muted-foreground">Total: {formatCurrency(totalSavings)}</p>
+                        {activeTab === 'savings' && (
+                            <div className="space-y-6">
+                                {/* Header */}
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                                            <span className="p-2 rounded-xl bg-primary/10 text-primary">🗺️</span>
+                                            Lokasi Uang & Likuiditas
+                                        </h3>
+                                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                                            Pantau presisi di mana uang Aegg & Peppaa berada — di Bank, E-Wallet, Dompet Tunai, hingga Piutang Teman.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button onClick={() => openAddModal('savings', 'friend_loan')} variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 text-xs">
+                                            <span className="mr-1.5">🤝</span> + Catat Piutang
+                                        </Button>
+                                        <Button onClick={() => openAddModal('savings')}>
+                                            <Plus className="w-4 h-4 mr-1.5" /> Tambah Lokasi
+                                        </Button>
+                                    </div>
                                 </div>
-                                <Button onClick={() => openAddModal('savings')}>
-                                    <Plus className="w-4 h-4 mr-2" /> Akun Baru
-                                </Button>
-                            </div>
 
-                            {savings.length === 0 ? (
-                                <div className="text-center py-16 bg-card border border-border rounded-xl">
-                                    <PiggyBank className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                                    <p className="text-muted-foreground mb-3">Belum ada akun tabungan</p>
-                                    <Button onClick={() => openAddModal('savings')}><Plus className="w-4 h-4 mr-2" /> Tambah Akun</Button>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {savings.map((account) => {
-                                        const bankInfo = BANK_OPTIONS.find(b => b.code === account.bank_code)
-                                        return (
-                                            <motion.div key={account.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-5 group">
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg">{account.icon || bankInfo?.icon || '💰'}</div>
-                                                        <div>
-                                                            <h4 className="font-semibold text-foreground">{account.name}</h4>
-                                                            <p className="text-xs text-muted-foreground uppercase">{account.type} {bankInfo ? `· ${bankInfo.label.split(' ')[1]}` : ''}</p>
-                                                        </div>
-                                                    </div>
-                                                    <button onClick={() => handleDeleteSavings(account.id)} className="p-1 md:opacity-0 md:group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all">
-                                                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                                    </button>
-                                                </div>
-                                                <p className="text-2xl font-bold text-foreground mb-4">{formatCurrency(account.balance)}</p>
-                                                {account.profiles && (
-                                                    <div className="mb-3">
-                                                        <OwnerBadge role={account.profiles.role} />
-                                                    </div>
+                                {/* Net Worth Banner & 4 Pillars Breakdown */}
+                                <div className="bg-card border border-border rounded-2xl p-5 shadow-xs space-y-4">
+                                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-border/60">
+                                        <div>
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Likuiditas Seluruh Lokasi</p>
+                                            <p className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight mt-1">
+                                                {formatCurrency(totalSavings)}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-secondary/50 px-3 py-1.5 rounded-full">
+                                            <Building2 className="w-3.5 h-3.5 text-primary" />
+                                            <span>{savings.length} Kantong Penyimpanan Terdata</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Visual Stacked Progress Bar */}
+                                    {totalSavings > 0 && (
+                                        <div className="space-y-2">
+                                            <div className="h-3 w-full bg-secondary/80 rounded-full overflow-hidden flex">
+                                                {assetBreakdown.bank.pct > 0 && (
+                                                    <div style={{ width: `${assetBreakdown.bank.pct}%` }} className="bg-blue-600 transition-all" title={`Bank: ${assetBreakdown.bank.pct.toFixed(1)}%`} />
                                                 )}
-                                                <div className="flex gap-2">
-                                                    <Button size="sm" className="flex-1" onClick={() => { setSelectedSavingsAccount(account); setSavingsTxType('deposit'); setModalType('savings_tx'); setShowModal(true) }}>
-                                                        <ArrowDownRight className="w-3 h-3 mr-1" /> Deposit
-                                                    </Button>
-                                                    <Button size="sm" variant="outline" className="flex-1" onClick={() => { setSelectedSavingsAccount(account); setSavingsTxType('withdraw'); setModalType('savings_tx'); setShowModal(true) }}>
-                                                        <ArrowUpRight className="w-3 h-3 mr-1" /> Withdraw
-                                                    </Button>
-                                                </div>
-                                            </motion.div>
-                                        )
-                                    })}
+                                                {assetBreakdown.ewallet.pct > 0 && (
+                                                    <div style={{ width: `${assetBreakdown.ewallet.pct}%` }} className="bg-sky-500 transition-all" title={`E-Wallet: ${assetBreakdown.ewallet.pct.toFixed(1)}%`} />
+                                                )}
+                                                {assetBreakdown.cash.pct > 0 && (
+                                                    <div style={{ width: `${assetBreakdown.cash.pct}%` }} className="bg-emerald-500 transition-all" title={`Tunai: ${assetBreakdown.cash.pct.toFixed(1)}%`} />
+                                                )}
+                                                {assetBreakdown.friendLoan.pct > 0 && (
+                                                    <div style={{ width: `${assetBreakdown.friendLoan.pct}%` }} className="bg-amber-500 transition-all" title={`Piutang Teman: ${assetBreakdown.friendLoan.pct.toFixed(1)}%`} />
+                                                )}
+                                                {assetBreakdown.investment.pct > 0 && (
+                                                    <div style={{ width: `${assetBreakdown.investment.pct}%` }} className="bg-purple-500 transition-all" title={`Investasi: ${assetBreakdown.investment.pct.toFixed(1)}%`} />
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-600" /> Bank ({assetBreakdown.bank.pct.toFixed(0)}%)</span>
+                                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-sky-500" /> E-Wallet ({assetBreakdown.ewallet.pct.toFixed(0)}%)</span>
+                                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Tunai ({assetBreakdown.cash.pct.toFixed(0)}%)</span>
+                                                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Piutang Teman ({assetBreakdown.friendLoan.pct.toFixed(0)}%)</span>
+                                                {assetBreakdown.investment.amount > 0 && (
+                                                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Investasi ({assetBreakdown.investment.pct.toFixed(0)}%)</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 4 Pillars Grid */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                                        {/* Bank */}
+                                        <div
+                                            onClick={() => setPocketFilter(pocketFilter === 'bank' ? 'all' : 'bank')}
+                                            className={cn("p-3.5 rounded-xl border transition-all cursor-pointer", pocketFilter === 'bank' ? "border-blue-500 bg-blue-500/10 shadow-xs" : "border-border/70 bg-secondary/40 hover:bg-secondary/70")}
+                                        >
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className="text-base">🏦</span>
+                                                <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                                                    {assetBreakdown.bank.pct.toFixed(0)}%
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground font-medium">Bank (SeaBank, BCA)</p>
+                                            <p className="text-sm sm:text-base font-bold text-foreground tabular-nums">{formatCurrency(assetBreakdown.bank.amount)}</p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">{assetBreakdown.bank.count} rekening</p>
+                                        </div>
+
+                                        {/* E-Wallet */}
+                                        <div
+                                            onClick={() => setPocketFilter(pocketFilter === 'ewallet' ? 'all' : 'ewallet')}
+                                            className={cn("p-3.5 rounded-xl border transition-all cursor-pointer", pocketFilter === 'ewallet' ? "border-sky-500 bg-sky-500/10 shadow-xs" : "border-border/70 bg-secondary/40 hover:bg-secondary/70")}
+                                        >
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className="text-base">📱</span>
+                                                <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded">
+                                                    {assetBreakdown.ewallet.pct.toFixed(0)}%
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground font-medium">Dompet Digital (DANA)</p>
+                                            <p className="text-sm sm:text-base font-bold text-foreground tabular-nums">{formatCurrency(assetBreakdown.ewallet.amount)}</p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">{assetBreakdown.ewallet.count} e-wallet</p>
+                                        </div>
+
+                                        {/* Tunai */}
+                                        <div
+                                            onClick={() => setPocketFilter(pocketFilter === 'cash' ? 'all' : 'cash')}
+                                            className={cn("p-3.5 rounded-xl border transition-all cursor-pointer", pocketFilter === 'cash' ? "border-emerald-500 bg-emerald-500/10 shadow-xs" : "border-border/70 bg-secondary/40 hover:bg-secondary/70")}
+                                        >
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className="text-base">💵</span>
+                                                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                                    {assetBreakdown.cash.pct.toFixed(0)}%
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground font-medium">Uang Tunai / Kas</p>
+                                            <p className="text-sm sm:text-base font-bold text-foreground tabular-nums">{formatCurrency(assetBreakdown.cash.amount)}</p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">{assetBreakdown.cash.count} tempat</p>
+                                        </div>
+
+                                        {/* Piutang Teman */}
+                                        <div
+                                            onClick={() => setPocketFilter(pocketFilter === 'friend_loan' ? 'all' : 'friend_loan')}
+                                            className={cn("p-3.5 rounded-xl border transition-all cursor-pointer", pocketFilter === 'friend_loan' ? "border-amber-500 bg-amber-500/10 shadow-xs" : "border-border/70 bg-secondary/40 hover:bg-secondary/70")}
+                                        >
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className="text-base">🤝</span>
+                                                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                                    {assetBreakdown.friendLoan.pct.toFixed(0)}%
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground font-medium">Uang di Teman</p>
+                                            <p className="text-sm sm:text-base font-bold text-foreground tabular-nums">{formatCurrency(assetBreakdown.friendLoan.amount)}</p>
+                                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">{assetBreakdown.friendLoan.count} orang pinjam</p>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+
+                                {/* Filter Chips */}
+                                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                                    {[
+                                        { id: 'all' as const, label: `Semua (${savings.length})` },
+                                        { id: 'bank' as const, label: `🏦 Bank (${assetBreakdown.bank.count})` },
+                                        { id: 'ewallet' as const, label: `📱 E-Wallet (${assetBreakdown.ewallet.count})` },
+                                        { id: 'cash' as const, label: `💵 Tunai (${assetBreakdown.cash.count})` },
+                                        { id: 'friend_loan' as const, label: `🤝 Di Teman (${assetBreakdown.friendLoan.count})` },
+                                        ...(assetBreakdown.investment.amount > 0 ? [{ id: 'investment' as const, label: `📈 Investasi (${assetBreakdown.investment.count})` }] : []),
+                                    ].map((chip) => (
+                                        <button
+                                            key={chip.id}
+                                            onClick={() => setPocketFilter(chip.id)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all shrink-0",
+                                                pocketFilter === chip.id
+                                                    ? "bg-primary text-primary-foreground shadow-xs"
+                                                    : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                            )}
+                                        >
+                                            {chip.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Pocket Cards Grid */}
+                                {filteredSavings.length === 0 ? (
+                                    <div className="text-center py-16 bg-card border border-border rounded-xl">
+                                        <PiggyBank className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                                        <p className="text-muted-foreground mb-3">
+                                            {pocketFilter === 'all'
+                                                ? 'Belum ada akun atau lokasi uang terdaftar'
+                                                : `Belum ada lokasi uang di kategori "${pocketFilter}"`}
+                                        </p>
+                                        <Button onClick={() => openAddModal('savings', pocketFilter === 'all' ? 'bank' : pocketFilter)}>
+                                            <Plus className="w-4 h-4 mr-2" /> Tambah Lokasi Uang
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {filteredSavings.map((account) => {
+                                            const category = getAccountCategory(account)
+                                            const isFriendLoan = category === 'friend_loan'
+                                            const pocketInfo = POCKET_OPTIONS.find(b => b.code === account.bank_code)
+
+                                            return (
+                                                <motion.div
+                                                    key={account.id}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className={cn(
+                                                        "rounded-2xl p-5 group border transition-all flex flex-col justify-between",
+                                                        isFriendLoan
+                                                            ? "bg-amber-500/[0.04] border-amber-500/40 hover:border-amber-500/60 shadow-xs"
+                                                            : "bg-card border-border hover:border-primary/40 shadow-xs"
+                                                    )}
+                                                >
+                                                    <div>
+                                                        <div className="flex items-start justify-between mb-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={cn(
+                                                                    "w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0",
+                                                                    isFriendLoan ? "bg-amber-500/15" : "bg-primary/10"
+                                                                )}>
+                                                                    {account.icon || pocketInfo?.icon || (isFriendLoan ? '🤝' : '💰')}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        <h4 className="font-bold text-foreground text-sm truncate">{account.name}</h4>
+                                                                        {isFriendLoan ? (
+                                                                            <span className="text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded-full">
+                                                                                Piutang Teman
+                                                                            </span>
+                                                                        ) : pocketInfo ? (
+                                                                            <span className="text-[10px] font-medium bg-secondary text-muted-foreground px-1.5 py-0.5 rounded">
+                                                                                {pocketInfo.label}
+                                                                            </span>
+                                                                        ) : null}
+                                                                    </div>
+                                                                    <p className="text-xs text-muted-foreground capitalize mt-0.5">
+                                                                        {category === 'bank' ? 'Rekening Bank' : category === 'ewallet' ? 'Dompet Digital' : category === 'friend_loan' ? 'Uang Belum Kembali' : category === 'cash' ? 'Uang Tunai' : 'Investasi'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleDeleteSavings(account.id)}
+                                                                className="p-1 md:opacity-0 md:group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all text-muted-foreground hover:text-red-500"
+                                                                title="Hapus lokasi"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Amount display */}
+                                                        <div className="my-3">
+                                                            <span className="text-[11px] text-muted-foreground font-medium block">
+                                                                {isFriendLoan ? 'Sisa Piutang / Uang Belum Kembali' : 'Saldo Saat Ini'}
+                                                            </span>
+                                                            <p className={cn("text-2xl font-black tabular-nums tracking-tight", isFriendLoan ? "text-amber-600 dark:text-amber-400" : "text-foreground")}>
+                                                                {formatCurrency(account.balance)}
+                                                            </p>
+                                                        </div>
+
+                                                        {account.profiles && (
+                                                            <div className="mb-4">
+                                                                <OwnerBadge role={account.profiles.role} />
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Actions */}
+                                                    <div className="pt-2 border-t border-border/50">
+                                                        {isFriendLoan ? (
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs"
+                                                                    onClick={() => {
+                                                                        setSelectedSavingsAccount(account)
+                                                                        setSavingsTxType('withdraw')
+                                                                        setModalType('savings_tx')
+                                                                        setShowModal(true)
+                                                                    }}
+                                                                >
+                                                                    <ArrowDownRight className="w-3.5 h-3.5 mr-1" /> Terima Pelunasan
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="flex-1 text-xs border-amber-500/30"
+                                                                    onClick={() => {
+                                                                        setSelectedSavingsAccount(account)
+                                                                        setSavingsTxType('deposit')
+                                                                        setModalType('savings_tx')
+                                                                        setShowModal(true)
+                                                                    }}
+                                                                >
+                                                                    <Plus className="w-3 h-3 mr-1" /> Tambah Pinjaman
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="flex-1 text-xs"
+                                                                    onClick={() => {
+                                                                        setSelectedSavingsAccount(account)
+                                                                        setSavingsTxType('deposit')
+                                                                        setModalType('savings_tx')
+                                                                        setShowModal(true)
+                                                                    }}
+                                                                >
+                                                                    <ArrowDownRight className="w-3.5 h-3.5 mr-1" /> Deposit
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="flex-1 text-xs"
+                                                                    onClick={() => {
+                                                                        setSelectedSavingsAccount(account)
+                                                                        setSavingsTxType('withdraw')
+                                                                        setModalType('savings_tx')
+                                                                        setShowModal(true)
+                                                                    }}
+                                                                >
+                                                                    <ArrowUpRight className="w-3.5 h-3.5 mr-1" /> Withdraw
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         {/* ========== RECAP ========== */}
@@ -1051,96 +1403,261 @@ export default function FinancePage() {
                             {modalType === 'savings' && (
                                 <form action={handleSubmitSavings} className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">Nama Akun</label>
-                                        <input type="text" name="name" required placeholder="e.g. Tabungan BCA"
-                                            className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-foreground mb-2">Type</label>
-                                            <select name="type" className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                                <option value="cash">💵 Cash</option>
-                                                <option value="digital">📱 Digital</option>
-                                            </select>
+                                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Kategori Lokasi Uang</label>
+                                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                                            {[
+                                                { id: 'bank' as const, label: 'Bank', icon: '🏦' },
+                                                { id: 'ewallet' as const, label: 'E-Wallet', icon: '📱' },
+                                                { id: 'cash' as const, label: 'Tunai', icon: '💵' },
+                                                { id: 'friend_loan' as const, label: 'Di Teman', icon: '🤝' },
+                                                { id: 'investment' as const, label: 'Investasi', icon: '📈' },
+                                            ].map((cat) => (
+                                                <button
+                                                    key={cat.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSavingsCategory(cat.id)
+                                                        const firstOpt = POCKET_OPTIONS.find(p => p.category === cat.id)
+                                                        if (firstOpt) {
+                                                            setSavingsBankCode(firstOpt.code)
+                                                            setSavingsIcon(firstOpt.icon)
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center p-2 rounded-xl border text-xs font-medium transition-all gap-1",
+                                                        savingsCategory === cat.id
+                                                            ? "border-primary bg-primary/10 text-primary font-bold shadow-xs"
+                                                            : "border-border/70 hover:bg-secondary/50 text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <span className="text-base">{cat.icon}</span>
+                                                    <span className="text-[11px] truncate w-full text-center">{cat.label}</span>
+                                                </button>
+                                            ))}
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-foreground mb-2">Bank/Wallet</label>
-                                            <select name="bank_code" className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                                                {BANK_OPTIONS.map((b) => (<option key={b.code} value={b.code}>{b.label}</option>))}
-                                            </select>
-                                        </div>
+                                        <input type="hidden" name="type" value={savingsCategory} />
                                     </div>
+
                                     <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">Saldo Awal</label>
+                                        <label className="block text-sm font-medium text-foreground mb-1.5">Platform / Layanan</label>
+                                        <select
+                                            name="bank_code"
+                                            value={savingsBankCode}
+                                            onChange={(e) => {
+                                                setSavingsBankCode(e.target.value)
+                                                const opt = POCKET_OPTIONS.find(p => p.code === e.target.value)
+                                                if (opt) setSavingsIcon(opt.icon)
+                                            }}
+                                            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        >
+                                            {POCKET_OPTIONS.filter(b => b.category === savingsCategory).map((b) => (
+                                                <option key={b.code} value={b.code}>{b.icon} {b.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1.5">
+                                            {savingsCategory === 'friend_loan' ? 'Nama Peminjam & Keterangan' : 'Nama Akun / Lokasi'}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            required
+                                            placeholder={
+                                                savingsCategory === 'friend_loan'
+                                                    ? 'e.g. Dipinjam Budi (Talangan Liburan)'
+                                                    : savingsCategory === 'bank'
+                                                    ? 'e.g. SeaBank Tabungan Bersama'
+                                                    : savingsCategory === 'ewallet'
+                                                    ? 'e.g. DANA Belanja Harian'
+                                                    : 'e.g. Kas Dompet Harian'
+                                            }
+                                            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        />
+                                        {savingsCategory === 'friend_loan' && (
+                                            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                                                💡 Uang ini akan dicatat sebagai piutang aktif yang belum kembali ke kantong kalian.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1.5">
+                                            {savingsCategory === 'friend_loan' ? 'Jumlah Uang yang Dipinjam' : 'Saldo Awal'}
+                                        </label>
                                         <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
+                                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">Rp</span>
                                             <CurrencyInput
                                                 name="balance"
                                                 placeholder="0"
-                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                className="w-full pl-11 pr-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                             />
                                         </div>
                                     </div>
+
                                     <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">Icon (emoji)</label>
-                                        <input type="text" name="icon" placeholder="💰"
-                                            className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                                        <label className="block text-sm font-medium text-foreground mb-1.5">Icon (Emoji)</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                name="icon"
+                                                value={savingsIcon}
+                                                onChange={(e) => setSavingsIcon(e.target.value)}
+                                                className="w-16 text-center text-lg px-2 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            />
+                                            <span className="text-xs text-muted-foreground">Otomatis dipilih dari platform, bisa Anda ubah sesuai selera</span>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-3 mt-6">
-                                        <Button type="button" variant="outline" className="flex-1" onClick={closeModal}>Batal</Button>
-                                        <Button type="submit" className="flex-1" disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buat Akun'}</Button>
+
+                                    <div className="flex gap-2.5 mt-6 pt-2 border-t border-border/60">
+                                        <Button type="button" variant="outline" className="flex-1 text-xs" onClick={closeModal}>Batal</Button>
+                                        <Button type="submit" className="flex-1 text-xs" disabled={saving}>
+                                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan Lokasi Uang'}
+                                        </Button>
                                     </div>
                                 </form>
                             )}
 
-                            {/* Savings Transaction Form */}
-                            {modalType === 'savings_tx' && selectedSavingsAccount && (
-                                <form action={handleSavingsTransaction} className="space-y-4">
-                                    <div className="flex items-center gap-2 bg-secondary/50 rounded-lg p-3 mb-2">
-                                        <span className="text-lg">{selectedSavingsAccount!.icon || '💰'}</span>
+                            {/* Savings Transaction Form (with Friend Loan Repayment Support) */}
+                            {modalType === 'savings_tx' && selectedSavingsAccount && (() => {
+                                const isFriendLoan = selectedSavingsAccount.bank_code === 'friend_loan' || selectedSavingsAccount.type === 'friend_loan'
+                                return (
+                                    <form action={handleSavingsTransaction} className="space-y-4">
+                                        <div className={cn(
+                                            "rounded-xl p-3.5 mb-2 border flex items-center gap-3",
+                                            isFriendLoan ? "bg-amber-500/10 border-amber-500/30" : "bg-secondary/50 border-border"
+                                        )}>
+                                            <span className="text-2xl">{selectedSavingsAccount.icon || (isFriendLoan ? '🤝' : '💰')}</span>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-1.5">
+                                                    <p className="font-bold text-foreground text-sm truncate">{selectedSavingsAccount.name}</p>
+                                                    {isFriendLoan && (
+                                                        <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">
+                                                            Piutang Teman
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    {isFriendLoan ? 'Sisa yang belum lunas:' : 'Saldo saat ini:'}{' '}
+                                                    <span className={cn("font-bold", isFriendLoan ? "text-amber-600 dark:text-amber-400" : "text-foreground")}>
+                                                        {formatCurrency(selectedSavingsAccount.balance)}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+
                                         <div>
-                                            <p className="font-medium text-foreground text-sm">{selectedSavingsAccount!.name}</p>
-                                            <p className="text-xs text-muted-foreground">Saldo: {formatCurrency(selectedSavingsAccount!.balance)}</p>
+                                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Jenis Transaksi</label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {isFriendLoan ? (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSavingsTxType('withdraw')}
+                                                            className={cn(
+                                                                'px-3 py-2.5 rounded-lg border-2 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5',
+                                                                savingsTxType === 'withdraw'
+                                                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                                                    : 'border-border text-muted-foreground'
+                                                            )}
+                                                        >
+                                                            ✓ Terima Pelunasan
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSavingsTxType('deposit')}
+                                                            className={cn(
+                                                                'px-3 py-2.5 rounded-lg border-2 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5',
+                                                                savingsTxType === 'deposit'
+                                                                    ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                                                    : 'border-border text-muted-foreground'
+                                                            )}
+                                                        >
+                                                            + Tambah Pinjaman
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSavingsTxType('deposit')}
+                                                            className={cn(
+                                                                'px-3 py-2.5 rounded-lg border-2 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5',
+                                                                savingsTxType === 'deposit'
+                                                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                                                    : 'border-border text-muted-foreground'
+                                                            )}
+                                                        >
+                                                            <ArrowDownRight className="w-3.5 h-3.5" /> Deposit (Masuk)
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSavingsTxType('withdraw')}
+                                                            className={cn(
+                                                                'px-3 py-2.5 rounded-lg border-2 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5',
+                                                                savingsTxType === 'withdraw'
+                                                                    ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                                                    : 'border-border text-muted-foreground'
+                                                            )}
+                                                        >
+                                                            <ArrowUpRight className="w-3.5 h-3.5" /> Withdraw (Keluar)
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">Type</label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <button type="button" onClick={() => setSavingsTxType('deposit')}
-                                                className={cn('px-4 py-2.5 rounded-lg border-2 font-medium text-sm transition-colors',
-                                                    savingsTxType === 'deposit' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'border-border')}>
-                                                Deposit
-                                            </button>
-                                            <button type="button" onClick={() => setSavingsTxType('withdraw')}
-                                                className={cn('px-4 py-2.5 rounded-lg border-2 font-medium text-sm transition-colors',
-                                                    savingsTxType === 'withdraw' ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'border-border')}>
-                                                Withdraw
-                                            </button>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-foreground mb-1.5">
+                                                {isFriendLoan && savingsTxType === 'withdraw' ? 'Jumlah Pelunasan' : 'Nominal Transaksi'}
+                                            </label>
+                                            <div className="relative">
+                                                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">Rp</span>
+                                                <CurrencyInput
+                                                    name="amount"
+                                                    required
+                                                    placeholder="0"
+                                                    defaultValue={isFriendLoan && savingsTxType === 'withdraw' ? selectedSavingsAccount.balance : 0}
+                                                    className="w-full pl-11 pr-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                />
+                                            </div>
+                                            {isFriendLoan && savingsTxType === 'withdraw' && (
+                                                <p className="text-[11px] text-muted-foreground mt-1">
+                                                    Bisa diisi sebagian jika teman melunasi dengan cara dicicil.
+                                                </p>
+                                            )}
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">Amount</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
-                                            <CurrencyInput
-                                                name="amount"
-                                                required
-                                                placeholder="0"
-                                                className="w-full pl-12 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-foreground mb-1.5">Keterangan / Catatan</label>
+                                            <input
+                                                type="text"
+                                                name="description"
+                                                placeholder={
+                                                    isFriendLoan
+                                                        ? (savingsTxType === 'withdraw' ? 'e.g. Ditransfer pelunasan via SeaBank / Cash' : 'e.g. Tambahan pinjam lagi')
+                                                        : 'e.g. Nabung bulanan, sisa gaji'
+                                                }
+                                                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                                             />
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-foreground mb-2">Keterangan</label>
-                                        <input type="text" name="description" placeholder="e.g. Nabung bulanan"
-                                            className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                                    </div>
-                                    <div className="flex gap-3 mt-6">
-                                        <Button type="button" variant="outline" className="flex-1" onClick={closeModal}>Batal</Button>
-                                        <Button type="submit" className="flex-1" disabled={saving}>{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : savingsTxType === 'deposit' ? 'Deposit' : 'Withdraw'}</Button>
-                                    </div>
-                                </form>
-                            )}
+
+                                        <div className="flex gap-2.5 mt-6 pt-2 border-t border-border/60">
+                                            <Button type="button" variant="outline" className="flex-1 text-xs" onClick={closeModal}>Batal</Button>
+                                            <Button type="submit" className="flex-1 text-xs" disabled={saving}>
+                                                {saving ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : isFriendLoan ? (
+                                                    savingsTxType === 'withdraw' ? 'Terima Pelunasan' : 'Catat Tambahan'
+                                                ) : (
+                                                    savingsTxType === 'deposit' ? 'Simpan Deposit' : 'Simpan Penarikan'
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </form>
+                                )
+                            })()}
                         </motion.div>
                     </motion.div>
                 )}

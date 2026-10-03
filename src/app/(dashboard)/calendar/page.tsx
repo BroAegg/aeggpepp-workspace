@@ -37,6 +37,9 @@ import {
   Copy,
   Check,
   ExternalLink,
+  RefreshCw,
+  Download,
+  Upload,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TimePicker } from '@/components/ui/time-picker'
@@ -47,6 +50,7 @@ import {
   createEvent,
   updateEvent,
   deleteEvent as deleteEventAction,
+  syncInboundCalendarFeeds,
 } from '@/lib/actions/calendar'
 import { useWorkspaceStore } from '@/stores/workspace-store'
 import { OwnerBadge } from '@/components/ui/owner-badge'
@@ -91,6 +95,11 @@ export default function CalendarPage() {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
   const [showSyncModal, setShowSyncModal] = useState(false)
   const [copiedFeed, setCopiedFeed] = useState(false)
+  const [syncTab, setSyncTab] = useState<'inbound' | 'outbound'>('inbound')
+  const [gcalAeggUrl, setGcalAeggUrl] = useState('')
+  const [gcalPeppaaUrl, setGcalPeppaaUrl] = useState('')
+  const [syncingGcal, setSyncingGcal] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
 
   // Form state
   const [formTitle, setFormTitle] = useState('')
@@ -114,6 +123,12 @@ export default function CalendarPage() {
   }, [cachedEvents])
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedAegg = localStorage.getItem('aeggpepp_gcal_aegg_url') || ''
+      const savedPeppaa = localStorage.getItem('aeggpepp_gcal_peppaa_url') || ''
+      setGcalAeggUrl(savedAegg)
+      setGcalPeppaaUrl(savedPeppaa)
+    }
     fetchData()
 
     const handleOnline = () => fetchData()
@@ -157,11 +172,46 @@ export default function CalendarPage() {
         }
         return item
       })
-      setCalendarItems(processedItems)
+
+      // Fetch Inbound Google Calendar feeds if configured
+      const aeggUrl = typeof window !== 'undefined' ? localStorage.getItem('aeggpepp_gcal_aegg_url') || '' : ''
+      const peppaaUrl = typeof window !== 'undefined' ? localStorage.getItem('aeggpepp_gcal_peppaa_url') || '' : ''
+
+      let gcalItems: CalendarItem[] = []
+      if (aeggUrl || peppaaUrl) {
+        const feeds = []
+        if (aeggUrl.trim()) feeds.push({ url: aeggUrl.trim(), ownerName: 'Aegg', role: 'aegg' as const, color: '#3B82F6' })
+        if (peppaaUrl.trim()) feeds.push({ url: peppaaUrl.trim(), ownerName: 'Peppaa', role: 'peppaa' as const, color: '#EC4899' })
+        try {
+          gcalItems = await syncInboundCalendarFeeds(feeds)
+        } catch (gcalErr) {
+          console.warn('GCal inbound sync error:', gcalErr)
+        }
+      }
+
+      setCalendarItems([...processedItems, ...gcalItems])
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSaveAndSyncGCal = async () => {
+    setSyncingGcal(true)
+    setSyncMsg(null)
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('aeggpepp_gcal_aegg_url', gcalAeggUrl.trim())
+        localStorage.setItem('aeggpepp_gcal_peppaa_url', gcalPeppaaUrl.trim())
+      }
+      await fetchData()
+      setSyncMsg('✓ Sinkronisasi berhasil! Acara Google Calendar Aegg & Peppaa kini tampil di kalender sistem.')
+    } catch (err) {
+      console.error('Sync failed:', err)
+      setSyncMsg('Gagal menyinkronkan. Periksa kembali format URL iCal.')
+    } finally {
+      setSyncingGcal(false)
     }
   }
 
@@ -819,10 +869,10 @@ export default function CalendarPage() {
                   </span>
                   <div>
                     <h3 className="text-lg font-bold text-foreground">
-                      Koneksikan ke Google Calendar & Gmail
+                      Sinkronisasi Google Calendar & Gmail
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      Sinkronisasi otomatis semua agenda Aegg & Peppaa
+                      Hubungkan agenda Aegg & Peppaa secara dua arah
                     </p>
                   </div>
                 </div>
@@ -834,69 +884,188 @@ export default function CalendarPage() {
                 </button>
               </div>
 
-              <div className="p-4 rounded-xl bg-secondary/60 border border-border space-y-2 text-xs">
-                <p className="font-semibold text-foreground">
-                  ✨ Cara Kerja Sinkronisasi Langsung:
-                </p>
-                <p className="text-muted-foreground leading-relaxed">
-                  Kalender ini menyediakan live iCalendar (.ics feed). Setelah ditautkan satu kali di Google Calendar atau Gmail, semua agenda kencan, acara bersama, deadline target (Goals), dan libur nasional RI akan otomatis muncul di kalender HP Android / iPhone kalian berdua tanpa perlu input manual lagi!
-                </p>
+              {/* Sync Mode Tabs */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-secondary/60 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setSyncTab('inbound')}
+                  className={cn(
+                    "flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all",
+                    syncTab === 'inbound'
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Impor dari Gmail / GCal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSyncTab('outbound')}
+                  className={cn(
+                    "flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all",
+                    syncTab === 'outbound'
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Ekspor ke HP / GCal
+                </button>
               </div>
 
-              {/* Feed URL Box */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  URL Live Kalender Kalian:
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={typeof window !== 'undefined' ? `${window.location.origin}/api/calendar/feed` : '/api/calendar/feed'}
-                    className="flex-1 text-xs px-3 py-2.5 rounded-xl bg-background border border-border text-foreground font-mono select-all"
-                  />
+              {/* TAB 1: INBOUND SYNC */}
+              {syncTab === 'inbound' && (
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-900 dark:text-blue-200">
+                    <p className="font-bold mb-1">✨ Tampilkan Agenda Gmail di Kalender Kita:</p>
+                    <p className="leading-relaxed opacity-90">
+                      Masukkan URL Rahasia iCal dari Google Calendar masing-masing. Semua jadwal kerja, janji temu, dan agenda yang ada di Google Calendar Aegg dan Peppaa akan otomatis tampil bersama di sini!
+                    </p>
+                  </div>
+
+                  {syncMsg && (
+                    <div className={cn(
+                      "p-3 rounded-xl text-xs font-medium border flex items-center gap-2",
+                      syncMsg.includes('✓')
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                        : "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+                    )}>
+                      <span>{syncMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {/* Aegg GCal URL */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                        <span>🔵 URL iCal Google Calendar Aegg:</span>
+                        {gcalAeggUrl && <span className="text-[10px] text-emerald-500 font-normal">Tersimpan</span>}
+                      </label>
+                      <input
+                        type="url"
+                        value={gcalAeggUrl}
+                        onChange={(e) => setGcalAeggUrl(e.target.value)}
+                        placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-background border border-border text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                    </div>
+
+                    {/* Peppaa GCal URL */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                        <span>🌸 URL iCal Google Calendar Peppaa:</span>
+                        {gcalPeppaaUrl && <span className="text-[10px] text-emerald-500 font-normal">Tersimpan</span>}
+                      </label>
+                      <input
+                        type="url"
+                        value={gcalPeppaaUrl}
+                        onChange={(e) => setGcalPeppaaUrl(e.target.value)}
+                        placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-background border border-border text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                    </div>
+                  </div>
+
                   <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      if (typeof window !== 'undefined') {
-                        navigator.clipboard.writeText(`${window.location.origin}/api/calendar/feed`)
-                        setCopiedFeed(true)
-                        setTimeout(() => setCopiedFeed(false), 2000)
-                      }
-                    }}
-                    className="flex items-center gap-1.5 flex-shrink-0"
+                    onClick={handleSaveAndSyncGCal}
+                    disabled={syncingGcal}
+                    className="w-full text-xs font-semibold"
                   >
-                    {copiedFeed ? (
+                    {syncingGcal ? (
                       <>
-                        <Check className="w-4 h-4 text-emerald-500" />
-                        Tersalin!
+                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />
+                        Menyinkronkan dari Google Calendar...
                       </>
                     ) : (
                       <>
-                        <Copy className="w-4 h-4" />
-                        Salin Link
+                        <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                        Simpan & Sinkronkan Sekarang
                       </>
                     )}
                   </Button>
-                </div>
-              </div>
 
-              {/* Steps */}
-              <div className="space-y-2 text-xs text-muted-foreground">
-                <p className="font-bold text-foreground">Langkah Menautkan ke Google Calendar (Hanya 1x):</p>
-                <ol className="list-decimal list-inside space-y-1 pl-1">
-                  <li>Buka <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-primary hover:underline font-semibold">calendar.google.com</a> di browser HP/Laptop.</li>
-                  <li>Di menu sebelah kiri, klik tanda <strong>+ (Tambah kalender lain)</strong>.</li>
-                  <li>Pilih <strong>Dari URL (From URL)</strong>.</li>
-                  <li>Tempel (Paste) link yang sudah disalin di atas, lalu klik <strong>Tambahkan kalender</strong>.</li>
-                  <li>Selesai! Google Calendar dan Gmail akan otomatis terhubung selamanya.</li>
-                </ol>
-              </div>
+                  {/* Tutorial Guide */}
+                  <div className="p-3.5 rounded-xl bg-secondary/50 border border-border space-y-2 text-xs text-muted-foreground">
+                    <p className="font-bold text-foreground">📌 Cara Ambil URL Rahasia iCal dari Google Calendar:</p>
+                    <ol className="list-decimal list-inside space-y-1 pl-1 leading-relaxed">
+                      <li>Buka <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-primary hover:underline font-semibold">calendar.google.com</a> di browser laptop / PC.</li>
+                      <li>Di menu kiri ("Kalender saya"), klik titik tiga (⋮) pada nama kalender Anda → pilih <strong>Setelan dan berbagi</strong>.</li>
+                      <li>Gulir ke bawah ke bagian <strong>Integrasikan kalender</strong>.</li>
+                      <li>Salin link di kolom <strong>Alamat rahasia dalam format iCal</strong>.</li>
+                      <li>Tempel ke kolom di atas lalu klik <strong>Simpan & Sinkronkan</strong>.</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: OUTBOUND SYNC */}
+              {syncTab === 'outbound' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-secondary/60 border border-border space-y-2 text-xs">
+                    <p className="font-semibold text-foreground">
+                      ✨ Tampilkan Kalender Sistem ini di HP & Google Calendar:
+                    </p>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Langganan live .ics feed ke Google Calendar di HP Android atau iPhone kalian berdua. Agenda bersama dan deadline target akan otomatis muncul di aplikasi kalender bawaan HP tanpa perlu input ganda!
+                    </p>
+                  </div>
+
+                  {/* Feed URL Box */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      URL Live Kalender AeggPepp:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={typeof window !== 'undefined' ? `${window.location.origin}/api/calendar/feed` : '/api/calendar/feed'}
+                        className="flex-1 text-xs px-3 py-2.5 rounded-xl bg-background border border-border text-foreground font-mono select-all"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          if (typeof window !== 'undefined') {
+                            navigator.clipboard.writeText(`${window.location.origin}/api/calendar/feed`)
+                            setCopiedFeed(true)
+                            setTimeout(() => setCopiedFeed(false), 2000)
+                          }
+                        }}
+                        className="flex items-center gap-1.5 flex-shrink-0 text-xs"
+                      >
+                        {copiedFeed ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            Tersalin!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            Salin Link
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Steps */}
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p className="font-bold text-foreground">Langkah Langganan ke Google Calendar:</p>
+                    <ol className="list-decimal list-inside space-y-1 pl-1 leading-relaxed">
+                      <li>Buka <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-primary hover:underline font-semibold">calendar.google.com</a>.</li>
+                      <li>Di menu sebelah kiri, klik tanda <strong>+ (Tambah kalender lain)</strong>.</li>
+                      <li>Pilih <strong>Dari URL (From URL)</strong>.</li>
+                      <li>Tempel (Paste) link di atas, lalu klik <strong>Tambahkan kalender</strong>.</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
 
               <div className="pt-2">
-                <Button className="w-full" onClick={() => setShowSyncModal(false)}>
-                  Mengerti & Tutup
+                <Button variant="outline" className="w-full text-xs" onClick={() => setShowSyncModal(false)}>
+                  Tutup
                 </Button>
               </div>
             </motion.div>
@@ -918,6 +1087,7 @@ function ScheduleItem({
   onEditEvent?: () => void
   compact?: boolean
 }) {
+  const isGCal = Boolean(item.id && item.id.startsWith('gcal-'))
 
   const typeIcon =
     item.type === 'event' ? (
@@ -938,8 +1108,8 @@ function ScheduleItem({
         'hover:bg-secondary/50',
         item.completed && 'opacity-50'
       )}
-      onClick={onEditEvent}
-      style={{ cursor: onEditEvent ? 'pointer' : 'default' }}
+      onClick={isGCal ? undefined : onEditEvent}
+      style={{ cursor: onEditEvent && !isGCal ? 'pointer' : 'default' }}
     >
       {/* Mobile Indicator Bar */}
       <div
@@ -972,7 +1142,7 @@ function ScheduleItem({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
 
           {/* Top Row: Icon + Title */}
-          <div className="flex items-start sm:items-center gap-1.5 min-w-0">
+          <div className="flex items-start sm:items-center gap-1.5 min-w-0 flex-wrap">
             {/* Mobile Time Inline */}
             <div className="sm:hidden flex-shrink-0 mr-1">
               {item.time ? (
@@ -989,6 +1159,11 @@ function ScheduleItem({
             >
               {item.title}
             </p>
+            {isGCal && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+                GCal
+              </span>
+            )}
           </div>
 
           {/* Badge */}
@@ -1002,8 +1177,8 @@ function ScheduleItem({
         )}
       </div>
 
-      {/* Edit button for events */}
-      {onEditEvent && (
+      {/* Edit button for couple events (disabled for synced GCal) */}
+      {onEditEvent && !isGCal && (
         <button
           onClick={(e) => {
             e.stopPropagation()

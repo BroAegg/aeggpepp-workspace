@@ -12,7 +12,7 @@ import type {
   WeddingRundownItem,
 } from '@/types'
 
-// Default template for Rp 25.000.000 intimate wedding
+// Default template for Rp 25.000.000 wedding (180 pax scale)
 const DEFAULT_25JT_TEMPLATE = [
   {
     category: 'kua' as WeddingCategory,
@@ -23,44 +23,44 @@ const DEFAULT_25JT_TEMPLATE = [
   {
     category: 'venue' as WeddingCategory,
     title: 'Tempat Akad & Ramah Tamah (Venue)',
-    estimated_cost: 5000000,
-    notes: 'Masjid agung / private room resto / intimate home venue',
+    estimated_cost: 3500000,
+    notes: 'Aula masjid agung / gedung serbaguna terjangkau / private resto',
   },
   {
     category: 'catering' as WeddingCategory,
-    title: 'Katering / Konsumsi (70 Pax)',
-    estimated_cost: 8400000,
-    notes: '70 pax × Rp 120.000 (Buffet lengkap + gubukan/dessert)',
+    title: 'Katering / Konsumsi (180 Pax)',
+    estimated_cost: 11700000,
+    notes: '180 pax × Rp 65.000 (Paket prasmanan hemat / semi-buffet)',
   },
   {
     category: 'attire_mua' as WeddingCategory,
     title: 'MUA, Hijabdo & Busana Pengantin',
-    estimated_cost: 3800000,
+    estimated_cost: 3200000,
     notes: 'Rias & busana pengantin akad/resepsi + rias & kain ibu bapak',
   },
   {
     category: 'documentation' as WeddingCategory,
     title: 'Dokumentasi (Foto & Video Highlight)',
-    estimated_cost: 2500000,
+    estimated_cost: 2200000,
     notes: '1 fotografer + 1 videografer liputan acara + 1 min video reels',
   },
   {
     category: 'ring' as WeddingCategory,
     title: 'Cincin Kawin (Sepasang)',
-    estimated_cost: 2500000,
+    estimated_cost: 2000000,
     notes: 'Sepasang cincin emas/palladium/perak simple & box cincin',
   },
   {
     category: 'decor' as WeddingCategory,
     title: 'Dekorasi Minimalis Backdrop Akad',
-    estimated_cost: 1000000,
+    estimated_cost: 800000,
     notes: 'Backdrop bunga aesthetic, meja akad, 4 kursi & welcome sign',
   },
   {
     category: 'invitation_souvenir' as WeddingCategory,
-    title: 'Undangan Digital Web & Souvenir (70 pcs)',
-    estimated_cost: 800000,
-    notes: 'Website undangan digital (Rp 150rb) + souvenir 70 pcs @ Rp 9.000',
+    title: 'Undangan Digital & Souvenir (180 pcs)',
+    estimated_cost: 600000,
+    notes: 'Website undangan digital (Rp 100rb) + souvenir 180 pcs @ Rp 2.700',
   },
 ]
 

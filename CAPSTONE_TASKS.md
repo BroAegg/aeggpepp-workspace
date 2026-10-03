@@ -69,6 +69,10 @@
   - **Dashboard Home Zero-Flash**: Fungsi `buildRecentItems` menghitung aktivitas terkini langsung dari cached todos, goals, dan events secara sinkron, menghilangkan flash "Belum ada aktivitas baru".
   - **Calendar Bundle Single Query**: Menggabungkan `getCalendarItems` dan `getEvents` menjadi `getCalendarBundle()` untuk menghapus query ganda ke tabel `events`. Pre-populasi kalender grid dari cached events.
   - **Zustand Hydration Sync on All Pages**: Menambahkan hydration sync listener pada 10 halaman (`todos`, `goals`, `gallery`, `wishlist`, `portfolio`, dll.) untuk menjamin data cache langsung tampil tanpa jeda saat store rehydrate dari localStorage.
+- [x] **Phase 17.9: Wedding 180 Pax Scale, Multi-Pocket Asset Allocation & Google Calendar Inbound Sync** —
+  - **Wedding 180 Pax Scale**: Skala target catering dan rincian tamu di-upgrade ke 180 pax dengan pagu budget total tetap Rp 25.000.000. Interactive capacity gauge bar (Confirmed, Pending, Declined, Sisa Kuota) di web dan mobile.
+  - **Multi-Pocket Money & Asset Allocation ("Di Mana Saja Uang Kita?")**: Menjawab tuntas kebutuhan melacak lokasi riil likuiditas (apakah uang ada di SeaBank, BCA, Jago, DANA, GoPay, Tunai di Dompet, atau dipinjam teman). Dilengkapi 4 pilar klasifikasi (Bank, E-Wallet, Tunai, Uang di Teman), progress bar proporsi aset visual, filter kategori kantong, dan modal pelunasan piutang teman.
+  - **Google Calendar (Gmail) Inbound Sync**: Sinkronisasi dua arah otomatis dengan Gmail & Google Calendar Aegg dan Peppaa via private iCal feed. Parser RFC 5545 zero-dependency (`google-calendar-sync.ts`), auto-merge ke agenda kalender dengan badge `GCal`, dan modal sinkronisasi tabbed (Impor & Ekspor).
 
 ---
 

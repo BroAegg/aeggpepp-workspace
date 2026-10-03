@@ -29,7 +29,7 @@ const FINANCE_TABS = [
   { id: 'overview' as FinanceTab, label: 'Ringkasan', icon: LayoutDashboard },
   { id: 'transactions' as FinanceTab, label: 'Transaksi', icon: ArrowLeftRight },
   { id: 'budgets' as FinanceTab, label: 'Anggaran', icon: Target },
-  { id: 'savings' as FinanceTab, label: 'Tabungan', icon: PiggyBank },
+  { id: 'savings' as FinanceTab, label: 'Lokasi Uang', icon: PiggyBank },
   { id: 'ledger' as FinanceTab, label: 'Buku Kas', icon: BookOpen },
   { id: 'analytics' as FinanceTab, label: 'Analisis', icon: BarChart3 },
   { id: 'recap' as FinanceTab, label: 'Rekap Bulanan', icon: FileText },

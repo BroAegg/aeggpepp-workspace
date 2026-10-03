@@ -215,3 +215,47 @@ export async function deleteEvent(id: string) {
   revalidatePath('/calendar')
   return { success: true }
 }
+
+// ============== GOOGLE CALENDAR INBOUND SYNC ==============
+
+export interface FeedInput {
+  url: string
+  ownerName: string
+  role: 'aegg' | 'peppaa'
+  color?: string
+}
+
+export async function syncInboundCalendarFeeds(feeds: FeedInput[]): Promise<CalendarItem[]> {
+  const { parseGoogleCalendarIcs } = await import('@/lib/google-calendar-sync')
+  const results: CalendarItem[] = []
+
+  const validFeeds = feeds.filter(f => f.url && f.url.trim().startsWith('http'))
+
+  await Promise.allSettled(
+    validFeeds.map(async (feed) => {
+      try {
+        const res = await fetch(feed.url.trim(), {
+          headers: {
+            'User-Agent': 'AeggPepp-Workspace-CalendarSync/1.0',
+            'Accept': 'text/calendar, text/plain, */*',
+          },
+          next: { revalidate: 300 }, // Cache for 5 minutes
+        })
+
+        if (!res.ok) {
+          console.warn(`Failed to fetch calendar feed for ${feed.ownerName}: HTTP ${res.status}`)
+          return
+        }
+
+        const icsText = await res.text()
+        const parsed = parseGoogleCalendarIcs(icsText, feed)
+        results.push(...parsed)
+      } catch (err) {
+        console.error(`Error syncing calendar feed for ${feed.ownerName}:`, err)
+      }
+    })
+  )
+
+  return results
+}
+

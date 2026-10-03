@@ -126,8 +126,8 @@ export interface Transaction {
   profiles?: ItemOwner
 }
 
-// Savings Types
-export type SavingsAccountType = 'cash' | 'digital'
+// Savings / Asset Pocket Types
+export type SavingsAccountType = 'cash' | 'digital' | 'bank' | 'ewallet' | 'friend_loan' | 'investment'
 
 export interface SavingsAccount {
   id: string

@@ -382,7 +382,7 @@ export async function createSavingsAccount(formData: FormData) {
   if (!user) return { error: 'Not authenticated' }
 
   const name = formData.get('name') as string
-  const type = formData.get('type') as 'cash' | 'digital'
+  const type = (formData.get('type') as any) || 'cash'
   const bank_code = formData.get('bank_code') as string
   const balance = parseFloat(formData.get('balance') as string) || 0
   const icon = formData.get('icon') as string
