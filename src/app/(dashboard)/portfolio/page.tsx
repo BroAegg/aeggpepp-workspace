@@ -35,6 +35,14 @@ export default function PortfolioPage() {
   const [links, setLinks] = useState<LinkWithUser[]>(cachedPortfolio as LinkWithUser[])
   const [loading, setLoading] = useState(!portfolioLoaded && cachedPortfolio.length === 0)
   const [saving, setSaving] = useState(false)
+
+  // Hydration sync
+  useEffect(() => {
+    if (cachedPortfolio.length > 0) {
+      setLinks(cachedPortfolio as LinkWithUser[])
+      setLoading(false)
+    }
+  }, [cachedPortfolio])
   const [showModal, setShowModal] = useState(false)
   const [editingLink, setEditingLink] = useState<LinkWithUser | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<Category>('all')

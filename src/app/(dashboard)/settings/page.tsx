@@ -5,6 +5,8 @@ import { Header } from '@/components/layout/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useAuth } from '@/providers/auth-provider'
+import { useWorkspaceStore } from '@/stores/workspace-store'
 import {
   getUser,
   updateProfile,
@@ -48,21 +50,36 @@ import { cn } from '@/lib/utils'
 import { OwnerBadge } from '@/components/ui/owner-badge'
 
 export default function SettingsPage() {
+  const { profile: authProfile } = useAuth()
+  const cachedProfile = useWorkspaceStore((s) => s.profile)
+  const setStoreProfile = useWorkspaceStore((s) => s.setProfile)
+  const currentProfile = authProfile || cachedProfile
+
   // Profile state
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(currentProfile)
   const [partner, setPartner] = useState<any>(null)
-  const [loadingProfile, setLoadingProfile] = useState(true)
+  const [loadingProfile, setLoadingProfile] = useState(!currentProfile)
 
   // Profile form
-  const [displayName, setDisplayName] = useState('')
-  const [role, setRole] = useState('')
+  const [displayName, setDisplayName] = useState<string>(currentProfile?.display_name || '')
+  const [role, setRole] = useState<string>(currentProfile?.role || '')
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Avatar state
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(currentProfile?.avatar_url || null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (currentProfile) {
+      setProfile(currentProfile)
+      setDisplayName((prev: string) => prev || currentProfile.display_name || '')
+      setRole((prev: string) => prev || currentProfile.role || '')
+      setAvatarUrl((prev: string | null) => prev || currentProfile.avatar_url || null)
+      setLoadingProfile(false)
+    }
+  }, [currentProfile])
 
   // Password form
   const [newPassword, setNewPassword] = useState('')
@@ -195,6 +212,7 @@ export default function SettingsPage() {
         setDisplayName(userData.display_name || '')
         setRole(userData.role || '')
         setAvatarUrl(userData.avatar_url || null)
+        setStoreProfile(userData)
       }
 
       if (partnerData) {
@@ -342,7 +360,7 @@ export default function SettingsPage() {
     await logout()
   }
 
-  if (loadingProfile) {
+  if (loadingProfile && !profile) {
     return (
       <>
         <Header title="Settings" icon={Settings} />

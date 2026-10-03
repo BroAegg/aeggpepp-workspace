@@ -31,6 +31,7 @@ interface WorkspaceState {
   todoCategories: TodoCategoryItem[]
   todosLoaded: boolean
   setTodosData: (todos: Todo[], categories?: TodoCategoryItem[]) => void
+  setTodoCategoriesData: (categories: TodoCategoryItem[]) => void
   toggleTodoOptimistic: (id: string, completed: boolean) => void
   invalidateTodos: () => void
 
@@ -150,6 +151,11 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       todoCategories: categories !== undefined ? categories : state.todoCategories,
       todosLoaded: true,
     })),
+
+  setTodoCategoriesData: (categories) =>
+    set({
+      todoCategories: categories,
+    }),
 
   toggleTodoOptimistic: (id, completed) =>
     set((state) => ({

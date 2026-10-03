@@ -90,6 +90,15 @@ export default function GalleryPage() {
   const [loading, setLoading] = useState(!galleryLoaded && cachedGallery.length === 0)
   const [uploading, setUploading] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
+
+  // Hydration sync
+  useEffect(() => {
+    if (cachedGallery.length > 0) {
+      const likedIds = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('gallery_likes') || '[]') : []
+      setPhotos(cachedGallery.map(p => ({ ...p, liked: likedIds.includes(p.id) })))
+      setLoading(false)
+    }
+  }, [cachedGallery])
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoWithLike | null>(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [editingCaption, setEditingCaption] = useState(false)

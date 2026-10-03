@@ -28,6 +28,14 @@ export default function GoalsPage() {
   const [loading, setLoading] = useState(!goalsLoaded && cachedGoals.length === 0)
   const [viewMode, setViewMode] = useState<ViewMode>('table')
 
+  // Hydration sync
+  useEffect(() => {
+    if (cachedGoals.length > 0) {
+      setGoals(cachedGoals)
+      setLoading(false)
+    }
+  }, [cachedGoals])
+
   // Side peek state
   const [peekGoal, setPeekGoal] = useState<Goal | null>(null)
   const [peekOpen, setPeekOpen] = useState(false)

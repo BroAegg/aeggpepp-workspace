@@ -127,7 +127,8 @@ export default function WeddingPage() {
   const [budgetItems, setBudgetItems] = useState<WeddingBudgetItem[]>(cachedBudget)
   const [guests, setGuests] = useState<WeddingGuest[]>(cachedGuests)
   const [rundown, setRundown] = useState<WeddingRundownItem[]>(cachedRundown)
-  const [loading, setLoading] = useState(!weddingLoaded)
+  const hasCachedData = cachedBudget.length > 0 || cachedGuests.length > 0 || cachedRundown.length > 0
+  const [loading, setLoading] = useState(!weddingLoaded && !hasCachedData)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Filters
@@ -151,15 +152,24 @@ export default function WeddingPage() {
 
   // Sync from store when hydrated
   useEffect(() => {
-    if (cachedBudget.length > 0) setBudgetItems(cachedBudget)
+    if (cachedBudget.length > 0) {
+      setBudgetItems(cachedBudget)
+      setLoading(false)
+    }
   }, [cachedBudget])
 
   useEffect(() => {
-    if (cachedGuests.length > 0) setGuests(cachedGuests)
+    if (cachedGuests.length > 0) {
+      setGuests(cachedGuests)
+      setLoading(false)
+    }
   }, [cachedGuests])
 
   useEffect(() => {
-    if (cachedRundown.length > 0) setRundown(cachedRundown)
+    if (cachedRundown.length > 0) {
+      setRundown(cachedRundown)
+      setLoading(false)
+    }
   }, [cachedRundown])
 
   // Fetch data
@@ -169,7 +179,7 @@ export default function WeddingPage() {
       return
     }
 
-    if (!weddingLoaded) setLoading(true)
+    if (!weddingLoaded && !hasCachedData) setLoading(true)
     try {
       const [budgetRes, guestsRes, rundownRes] = await Promise.all([
         getWeddingBudgetItems(),
@@ -190,6 +200,36 @@ export default function WeddingPage() {
       console.error('Error fetching wedding data:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchBudget = async () => {
+    try {
+      const budgetRes = await getWeddingBudgetItems()
+      setBudgetItems(budgetRes)
+      setWeddingData({ budgetItems: budgetRes })
+    } catch (err) {
+      console.error('Error fetching budget:', err)
+    }
+  }
+
+  const fetchGuests = async () => {
+    try {
+      const guestsRes = await getWeddingGuests()
+      setGuests(guestsRes)
+      setWeddingData({ guests: guestsRes })
+    } catch (err) {
+      console.error('Error fetching guests:', err)
+    }
+  }
+
+  const fetchRundown = async () => {
+    try {
+      const rundownRes = await getWeddingRundown()
+      setRundown(rundownRes)
+      setWeddingData({ rundown: rundownRes })
+    } catch (err) {
+      console.error('Error fetching rundown:', err)
     }
   }
 
@@ -299,7 +339,7 @@ export default function WeddingPage() {
       }
       setShowBudgetModal(false)
       setEditingBudgetItem(null)
-      await fetchData()
+      await fetchBudget()
     } catch (err) {
       console.error('Failed to save budget item:', err)
     } finally {
@@ -317,7 +357,7 @@ export default function WeddingPage() {
       await deleteWeddingBudgetItem(id)
     } catch (err) {
       console.error('Failed to delete budget item:', err)
-      fetchData()
+      fetchBudget()
     }
   }
 
@@ -338,7 +378,7 @@ export default function WeddingPage() {
       }
       setShowGuestModal(false)
       setEditingGuest(null)
-      await fetchData()
+      await fetchGuests()
     } catch (err) {
       console.error('Failed to save guest:', err)
     } finally {
@@ -358,7 +398,7 @@ export default function WeddingPage() {
       await updateWeddingGuestRsvp(guestId, nextStatus)
     } catch (err) {
       console.error('Failed to update RSVP:', err)
-      fetchData()
+      fetchGuests()
     }
   }
 
@@ -372,7 +412,7 @@ export default function WeddingPage() {
       await deleteWeddingGuest(id)
     } catch (err) {
       console.error('Failed to delete guest:', err)
-      fetchData()
+      fetchGuests()
     }
   }
 
@@ -393,7 +433,7 @@ export default function WeddingPage() {
       }
       setShowRundownModal(false)
       setEditingRundownItem(null)
-      await fetchData()
+      await fetchRundown()
     } catch (err) {
       console.error('Failed to save rundown item:', err)
     } finally {
@@ -411,7 +451,7 @@ export default function WeddingPage() {
       await deleteWeddingRundownItem(id)
     } catch (err) {
       console.error('Failed to delete rundown item:', err)
-      fetchData()
+      fetchRundown()
     }
   }
 
@@ -522,8 +562,8 @@ export default function WeddingPage() {
           </button>
         </div>
 
-        {/* Loading Spinner */}
-        {loading && (
+        {/* Loading Spinner only for initial empty state */}
+        {loading && budgetItems.length === 0 && guests.length === 0 && rundown.length === 0 && (
           <div className="py-12 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
             <p className="text-sm">Memuat data persiapan pernikahan...</p>
@@ -533,7 +573,7 @@ export default function WeddingPage() {
         {/* ========================================================================= */}
         {/* TAB 1: BUDGET & VENDOR                                                    */}
         {/* ========================================================================= */}
-        {!loading && activeTab === 'budget' && (
+        {activeTab === 'budget' && (
           <div className="space-y-6">
             {/* Budget Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -772,7 +812,7 @@ export default function WeddingPage() {
         {/* ========================================================================= */}
         {/* TAB 2: GUEST LIST                                                         */}
         {/* ========================================================================= */}
-        {!loading && activeTab === 'guests' && (
+        {activeTab === 'guests' && (
           <div className="space-y-6">
             {/* Guest Summary Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -969,7 +1009,7 @@ export default function WeddingPage() {
         {/* ========================================================================= */}
         {/* TAB 3: RUNDOWN HARI-H                                                     */}
         {/* ========================================================================= */}
-        {!loading && activeTab === 'rundown' && (
+        {activeTab === 'rundown' && (
           <div className="space-y-6">
             <div className="p-4 rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>

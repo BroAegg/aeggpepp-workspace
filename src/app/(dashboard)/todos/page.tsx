@@ -41,11 +41,26 @@ export default function TodosPage() {
         todoCategories: cachedCategories,
         todosLoaded,
         setTodosData,
+        setTodoCategoriesData,
     } = useWorkspaceStore()
 
     const [todos, setTodos] = useState<Todo[]>(cachedTodos)
     const [categories, setCategories] = useState<TodoCategoryItem[]>(cachedCategories)
     const [loading, setLoading] = useState(!todosLoaded && cachedTodos.length === 0)
+
+    // Hydration sync
+    useEffect(() => {
+        if (cachedTodos.length > 0) {
+            setTodos(cachedTodos)
+            setLoading(false)
+        }
+    }, [cachedTodos])
+
+    useEffect(() => {
+        if (cachedCategories.length > 0) {
+            setCategories(cachedCategories)
+        }
+    }, [cachedCategories])
 
     // View mode
     const [viewMode, setViewMode] = useState<ViewMode>('board')
@@ -143,7 +158,7 @@ export default function TodosPage() {
         try {
             const data = await getTodoCategories()
             setCategories(data)
-            setTodosData(todos, data)
+            setTodoCategoriesData(data)
         } catch (error) {
             console.error('Error fetching categories:', error)
         }

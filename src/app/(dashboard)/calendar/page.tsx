@@ -43,8 +43,7 @@ import { TimePicker } from '@/components/ui/time-picker'
 import { EVENT_COLORS } from '@/lib/constants'
 import { getHolidaysByDate, type Holiday } from '@/lib/holidays'
 import {
-  getCalendarItems,
-  getEvents,
+  getCalendarBundle,
   createEvent,
   updateEvent,
   deleteEvent as deleteEventAction,
@@ -53,6 +52,29 @@ import { useWorkspaceStore } from '@/stores/workspace-store'
 import { OwnerBadge } from '@/components/ui/owner-badge'
 import type { CalendarEvent, CalendarItem } from '@/types'
 
+function mapEventsToCalendarItems(evs: CalendarEvent[]): CalendarItem[] {
+  return (evs || []).map((e) => {
+    const startDate = new Date(e.start_date)
+    const endDate = e.end_date ? new Date(e.end_date) : null
+    return {
+      id: e.id,
+      type: 'event',
+      title: e.title,
+      description: e.description,
+      date: startDate.toISOString().split('T')[0],
+      time: e.all_day ? null : startDate.toTimeString().slice(0, 5),
+      endTime: e.all_day ? null : (endDate ? endDate.toTimeString().slice(0, 5) : null),
+      startIso: e.start_date,
+      endIso: e.end_date,
+      allDay: e.all_day,
+      color: e.color || '#2563EB',
+      completed: false,
+      priority: null,
+      owner: (e as any).profiles || { display_name: 'Unknown', role: null },
+    }
+  })
+}
+
 // ============== MAIN PAGE ==============
 
 export default function CalendarPage() {
@@ -60,7 +82,9 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>(cachedEvents)
-  const [calendarItems, setCalendarItems] = useState<CalendarItem[]>([])
+  const [calendarItems, setCalendarItems] = useState<CalendarItem[]>(() =>
+    mapEventsToCalendarItems(cachedEvents)
+  )
   const [loading, setLoading] = useState(!eventsLoaded && cachedEvents.length === 0)
   const [saving, setSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
@@ -77,6 +101,18 @@ export default function CalendarPage() {
   const [formAllDay, setFormAllDay] = useState(false)
   const [formColor, setFormColor] = useState('#2563EB')
 
+  // Hydration sync
+  useEffect(() => {
+    if (cachedEvents.length > 0) {
+      setEvents(cachedEvents)
+      setCalendarItems((prev) => {
+        if (prev.length === 0) return mapEventsToCalendarItems(cachedEvents)
+        return prev
+      })
+      setLoading(false)
+    }
+  }, [cachedEvents])
+
   useEffect(() => {
     fetchData()
 
@@ -91,10 +127,7 @@ export default function CalendarPage() {
       return
     }
     try {
-      const [eventsData, itemsData] = await Promise.all([
-        getEvents(),
-        getCalendarItems(),
-      ])
+      const { events: eventsData, items: itemsData } = await getCalendarBundle()
       setEvents(eventsData)
       setEventsData(eventsData)
 
@@ -489,14 +522,14 @@ export default function CalendarPage() {
           })()}
 
           {/* Loading */}
-          {loading && (
+          {loading && calendarItems.length === 0 && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           )}
 
           {/* Empty state */}
-          {!loading && selectedDateItems.length === 0 && (
+          {(!loading || calendarItems.length > 0) && selectedDateItems.length === 0 && (
             <div className="text-center py-8">
               <p className="text-sm text-muted-foreground">
                 {isToday(selectedDate)

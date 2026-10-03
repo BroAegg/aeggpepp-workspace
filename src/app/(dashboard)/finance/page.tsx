@@ -105,7 +105,8 @@ export default function FinancePage() {
     const [transactions, setTransactions] = useState<Transaction[]>(cachedTransactions)
     const [budgets, setBudgets] = useState<Budget[]>(cachedBudgets)
     const [savings, setSavings] = useState<SavingsAccount[]>(cachedSavings)
-    const [loading, setLoading] = useState(!financeLoaded)
+    const hasCachedFinance = cachedTransactions.length > 0 || cachedBudgets.length > 0 || cachedSavings.length > 0
+    const [loading, setLoading] = useState(!financeLoaded && !hasCachedFinance)
     const [saving, setSaving] = useState(false)
     const [showModal, setShowModal] = useState(false)
     const [modalType, setModalType] = useState<'transaction' | 'budget' | 'savings' | 'savings_tx'>('transaction')
@@ -126,11 +127,53 @@ export default function FinancePage() {
 
     const formRef = useRef<HTMLFormElement>(null)
 
+    // Hydration sync
     useEffect(() => {
-        getFinanceProfile().then(p => {
-            setUserProfile(p)
-            fetchData(p, viewMode)
+        if (cachedTransactions.length > 0) {
+            setTransactions(cachedTransactions)
+            setLoading(false)
+        }
+    }, [cachedTransactions])
+
+    useEffect(() => {
+        if (cachedBudgets.length > 0) {
+            setBudgets(cachedBudgets)
+            setLoading(false)
+        }
+    }, [cachedBudgets])
+
+    useEffect(() => {
+        if (cachedSavings.length > 0) {
+            setSavings(cachedSavings)
+            setLoading(false)
+        }
+    }, [cachedSavings])
+
+    // Parallel initial load: profile AND finance data simultaneously
+    useEffect(() => {
+        let isMounted = true
+        Promise.all([
+            getFinanceProfile(),
+            getTransactions(),
+            getBudgets(),
+            getSavingsAccounts(),
+        ]).then(([profile, txData, budgetsData, savingsData]) => {
+            if (!isMounted) return
+            setUserProfile(profile)
+            setTransactions(txData)
+            setBudgets(budgetsData)
+            setSavings(savingsData)
+            setFinanceData({
+                transactions: txData,
+                budgets: budgetsData,
+                savings: savingsData,
+            })
+            setLoading(false)
+        }).catch(err => {
+            console.error('Error loading initial finance data:', err)
+            if (isMounted) setLoading(false)
         })
+        return () => { isMounted = false }
     }, [])
 
     // Auto-revalidate when back online
@@ -147,7 +190,7 @@ export default function FinancePage() {
             setLoading(false)
             return
         }
-        if (!financeLoaded) setLoading(true)
+        if (!financeLoaded && !hasCachedFinance) setLoading(true)
         try {
             let targetId: string | 'all' | undefined = undefined
             if (mode === 'combined') targetId = 'all'
@@ -425,14 +468,14 @@ export default function FinancePage() {
                             </div>
                         </div>
 
-                        {loading && (
+                        {loading && transactions.length === 0 && budgets.length === 0 && savings.length === 0 && (
                             <div className="flex items-center justify-center py-16">
                                 <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
                             </div>
                         )}
 
                         {/* ========== OVERVIEW (UNIFIED & INTUITIVE) ========== */}
-                        {!loading && activeTab === 'overview' && (
+                        {activeTab === 'overview' && (
                             <div className="space-y-8">
                                 <FinanceOverview
                                     transactions={transactions}
@@ -673,7 +716,7 @@ export default function FinancePage() {
                         )}
 
                         {/* ========== TRANSACTIONS ========== */}
-                        {!loading && activeTab === 'transactions' && (
+                        {activeTab === 'transactions' && (
                             <div>
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -766,17 +809,17 @@ export default function FinancePage() {
                         )}
 
                         {/* ========== LEDGER ========== */}
-                        {!loading && activeTab === 'ledger' && (
+                        {activeTab === 'ledger' && (
                             <LedgerTab transactions={transactions} formatCurrency={formatCurrency} />
                         )}
 
                         {/* ========== ANALYTICS ========== */}
-                        {!loading && activeTab === 'analytics' && (
+                        {activeTab === 'analytics' && (
                             <AnalyticsTab transactions={transactions} formatCurrency={formatCurrency} formatShort={formatShort} />
                         )}
 
                         {/* ========== BUDGETS ========== */}
-                        {!loading && activeTab === 'budgets' && (
+                        {activeTab === 'budgets' && (
                             <BudgetsTab
                                 budgets={budgets}
                                 transactions={transactions}
@@ -788,7 +831,7 @@ export default function FinancePage() {
                         )}
 
                         {/* ========== SAVINGS ========== */}
-                        {!loading && activeTab === 'savings' && (<div>
+                        {activeTab === 'savings' && (<div>
                             <div className="flex items-center justify-between mb-4">
                                 <div>
                                     <h3 className="text-lg font-semibold text-foreground">Tabungan</h3>
@@ -846,7 +889,7 @@ export default function FinancePage() {
                         )}
 
                         {/* ========== RECAP ========== */}
-                        {!loading && activeTab === 'recap' && (
+                        {activeTab === 'recap' && (
                             <RecapTab
                                 transactions={transactions}
                                 formatCurrency={formatCurrency}

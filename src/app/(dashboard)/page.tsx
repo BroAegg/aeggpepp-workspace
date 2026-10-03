@@ -31,6 +31,75 @@ interface RecentItem {
   statusColor: string
 }
 
+function buildRecentItems(todoList: Todo[], goalList: Goal[], eventList: CalendarEvent[]): RecentItem[] {
+  const items: RecentItem[] = []
+  const now = new Date()
+
+  for (const todo of (todoList || []).slice(0, 3)) {
+    const role = (todo as any).profiles?.role || 'aegg'
+    items.push({
+      id: `todo-${todo.id}`,
+      title: todo.title,
+      type: 'todo',
+      href: '/todos',
+      user: role,
+      timestamp: formatRelativeTime(todo.created_at),
+      rawDate: todo.created_at,
+      status: todo.completed ? 'Selesai' : todo.priority === 'high' ? 'Prioritas Tinggi' : 'Aktif',
+      statusColor: todo.completed
+        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+        : todo.priority === 'high'
+          ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+          : 'bg-primary/10 text-primary',
+    })
+  }
+
+  for (const goal of (goalList || []).slice(0, 3)) {
+    const role = (goal as any).profiles?.role || 'aegg'
+    const statusMap: Record<string, string> = {
+      backlog: 'Rencana',
+      in_progress: 'Sedang Berjalan',
+      completed: 'Tercapai',
+      archived: 'Arsip',
+    }
+    items.push({
+      id: `goal-${goal.id}`,
+      title: goal.title,
+      type: 'goal',
+      href: '/goals',
+      user: role,
+      timestamp: formatRelativeTime(goal.created_at),
+      rawDate: goal.created_at,
+      status: statusMap[goal.status] || goal.status,
+      statusColor: goal.status === 'completed'
+        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+        : goal.status === 'in_progress'
+          ? 'bg-primary/10 text-primary'
+          : 'bg-secondary text-muted-foreground',
+    })
+  }
+
+  for (const event of (eventList || []).slice(0, 3)) {
+    const isUpcoming = new Date(event.start_date) >= now
+    items.push({
+      id: `event-${event.id}`,
+      title: event.title,
+      type: 'event',
+      href: '/calendar',
+      user: (event as any).profiles?.role || 'aegg',
+      timestamp: formatRelativeTime(event.created_at),
+      rawDate: event.created_at,
+      status: isUpcoming ? 'Mendatang' : 'Selesai',
+      statusColor: isUpcoming
+        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+        : 'bg-secondary text-muted-foreground',
+    })
+  }
+
+  items.sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime())
+  return items.slice(0, 6)
+}
+
 export default function DashboardPage() {
   const { profile } = useAuth()
   const {
@@ -45,15 +114,43 @@ export default function DashboardPage() {
   const [todos, setTodos] = useState<Todo[]>(cachedTodos)
   const [goals, setGoals] = useState<Goal[]>(cachedGoals)
   const [events, setEvents] = useState<CalendarEvent[]>(cachedEvents)
-  const [recentItems, setRecentItems] = useState<RecentItem[]>([])
+  const [recentItems, setRecentItems] = useState<RecentItem[]>(() =>
+    buildRecentItems(cachedTodos, cachedGoals, cachedEvents)
+  )
   const [togglingTodoId, setTogglingTodoId] = useState<string | null>(null)
 
-  const [stats, setStats] = useState({
-    activeTodos: cachedTodos.filter(t => !t.completed).length,
-    upcomingEvents: cachedEvents.filter(e => new Date(e.start_date) >= new Date()).length,
-    activeGoals: cachedGoals.filter(g => g.status === 'in_progress').length,
-  })
+  const stats = useMemo(() => {
+    const now = new Date()
+    return {
+      activeTodos: todos.filter(t => !t.completed).length,
+      upcomingEvents: events.filter(e => new Date(e.start_date) >= now).length,
+      activeGoals: goals.filter(g => g.status === 'in_progress').length,
+    }
+  }, [todos, events, goals])
+
   const [loading, setLoading] = useState(!dashboardLoaded && cachedTodos.length === 0)
+
+  // Hydration sync
+  useEffect(() => {
+    if (cachedTodos.length > 0) {
+      setTodos(cachedTodos)
+      setLoading(false)
+    }
+  }, [cachedTodos])
+
+  useEffect(() => {
+    if (cachedGoals.length > 0) {
+      setGoals(cachedGoals)
+      setLoading(false)
+    }
+  }, [cachedGoals])
+
+  useEffect(() => {
+    if (cachedEvents.length > 0) {
+      setEvents(cachedEvents)
+      setLoading(false)
+    }
+  }, [cachedEvents])
 
   useEffect(() => {
     // 1. Set Greeting
@@ -99,89 +196,8 @@ export default function DashboardPage() {
       setTodos(fetchedTodos)
       setGoals(fetchedGoals)
       setEvents(fetchedEvents)
-
-      // Stats
-      const activeTodos = fetchedTodos.filter(t => !t.completed).length
-      const now = new Date()
-      const upcomingEvents = fetchedEvents.filter(e => new Date(e.start_date) >= now).length
-      const activeGoals = fetchedGoals.filter(g => g.status === 'in_progress').length
-
-      setStats({ activeTodos, upcomingEvents, activeGoals })
+      setRecentItems(buildRecentItems(fetchedTodos, fetchedGoals, fetchedEvents))
       setDashboardData({ todos: fetchedTodos, goals: fetchedGoals, events: fetchedEvents })
-
-      // Build recent items from real data
-      const items: RecentItem[] = []
-
-      // Recent todos
-      for (const todo of fetchedTodos.slice(0, 3)) {
-        const role = (todo as any).profiles?.role || 'aegg'
-        items.push({
-          id: `todo-${todo.id}`,
-          title: todo.title,
-          type: 'todo',
-          href: '/todos',
-          user: role,
-          timestamp: formatRelativeTime(todo.created_at),
-          rawDate: todo.created_at,
-          status: todo.completed ? 'Selesai' : todo.priority === 'high' ? 'Prioritas Tinggi' : 'Aktif',
-          statusColor: todo.completed
-            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-            : todo.priority === 'high'
-              ? 'bg-red-500/10 text-red-600 dark:text-red-400'
-              : 'bg-primary/10 text-primary',
-        })
-      }
-
-      // Recent goals
-      for (const goal of fetchedGoals.slice(0, 3)) {
-        const role = (goal as any).profiles?.role || 'aegg'
-        const statusMap: Record<string, string> = {
-          backlog: 'Rencana',
-          in_progress: 'Sedang Berjalan',
-          completed: 'Tercapai',
-          archived: 'Arsip',
-        }
-        items.push({
-          id: `goal-${goal.id}`,
-          title: goal.title,
-          type: 'goal',
-          href: '/goals',
-          user: role,
-          timestamp: formatRelativeTime(goal.created_at),
-          rawDate: goal.created_at,
-          status: statusMap[goal.status] || goal.status,
-          statusColor: goal.status === 'completed'
-            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-            : goal.status === 'in_progress'
-              ? 'bg-primary/10 text-primary'
-              : 'bg-secondary text-muted-foreground',
-        })
-      }
-
-      // Recent events
-      for (const event of fetchedEvents.slice(0, 3)) {
-        const isUpcoming = new Date(event.start_date) >= now
-        items.push({
-          id: `event-${event.id}`,
-          title: event.title,
-          type: 'event',
-          href: '/calendar',
-          user: (event as any).profiles?.role || 'aegg',
-          timestamp: formatRelativeTime(event.created_at),
-          rawDate: event.created_at,
-          status: isUpcoming ? 'Mendatang' : 'Selesai',
-          statusColor: isUpcoming
-            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-            : 'bg-secondary text-muted-foreground',
-        })
-      }
-
-      // Sort by most recent first
-      items.sort((a, b) => {
-        return new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime()
-      })
-
-      setRecentItems(items.slice(0, 6))
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {

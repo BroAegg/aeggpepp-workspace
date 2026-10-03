@@ -25,11 +25,11 @@ export async function getEvents(): Promise<CalendarEvent[]> {
 
 // ============== AGGREGATED CALENDAR ITEMS ==============
 
-export async function getCalendarItems(): Promise<CalendarItem[]> {
+export async function getCalendarBundle(): Promise<{ items: CalendarItem[]; events: CalendarEvent[] }> {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+  if (!user) return { items: [], events: [] }
 
   // Fetch events, goals, and todos in parallel
   const [eventsRes, goalsRes, todosRes] = await Promise.all([
@@ -51,29 +51,28 @@ export async function getCalendarItems(): Promise<CalendarItem[]> {
   ])
 
   const items: CalendarItem[] = []
+  const rawEvents: CalendarEvent[] = (eventsRes.data || []) as CalendarEvent[]
 
   // Map events
-  if (eventsRes.data) {
-    for (const e of eventsRes.data) {
-      const startDate = new Date(e.start_date)
-      const endDate = e.end_date ? new Date(e.end_date) : null
-      items.push({
-        id: e.id,
-        type: 'event',
-        title: e.title,
-        description: e.description,
-        date: startDate.toISOString().split('T')[0],
-        time: e.all_day ? null : startDate.toTimeString().slice(0, 5),
-        endTime: e.all_day ? null : (endDate ? endDate.toTimeString().slice(0, 5) : null),
-        startIso: e.start_date, // Raw ISO string for client formatting
-        endIso: e.end_date,
-        allDay: e.all_day,
-        color: e.color || '#2563EB',
-        completed: false,
-        priority: null,
-        owner: e.profiles || { display_name: 'Unknown', role: null },
-      })
-    }
+  for (const e of rawEvents) {
+    const startDate = new Date(e.start_date)
+    const endDate = e.end_date ? new Date(e.end_date) : null
+    items.push({
+      id: e.id,
+      type: 'event',
+      title: e.title,
+      description: e.description,
+      date: startDate.toISOString().split('T')[0],
+      time: e.all_day ? null : startDate.toTimeString().slice(0, 5),
+      endTime: e.all_day ? null : (endDate ? endDate.toTimeString().slice(0, 5) : null),
+      startIso: e.start_date, // Raw ISO string for client formatting
+      endIso: e.end_date,
+      allDay: e.all_day,
+      color: e.color || '#2563EB',
+      completed: false,
+      priority: null,
+      owner: (e as any).profiles || { display_name: 'Unknown', role: null },
+    })
   }
 
   // Map goals with due_date
@@ -91,7 +90,7 @@ export async function getCalendarItems(): Promise<CalendarItem[]> {
         color: '#A855F7', // purple
         completed: g.status === 'completed',
         priority: g.priority,
-        owner: g.profiles || { display_name: 'Unknown', role: null },
+        owner: (g as any).profiles || { display_name: 'Unknown', role: null },
       })
     }
   }
@@ -111,11 +110,16 @@ export async function getCalendarItems(): Promise<CalendarItem[]> {
         color: '#64748B', // slate gray
         completed: t.completed || t.status === 'completed',
         priority: t.priority,
-        owner: t.profiles || { display_name: 'Unknown', role: null },
+        owner: (t as any).profiles || { display_name: 'Unknown', role: null },
       })
     }
   }
 
+  return { items, events: rawEvents }
+}
+
+export async function getCalendarItems(): Promise<CalendarItem[]> {
+  const { items } = await getCalendarBundle()
   return items
 }
 

@@ -62,9 +62,13 @@
   - **Database Migration**: Schema `setup-wedding-system.sql` untuk tabel `wedding_budget_items`, `wedding_guests`, dan `wedding_rundown` dengan RLS multi-user & index performa.
   - **Budget Tracker (Rp 25.000.000 Target)**: Auto-seeding 8 pos realistis intimate wedding (KUA, Venue, Catering 70 pax, MUA/Busana, Dokumentasi, Cincin Kawin, Dekorasi, Souvenir/Undangan). Tracking estimasi, realisasi, DP terbayar, dan sisa pelunasan vendor.
   - **Guest List & RSVP**: Manajemen 50–100 pax tamu intimate, filter kelompok (Keluarga/Teman Aegg & Peppaa, VIP), 0ms optimistic RSVP toggle, dan direct WhatsApp follow-up link.
-  - **Hari-H Rundown**: Timeline susunan acara akad & resepsi dengan penanggung jawab (PIC) dan checklist sesi.
-  - **Offline & Zero-Delay**: Terintegrasi ke Zustand persist cache-first dengan offline safety guard.
-  - **Sidebar Navigation**: Menu Wedding Prep ditambahkan ke sidebar dengan icon `Gem`.
+- [x] **Phase 17.8: Zero-Loading Speed Overhaul across All 10 Dashboard Pages** —
+  - **Settings Cache-First**: Inisialisasi profil dari `useAuth()` & `useWorkspaceStore` cache — mengeliminasi total full-page blocker spinner pada `/settings`.
+  - **Wedding Hub Instant Render**: Mengeliminasi pemblokiran tab di `/wedding`, tabs selalu render instan dari cache lokal; granular module fetchers (hanya fetch budget/guests/rundown sesuai aksi).
+  - **Finance Parallelization**: Menghilangkan sequential waterfall `getFinanceProfile()` → data fetch. Profil dan data transaksi, budget, tabungan diambil secara paralel. Menghapus blocker spinner di 7 tab.
+  - **Dashboard Home Zero-Flash**: Fungsi `buildRecentItems` menghitung aktivitas terkini langsung dari cached todos, goals, dan events secara sinkron, menghilangkan flash "Belum ada aktivitas baru".
+  - **Calendar Bundle Single Query**: Menggabungkan `getCalendarItems` dan `getEvents` menjadi `getCalendarBundle()` untuk menghapus query ganda ke tabel `events`. Pre-populasi kalender grid dari cached events.
+  - **Zustand Hydration Sync on All Pages**: Menambahkan hydration sync listener pada 10 halaman (`todos`, `goals`, `gallery`, `wishlist`, `portfolio`, dll.) untuk menjamin data cache langsung tampil tanpa jeda saat store rehydrate dari localStorage.
 
 ---
 

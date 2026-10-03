@@ -35,6 +35,14 @@ export default function WishlistPage() {
   const [items, setItems] = useState<WishlistItem[]>(cachedWishlist)
   const [loading, setLoading] = useState(!wishlistLoaded && cachedWishlist.length === 0)
   const [saving, setSaving] = useState(false)
+
+  // Hydration sync
+  useEffect(() => {
+    if (cachedWishlist.length > 0) {
+      setItems(cachedWishlist)
+      setLoading(false)
+    }
+  }, [cachedWishlist])
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null)
   const [priorityFilter, setPriorityFilter] = useState<Priority>('all')
