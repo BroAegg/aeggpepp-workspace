@@ -91,13 +91,13 @@
 ### 📱 PHASE M: Native Mobile App for Android & iOS (In Progress ⏳)
 **Target**: Aplikasi mobile native murni (React Native Expo) terhubung ke database Supabase yang sama, memiliki autentikasi biometrik, haptic feedback, wedding hub, dan quick expense. (Ref: [`MOBILE_APP_PLAN.md`](file:///d:/Peppakuu/Our%20Project/aeggpepp-workspace/MOBILE_APP_PLAN.md)).
 
-- [ ] **M.1** Inisialisasi folder `mobile/` dengan React Native Expo SDK 52 (TypeScript).
-- [ ] **M.2** Setup Supabase client di mobile dengan `expo-secure-store` untuk persistensi auth session terenkripsi.
-- [ ] **M.3** Konfigurasi Android package (`com.broaegg.aeggpepp`), ikon aplikasi, dan splash screen.
-- [ ] **M.4** Navigasi Bottom Tabs: Home, Wedding Hub, Finance, Todos, Settings.
-- [ ] **M.5** Layar Wedding Hub Mobile (Budget 25jt, Guest List RSVP dengan WhatsApp direct launcher, Rundown Hari-H).
-- [ ] **M.6** Quick Expense input dengan numpad native satu tangan.
-- [ ] **M.7** Integrasi Haptic Feedback (`expo-haptics`) pada interaksi centang checklist & RSVP.
+- [x] **M.1** Inisialisasi folder `mobile/` dengan React Native Expo SDK (TypeScript).
+- [x] **M.2** Setup Supabase client di mobile dengan `expo-secure-store` untuk persistensi auth session terenkripsi.
+- [x] **M.3** Konfigurasi Android package (`com.broaegg.aeggpepp`), ikon aplikasi, dan splash screen.
+- [x] **M.4** Navigasi Bottom Tabs: Home, Wedding Hub, Finance, Todos, Settings.
+- [x] **M.5** Layar Wedding Hub Mobile (Budget 25jt, Guest List RSVP dengan WhatsApp direct launcher, Rundown Hari-H).
+- [x] **M.6** Quick Expense input dengan numpad native satu tangan.
+- [x] **M.7** Integrasi Haptic Feedback (`expo-haptics`) pada interaksi centang checklist & RSVP.
 - [ ] **M.8** Pemasangan master icon & splash screen resmi karya Peppaa di `mobile/assets/`.
 - [ ] **M.9** Kompilasi file APK mandiri via Android Studio SDK lokal (`C:\Users\Aegner\AppData\Local\Android\Sdk`).
 
