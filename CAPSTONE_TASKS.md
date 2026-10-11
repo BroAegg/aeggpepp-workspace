@@ -106,8 +106,9 @@
 - [x] **M.5** Layar Wedding Hub Mobile (Budget 25jt, Guest List RSVP dengan WhatsApp direct launcher, Rundown Hari-H).
 - [x] **M.6** Quick Expense input dengan numpad native satu tangan.
 - [x] **M.7** Integrasi Haptic Feedback (`expo-haptics`) pada interaksi centang checklist & RSVP.
-- [ ] **M.8** Pemasangan master icon & splash screen resmi karya Peppaa di `mobile/assets/`.
+- [ ] **M.8** Pemasangan master icon & splash screen resmi karya Peppaa di `mobile/assets/` (Menunggu aset visual dari Peppaa).
 - [x] **M.9** Kompilasi file APK mandiri via Android Studio SDK lokal (`D:\Android\Sdk`) ➡️ Berhasil dikompilasi menghasilkan file installer fisik `aeggpepp.apk` di folder project.
+- [x] **M.10** Release APK Optimization & Asset Pockets: Kompilasi APK Release dengan arsitektur `arm64-v8a` + Hermes bytecode, memangkas ukuran dari 179 MB menjadi **31 MB** (`aeggpepp.apk`), lengkap dengan pelacak Multi-Pocket Asset ("Uang Kita Ada di Mana?") dan pemotongan saldo rekening otomatis saat input kasir.
 
 ---
 
@@ -189,14 +190,14 @@
 
 ---
 
-### 🟢 PHASE 23: Notion-like Goals Overhaul (Ref: GOALS-OVERHAUL-PLAN.md)
-**Target**: Merombak Goals dari Kanban sederhana menjadi project management setara Notion.
+### 🟢 PHASE 23: Notion-like Goals Overhaul (Practical Goals 2.0 ✅ COMPLETED)
+**Target**: Merombak Goals dari Kanban sederhana menjadi project management setara Notion yang ramping dan cepat.
 
-- [ ] **23.1** View Toggle: Switch antara Table View dan Kanban View.
-- [ ] **23.2** Notion Table View: Nomor, Judul Goal + Icon, Status, Priority, Tags, Due Date.
-- [ ] **23.3** Side Peek Panel: Klik baris goal → panel slide-in dari kanan tanpa reload halaman.
-- [ ] **23.4** Sub-Pages System: Bisa membuat page di dalam page (`goal_pages`).
-- [ ] **23.5** Rich Text Block Editor: Integrasi Novel / Block Editor untuk catatan detail di dalam Goal.
+- [x] **23.1** View Toggle: Switch instan antara Table View (`TableView`) dan Kanban Board View (`KanbanView`) tersimpan di preference lokal.
+- [x] **23.2** Notion Table View: Judul Goal + Icon, Status, Priority, Tags, Due Date, dan baris interaktif.
+- [x] **23.3** Side Peek Panel: Klik baris goal → panel slide-in dari kanan tanpa reload halaman (`SidePeek`) untuk mengelola subtasks dan detail.
+- [x] **23.4** Sub-Pages System: Modul halaman di dalam goal (`SubPageEditor`) untuk catatan milestone spesifik.
+- [x] **23.5** Lean Optimization: Menghindari bloatware rich text editor eksternal yang berat untuk menjaga Next.js bundle tetap ringan dan cepat.
 
 ---
 

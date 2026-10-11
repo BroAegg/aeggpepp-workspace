@@ -114,6 +114,21 @@ export interface Budget {
   created_at: string
 }
 
+export type SavingsAccountType = 'cash' | 'digital' | 'bank' | 'ewallet' | 'friend_loan' | 'investment'
+
+export interface SavingsAccount {
+  id: string
+  user_id: string
+  name: string
+  type: SavingsAccountType
+  bank_code: string | null
+  balance: number
+  icon: string | null
+  created_at: string
+  updated_at: string
+  profiles?: ItemOwner
+}
+
 // Todo Types
 export type TodoStatus = 'todo' | 'in_progress' | 'completed'
 
