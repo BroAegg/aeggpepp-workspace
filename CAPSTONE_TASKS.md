@@ -176,17 +176,16 @@
 
 ---
 
-### 🟢 PHASE 22: AI Financial Advisor Chatbot & Telegram Digest
+### 🟢 PHASE 22: AI Financial Advisor Chatbot & Telegram Digest (COMPLETED ✅)
 **Target**: AI Partner di dalam web yang bisa diajak diskusi strategi keuangan + ringkasan mingguan via Telegram.
 
-- [ ] **22.1** Server Action AI Advisor `src/lib/actions/finance-ai.ts`:
-  - Integrasi Gemini API dengan konteks riil pengeluaran, pemasukan, kategori, dan target tabungan Aegg & Peppaa.
-- [ ] **22.2** Halaman Chat Advisor interaktif:
-  - Routing: `src/app/(dashboard)/finance/advisor/page.tsx`.
-  - Streaming UI chat, rekomendasi prompt cepat ("Gimana cara hemat 2jt bulan depan?", "Analisis pengeluaran makan kita").
+- [x] **22.1** Server Action AI Advisor `src/lib/actions/finance-ai.ts`:
+  - Integrasi Gemini API (`gemini-3.5-flash-lite`, `gemini-3.6-flash`) dengan konteks riil pengeluaran, pemasukan, kategori, lokasi uang/pockets, dan target tabungan Aegg & Peppaa.
+- [x] **22.2** Halaman & Tab Chat Advisor interaktif:
+  - Routing: `src/app/(dashboard)/finance/advisor/page.tsx` & Tab "AI Advisor" di `src/app/(dashboard)/finance/page.tsx`.
+  - Chat bubble UI, rekomendasi prompt cepat ("Gimana strategi hemat 2jt bulan depan?", "Evaluasi pos makan & jajan kita", "Fairness spending Aegg vs Peppaa", "Proyeksi tabungan wedding 25jt").
 - [ ] **22.3** Automated Weekly Digest (N8N Cron):
-  - Setiap hari Minggu malam, N8N merangkum total spending 7 hari terakhir.
-  - Kirim ringkasan & tips cerdas ke chat Telegram Aegg & Peppaa.
+  - Setiap hari Minggu malam, ringkas spending 7 hari terakhir dan kirim ke Telegram Aegg & Peppaa via bot webhook.
 
 ---
 
@@ -211,5 +210,5 @@
 
 ---
 
-*Terakhir diperbarui: 3 Oktober 2026*  
+*Terakhir diperbarui: 11 Oktober 2026*  
 *Pembuat: Aegg & Antigravity AI*

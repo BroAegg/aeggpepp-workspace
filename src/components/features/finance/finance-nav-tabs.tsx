@@ -7,6 +7,7 @@ import {
   Target,
   PiggyBank,
   BookOpen,
+  Sparkles,
   BarChart3,
   FileText,
 } from 'lucide-react'
@@ -17,6 +18,7 @@ export type FinanceTab =
   | 'budgets'
   | 'savings'
   | 'ledger'
+  | 'advisor'
   | 'analytics'
   | 'recap'
 
@@ -31,6 +33,7 @@ const FINANCE_TABS = [
   { id: 'budgets' as FinanceTab, label: 'Anggaran', icon: Target },
   { id: 'savings' as FinanceTab, label: 'Lokasi Uang', icon: PiggyBank },
   { id: 'ledger' as FinanceTab, label: 'Buku Kas', icon: BookOpen },
+  { id: 'advisor' as FinanceTab, label: 'AI Advisor', icon: Sparkles },
   { id: 'analytics' as FinanceTab, label: 'Analisis', icon: BarChart3 },
   { id: 'recap' as FinanceTab, label: 'Rekap Bulanan', icon: FileText },
 ]

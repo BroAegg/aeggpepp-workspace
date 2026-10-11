@@ -45,6 +45,10 @@ const RecapTab = dynamic(() => import('@/components/features/finance/recap-tab')
     loading: () => <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>,
     ssr: false,
 })
+const AdvisorTab = dynamic(() => import('@/components/features/finance/advisor-tab').then((m) => m.AdvisorTab), {
+    loading: () => <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>,
+    ssr: false,
+})
 
 import { FinanceOverview } from '@/components/features/finance/finance-overview'
 import { OwnerBadge } from '@/components/ui/owner-badge'
@@ -915,6 +919,11 @@ export default function FinancePage() {
                                 formatCurrency={formatCurrency}
                                 onRefresh={() => fetchData(userProfile, viewMode)}
                             />
+                        )}
+
+                        {/* ========== AI ADVISOR ========== */}
+                        {activeTab === 'advisor' && (
+                            <AdvisorTab />
                         )}
 
                         {/* ========== ANALYTICS ========== */}
