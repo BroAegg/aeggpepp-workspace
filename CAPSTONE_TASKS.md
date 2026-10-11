@@ -107,7 +107,7 @@
 - [x] **M.6** Quick Expense input dengan numpad native satu tangan.
 - [x] **M.7** Integrasi Haptic Feedback (`expo-haptics`) pada interaksi centang checklist & RSVP.
 - [ ] **M.8** Pemasangan master icon & splash screen resmi karya Peppaa di `mobile/assets/`.
-- [ ] **M.9** Kompilasi file APK mandiri via Android Studio SDK lokal (`C:\Users\Aegner\AppData\Local\Android\Sdk`).
+- [x] **M.9** Kompilasi file APK mandiri via Android Studio SDK lokal (`D:\Android\Sdk`) ➡️ Berhasil dikompilasi menghasilkan file installer fisik `aeggpepp.apk` di folder project.
 
 ---
 
