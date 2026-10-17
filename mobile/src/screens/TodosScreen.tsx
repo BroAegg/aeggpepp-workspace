@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -20,6 +20,8 @@ export function TodosScreen() {
   const [todos, setTodos] = useState<Todo[]>([])
   const [newTitle, setNewTitle] = useState('')
   const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const isSubmittingRef = useRef(false)
 
   const fetchTodos = async () => {
     try {
@@ -57,15 +59,20 @@ export function TodosScreen() {
   }
 
   const handleAddTodo = async () => {
-    if (!newTitle.trim()) return
+    if (!newTitle.trim() || isSubmittingRef.current) return
 
+    isSubmittingRef.current = true
+    setAdding(true)
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     const title = newTitle.trim()
     setNewTitle('')
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        Alert.alert('Perhatian', 'Sesi login tidak ditemukan')
+        return
+      }
 
       const { data, error } = await supabase
         .from('todos')
@@ -79,12 +86,18 @@ export function TodosScreen() {
         .select()
         .single()
 
-      if (data) {
+      if (error) {
+        Alert.alert('Gagal menambah tugas', error.message)
+        fetchTodos()
+      } else if (data) {
         setTodos((prev) => [data as Todo, ...prev])
       }
     } catch (err) {
       console.error('Error adding todo:', err)
       fetchTodos()
+    } finally {
+      setAdding(false)
+      isSubmittingRef.current = false
     }
   }
 
@@ -115,7 +128,11 @@ export function TodosScreen() {
           onSubmitEditing={handleAddTodo}
           style={styles.input}
         />
-        <TouchableOpacity onPress={handleAddTodo} style={styles.addButton}>
+        <TouchableOpacity
+          onPress={handleAddTodo}
+          disabled={adding || !newTitle.trim()}
+          style={[styles.addButton, (adding || !newTitle.trim()) && { opacity: 0.5 }]}
+        >
           <Plus size={18} color="#ffffff" />
         </TouchableOpacity>
       </View>

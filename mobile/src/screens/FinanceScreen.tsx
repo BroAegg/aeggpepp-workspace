@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -42,6 +42,7 @@ export function FinanceScreen() {
   const [savingsAccounts, setSavingsAccounts] = useState<SavingsAccount[]>([])
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
   const [saving, setSaving] = useState(false)
+  const isSubmittingRef = useRef(false)
   const [refreshing, setRefreshing] = useState(false)
 
   const fetchData = async () => {
@@ -92,12 +93,14 @@ export function FinanceScreen() {
   }
 
   const handleSaveTransaction = async () => {
+    if (isSubmittingRef.current) return
     const amount = parseInt(amountStr, 10)
     if (!amount || amount <= 0) {
       Alert.alert('Perhatian', 'Masukkan nominal pengeluaran')
       return
     }
 
+    isSubmittingRef.current = true
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     setSaving(true)
 
@@ -153,6 +156,7 @@ export function FinanceScreen() {
       Alert.alert('Gagal', err.message || 'Terjadi kesalahan saat menyimpan')
     } finally {
       setSaving(false)
+      isSubmittingRef.current = false
     }
   }
 

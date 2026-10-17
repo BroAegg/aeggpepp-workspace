@@ -88,7 +88,6 @@ export async function updateWishlistItem(id: string, formData: FormData) {
       is_shared: true,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -143,7 +142,6 @@ export async function toggleWishlistShared(id: string, isShared: boolean) {
     .from('wishlist')
     .update({ is_shared: isShared })
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -163,7 +161,6 @@ export async function deleteWishlistItem(id: string) {
     .from('wishlist')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }

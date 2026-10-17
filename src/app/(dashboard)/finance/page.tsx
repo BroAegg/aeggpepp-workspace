@@ -168,12 +168,13 @@ export default function FinancePage() {
     const [savingsBankCode, setSavingsBankCode] = useState<string>('seabank')
     const [savingsIcon, setSavingsIcon] = useState<string>('🏦')
 
-    // Partner View Stats
-    const [viewMode, setViewMode] = useState<'me' | 'partner' | 'combined'>('me')
+    // Partner View Stats (Default to combined for seamless couple sharing)
+    const [viewMode, setViewMode] = useState<'me' | 'partner' | 'combined'>('combined')
     const [userProfile, setUserProfile] = useState<{ id: string; role: string; partnerId?: string } | null>(null)
     const [quickExpenseOpen, setQuickExpenseOpen] = useState(false)
 
     const formRef = useRef<HTMLFormElement>(null)
+    const isSubmittingRef = useRef<boolean>(false)
 
     // Hydration sync
     useEffect(() => {
@@ -202,9 +203,9 @@ export default function FinancePage() {
         let isMounted = true
         Promise.all([
             getFinanceProfile(),
-            getTransactions(),
-            getBudgets(),
-            getSavingsAccounts(),
+            getTransactions('all'),
+            getBudgets('all'),
+            getSavingsAccounts('all'),
         ]).then(([profile, txData, budgetsData, savingsData]) => {
             if (!isMounted) return
             setUserProfile(profile)
@@ -267,13 +268,20 @@ export default function FinancePage() {
 
     // ========== Handlers ==========
     const handleSubmitTransaction = async (formData: FormData) => {
+        if (isSubmittingRef.current) return
+        isSubmittingRef.current = true
         setSaving(true)
         formData.set('type', selectedType)
         try {
+            let res: any
             if (editingTransaction) {
-                await updateTransaction(editingTransaction.id, formData)
+                res = await updateTransaction(editingTransaction.id, formData)
             } else {
-                await createTransaction(formData)
+                res = await createTransaction(formData)
+            }
+            if (res && 'error' in res && res.error) {
+                alert(`Gagal menyimpan transaksi: ${res.error}`)
+                return
             }
             await fetchData(userProfile, viewMode)
             closeModal()
@@ -281,6 +289,7 @@ export default function FinancePage() {
             console.error('Error saving transaction:', error)
         } finally {
             setSaving(false)
+            isSubmittingRef.current = false
         }
     }
 
@@ -294,12 +303,19 @@ export default function FinancePage() {
     }
 
     const handleSubmitBudget = async (formData: FormData) => {
+        if (isSubmittingRef.current) return
+        isSubmittingRef.current = true
         setSaving(true)
         try {
+            let res: any
             if (editingBudget) {
-                await updateBudget(editingBudget.id, formData)
+                res = await updateBudget(editingBudget.id, formData)
             } else {
-                await createBudget(formData)
+                res = await createBudget(formData)
+            }
+            if (res && 'error' in res && res.error) {
+                alert(`Gagal menyimpan budget: ${res.error}`)
+                return
             }
             await fetchData(userProfile, viewMode)
             closeModal()
@@ -307,6 +323,7 @@ export default function FinancePage() {
             console.error('Error saving budget:', error)
         } finally {
             setSaving(false)
+            isSubmittingRef.current = false
         }
     }
 
@@ -320,31 +337,45 @@ export default function FinancePage() {
     }
 
     const handleSubmitSavings = async (formData: FormData) => {
+        if (isSubmittingRef.current) return
+        isSubmittingRef.current = true
         setSaving(true)
         try {
-            await createSavingsAccount(formData)
+            const res = await createSavingsAccount(formData)
+            if (res && 'error' in res && res.error) {
+                alert(`Gagal menyimpan kantong: ${res.error}`)
+                return
+            }
             await fetchData(userProfile, viewMode)
             closeModal()
         } catch (error) {
             console.error('Error creating savings:', error)
         } finally {
             setSaving(false)
+            isSubmittingRef.current = false
         }
     }
 
     const handleSavingsTransaction = async (formData: FormData) => {
         if (!selectedSavingsAccount) return
+        if (isSubmittingRef.current) return
+        isSubmittingRef.current = true
         setSaving(true)
         try {
             const amount = parseFloat(formData.get('amount') as string)
             const description = formData.get('description') as string
-            await updateSavingsBalance(selectedSavingsAccount.id, amount, savingsTxType, description)
+            const res = await updateSavingsBalance(selectedSavingsAccount.id, amount, savingsTxType, description)
+            if (res && 'error' in res && res.error) {
+                alert(`Gagal update saldo kantong: ${res.error}`)
+                return
+            }
             await fetchData(userProfile, viewMode)
             closeModal()
         } catch (error) {
             console.error('Error:', error)
         } finally {
             setSaving(false)
+            isSubmittingRef.current = false
         }
     }
 

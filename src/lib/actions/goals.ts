@@ -129,7 +129,6 @@ export async function updateGoal(id: string, formData: FormData) {
       tag: tag || null,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -160,7 +159,6 @@ export async function updateGoalStatus(id: string, status: GoalStatus) {
     .from('goals')
     .update({ status, position })
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -184,7 +182,6 @@ export async function updateGoalIcon(id: string, icon: string | null) {
     .from('goals')
     .update({ icon })
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -204,7 +201,6 @@ export async function deleteGoal(id: string) {
     .from('goals')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -222,12 +218,11 @@ export async function createGoalTask(goalId: string, title: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // Verify goal ownership
+  // Verify goal exists
   const { data: goal } = await supabase
     .from('goals')
     .select('id')
     .eq('id', goalId)
-    .eq('user_id', user.id)
     .single()
 
   if (!goal) {
@@ -286,15 +281,15 @@ export async function deleteGoalTask(taskId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // Verify ownership via parent goal
+  // Verify goal task exists
   const { data: task } = await supabase
     .from('goal_tasks')
-    .select('goal_id, goals!inner(user_id)')
+    .select('goal_id')
     .eq('id', taskId)
     .single()
 
-  if (!task || (task as any).goals?.user_id !== user.id) {
-    return { error: 'Task not found or not authorized' }
+  if (!task) {
+    return { error: 'Task not found' }
   }
 
   const { error } = await supabase

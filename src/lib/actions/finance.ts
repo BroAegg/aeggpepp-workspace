@@ -193,7 +193,6 @@ export async function updateTransaction(id: string, formData: FormData) {
     .from('transactions')
     .update(updateData)
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -213,7 +212,6 @@ export async function deleteTransaction(id: string) {
     .from('transactions')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -316,7 +314,6 @@ export async function updateBudget(id: string, formData: FormData) {
     .from('budgets')
     .update({ category, amount, period })
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -336,7 +333,6 @@ export async function deleteBudget(id: string) {
     .from('budgets')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -463,7 +459,6 @@ export async function deleteSavingsAccount(id: string) {
     .from('savings_accounts')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }

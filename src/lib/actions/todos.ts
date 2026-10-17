@@ -96,7 +96,6 @@ export async function updateTodo(id: string, formData: FormData) {
             updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .eq('user_id', user.id)
 
     if (error) {
         return { error: error.message }
@@ -123,7 +122,6 @@ export async function updateTodoStatus(id: string, status: TodoStatus) {
             updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .eq('user_id', user.id)
 
     if (error) {
         return { error: error.message }
@@ -154,7 +152,6 @@ export async function toggleTodo(id: string, completed: boolean) {
             updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .eq('user_id', user.id)
 
     if (error) {
         return { error: error.message }
@@ -174,7 +171,6 @@ export async function deleteTodo(id: string) {
         .from('todos')
         .delete()
         .eq('id', id)
-        .eq('user_id', user.id)
 
     if (error) {
         return { error: error.message }
@@ -269,7 +265,6 @@ export async function clearCompletedTodos(): Promise<{ success: boolean; count?:
         .from('todos')
         .select('id')
         .eq('status', 'completed')
-        .eq('user_id', user.id)
 
     if (!completed || completed.length === 0) return { success: true, count: 0 }
 

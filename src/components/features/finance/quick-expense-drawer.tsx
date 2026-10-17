@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, Coffee, Utensils, Car, Heart, ShoppingBag, Check, Loader2 } from 'lucide-react'
 import { createTransaction } from '@/lib/actions/finance'
@@ -27,6 +27,7 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
   const [description, setDescription] = useState<string>('')
   const [isShared, setIsShared] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
+  const isSubmittingRef = useRef<boolean>(false)
   const [submitted, setSubmitted] = useState<boolean>(false)
 
   const handleSelectPreset = (preset: typeof PRESET_CATEGORIES[0]) => {
@@ -41,8 +42,9 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!amount || amount <= 0) return
+    if (!amount || amount <= 0 || isSubmittingRef.current) return
 
+    isSubmittingRef.current = true
     setLoading(true)
     try {
       const formData = new FormData()
@@ -70,6 +72,7 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
       console.error('Error quick logging expense:', err)
     } finally {
       setLoading(false)
+      isSubmittingRef.current = false
     }
   }
 

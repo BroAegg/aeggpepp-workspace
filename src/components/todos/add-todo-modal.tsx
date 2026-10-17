@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Plus, Loader2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -18,6 +18,7 @@ interface AddTodoModalProps {
 
 export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoModalProps) {
   const [saving, setSaving] = useState(false)
+  const isSubmittingRef = useRef(false)
   const [formTitle, setFormTitle] = useState('')
   const [formDescription, setFormDescription] = useState('')
   const [formPriority, setFormPriority] = useState<Priority>('medium')
@@ -52,7 +53,8 @@ export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoMo
   }
 
   const handleSave = async () => {
-    if (!formTitle.trim()) return
+    if (!formTitle.trim() || isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setSaving(true)
 
     try {
@@ -64,12 +66,14 @@ export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoMo
       formData.set('due_date', formDueDate)
 
       const result = await createTodo(formData)
+      if (result && 'error' in result && result.error) {
+        alert(`Gagal membuat todo: ${result.error}`)
+        return
+      }
 
-      // Add initial sub-tasks
+      // Add initial sub-tasks concurrently (instant, no sequential delay)
       if (result?.id && tasks.length > 0) {
-        for (const taskTitle of tasks) {
-          await createTodoTask(result.id, taskTitle)
-        }
+        await Promise.all(tasks.map((taskTitle) => createTodoTask(result.id!, taskTitle)))
       }
 
       resetForm()
@@ -79,6 +83,7 @@ export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoMo
       console.error('Error creating todo:', error)
     } finally {
       setSaving(false)
+      isSubmittingRef.current = false
     }
   }
 

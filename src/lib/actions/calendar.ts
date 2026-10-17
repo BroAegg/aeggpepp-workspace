@@ -186,7 +186,6 @@ export async function updateEvent(id: string, formData: FormData) {
       color,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }
@@ -206,7 +205,6 @@ export async function deleteEvent(id: string) {
     .from('events')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
 
   if (error) {
     return { error: error.message }

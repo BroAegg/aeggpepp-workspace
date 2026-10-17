@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     title: 'AeggPepp',
   },
   icons: {
-    icon: '/icon-192.svg',
-    apple: '/icon-192.svg',
+    icon: '/icon.png',
+    apple: '/apple-touch-icon.png',
   },
 }
 

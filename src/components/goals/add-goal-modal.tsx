@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Plus, CheckCircle2, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -21,6 +21,7 @@ interface AddGoalModalProps {
 
 export function AddGoalModal({ open, defaultStatus = 'backlog', onClose, onCreated }: AddGoalModalProps) {
   const [saving, setSaving] = useState(false)
+  const isSubmittingRef = useRef(false)
   const [formTitle, setFormTitle] = useState('')
   const [formDescription, setFormDescription] = useState('')
   const [formStatus, setFormStatus] = useState<GoalStatus>(defaultStatus)
@@ -53,7 +54,8 @@ export function AddGoalModal({ open, defaultStatus = 'backlog', onClose, onCreat
   }
 
   const handleSave = async () => {
-    if (!formTitle.trim()) return
+    if (!formTitle.trim() || isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setSaving(true)
 
     const formData = new FormData()
@@ -70,10 +72,8 @@ export function AddGoalModal({ open, defaultStatus = 'backlog', onClose, onCreat
         alert(`Failed to create goal: ${result.error}`)
         return
       }
-      if (result && 'id' in result && result.id) {
-        for (const task of formTasks) {
-          await createGoalTask(result.id, task.title)
-        }
+      if (result && 'id' in result && result.id && formTasks.length > 0) {
+        await Promise.all(formTasks.map(task => createGoalTask(result.id!, task.title)))
       }
       resetForm()
       onCreated()
@@ -82,6 +82,7 @@ export function AddGoalModal({ open, defaultStatus = 'backlog', onClose, onCreat
       console.error('Error creating goal:', error)
     } finally {
       setSaving(false)
+      isSubmittingRef.current = false
     }
   }
 

@@ -151,6 +151,8 @@ export default function WeddingPage() {
   const [showRundownModal, setShowRundownModal] = useState(false)
   const [editingRundownItem, setEditingRundownItem] = useState<WeddingRundownItem | null>(null)
 
+  const isSubmittingRef = useRef(false)
+
   // Sync from store when hydrated
   useEffect(() => {
     if (cachedBudget.length > 0) {
@@ -329,14 +331,21 @@ export default function WeddingPage() {
 
   const handleSaveBudget = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setIsSubmitting(true)
     const formData = new FormData(e.currentTarget)
 
     try {
+      let res: any
       if (editingBudgetItem) {
-        await updateWeddingBudgetItem(editingBudgetItem.id, formData)
+        res = await updateWeddingBudgetItem(editingBudgetItem.id, formData)
       } else {
-        await createWeddingBudgetItem(formData)
+        res = await createWeddingBudgetItem(formData)
+      }
+      if (res && 'error' in res && res.error) {
+        alert(`Gagal menyimpan pos anggaran: ${res.error}`)
+        return
       }
       setShowBudgetModal(false)
       setEditingBudgetItem(null)
@@ -345,6 +354,7 @@ export default function WeddingPage() {
       console.error('Failed to save budget item:', err)
     } finally {
       setIsSubmitting(false)
+      isSubmittingRef.current = false
     }
   }
 
@@ -368,14 +378,21 @@ export default function WeddingPage() {
 
   const handleSaveGuest = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setIsSubmitting(true)
     const formData = new FormData(e.currentTarget)
 
     try {
+      let res: any
       if (editingGuest) {
-        await updateWeddingGuest(editingGuest.id, formData)
+        res = await updateWeddingGuest(editingGuest.id, formData)
       } else {
-        await createWeddingGuest(formData)
+        res = await createWeddingGuest(formData)
+      }
+      if (res && 'error' in res && res.error) {
+        alert(`Gagal menyimpan data tamu: ${res.error}`)
+        return
       }
       setShowGuestModal(false)
       setEditingGuest(null)
@@ -384,6 +401,7 @@ export default function WeddingPage() {
       console.error('Failed to save guest:', err)
     } finally {
       setIsSubmitting(false)
+      isSubmittingRef.current = false
     }
   }
 
@@ -423,14 +441,21 @@ export default function WeddingPage() {
 
   const handleSaveRundown = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setIsSubmitting(true)
     const formData = new FormData(e.currentTarget)
 
     try {
+      let res: any
       if (editingRundownItem) {
-        await updateWeddingRundownItem(editingRundownItem.id, formData)
+        res = await updateWeddingRundownItem(editingRundownItem.id, formData)
       } else {
-        await createWeddingRundownItem(formData)
+        res = await createWeddingRundownItem(formData)
+      }
+      if (res && 'error' in res && res.error) {
+        alert(`Gagal menyimpan sesi rundown: ${res.error}`)
+        return
       }
       setShowRundownModal(false)
       setEditingRundownItem(null)
@@ -439,6 +464,7 @@ export default function WeddingPage() {
       console.error('Failed to save rundown item:', err)
     } finally {
       setIsSubmitting(false)
+      isSubmittingRef.current = false
     }
   }
 

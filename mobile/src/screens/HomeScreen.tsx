@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  Image,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import {
@@ -98,9 +99,9 @@ export function HomeScreen({ navigation }: any) {
         />
       }
     >
-      {/* Top Greeting */}
+      {/* Top Greeting with Couple Logo */}
       <View style={styles.topHeader}>
-        <View>
+        <View style={{ flex: 1 }}>
           <View style={styles.badgeRow}>
             <Heart size={14} color={colors.primary} />
             <Text style={styles.badgeText}>AeggPepp Space</Text>
@@ -112,6 +113,10 @@ export function HomeScreen({ navigation }: any) {
             Workspace pribadi & persiapan pernikahan kita berdua
           </Text>
         </View>
+        <Image
+          source={require('../../assets/icon.png')}
+          style={styles.headerAvatar}
+        />
       </View>
 
       {/* Wedding Highlight Banner */}
@@ -200,7 +205,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 20,
+    gap: 12,
+  },
+  headerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.cardBorder,
   },
   badgeRow: {
     flexDirection: 'row',
