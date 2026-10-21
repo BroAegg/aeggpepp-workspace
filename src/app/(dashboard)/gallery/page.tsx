@@ -8,6 +8,8 @@ import { Plus, X, Calendar, Heart, Download, Trash2, Grid, LayoutList, Upload, I
 import { cn } from '@/lib/utils'
 import { getGalleryItems, createGalleryItem, updateGalleryItem, deleteGalleryItem } from '@/lib/actions/gallery'
 import { useWorkspaceStore } from '@/stores/workspace-store'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from '@/components/ui/toast'
 import type { GalleryItem } from '@/types'
 
 type ViewMode = 'grid' | 'timeline'
@@ -174,11 +176,11 @@ export default function GalleryPage() {
     if (file) {
       // Validate file type and size
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file')
+        toast.error('File harus berupa foto/gambar')
         return
       }
       if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be under 10MB')
+        toast.error('Ukuran foto maksimal 10MB')
         return
       }
       setSelectedFile(file)
@@ -199,12 +201,13 @@ export default function GalleryPage() {
       const result = await createGalleryItem(formData)
 
       if (result && 'error' in result) {
-        alert(`Upload failed: ${result.error}`)
+        toast.error('Gagal mengupload foto', result.error)
         setUploading(false)
         return
       }
 
       if (result.success) {
+        toast.success('Foto kenangan berhasil disimpan!')
         await fetchPhotos()
         setShowUploadModal(false)
         setSelectedFile(null)
@@ -213,7 +216,7 @@ export default function GalleryPage() {
       }
     } catch (error) {
       console.error('Upload error:', error)
-      alert('Upload failed. Make sure the "gallery" storage bucket exists in Supabase and has proper policies.')
+      toast.error('Gagal mengupload foto', 'Periksa koneksi internet atau storage bucket Supabase')
     } finally {
       setUploading(false)
     }
@@ -299,9 +302,13 @@ export default function GalleryPage() {
         </div>
 
         {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        {loading && photos.length === 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="aspect-square rounded-xl overflow-hidden border border-border/50 bg-card/60">
+                <Skeleton className="w-full h-full" />
+              </div>
+            ))}
           </div>
         )}
 

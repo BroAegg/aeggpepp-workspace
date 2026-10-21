@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, Coffee, Utensils, Car, Heart, ShoppingBag, Check, Loader2 } from 'lucide-react'
 import { createTransaction } from '@/lib/actions/finance'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 
 interface QuickExpenseDrawerProps {
@@ -57,8 +58,9 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
 
       const res = await createTransaction(formData)
       if (res && 'error' in res && res.error) {
-        alert(res.error)
+        toast.error('Gagal mencatat pengeluaran', res.error)
       } else {
+        toast.success('Pengeluaran berhasil dicatat!')
         setSubmitted(true)
         if (onSuccess) onSuccess()
         setTimeout(() => {

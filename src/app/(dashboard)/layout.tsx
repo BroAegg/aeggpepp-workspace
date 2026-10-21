@@ -3,6 +3,8 @@ import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav'
 import { ActivityTracker } from '@/components/activity-tracker'
 import { AuthProvider } from '@/providers/auth-provider'
 
+import { ToastContainer } from '@/components/ui/toast'
+
 export default function DashboardLayout({
   children,
 }: {
@@ -20,6 +22,7 @@ export default function DashboardLayout({
         </main>
         <MobileBottomNav />
         <ActivityTracker />
+        <ToastContainer />
       </div>
     </AuthProvider>
   )

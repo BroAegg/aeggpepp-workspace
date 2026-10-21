@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, ExternalLink, Edit2, Trash2, Check, ShoppingCart, Gift, Sparkles, Loader2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { getWishlistItems, createWishlistItem, updateWishlistItem, deleteWishlistItem, toggleWishlistPurchased } from '@/lib/actions/wishlist'
 import { OwnerBadge } from '@/components/ui/owner-badge'
@@ -245,9 +246,15 @@ export default function WishlistPage() {
         </div>
 
         {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        {loading && items.length === 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="p-4 rounded-xl border border-border/50 bg-card/60 space-y-3">
+                <Skeleton className="h-40 w-full rounded-lg" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            ))}
           </div>
         )}
 

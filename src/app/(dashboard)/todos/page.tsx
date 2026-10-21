@@ -24,13 +24,15 @@ import {
 } from '@/lib/actions/todo-categories'
 import dynamic from 'next/dynamic'
 import { TableView } from '@/components/todos/table-view'
+import { TodosSkeleton } from '@/components/todos/todos-skeleton'
 const KanbanView = dynamic(() => import('@/components/todos/kanban-view').then((m) => m.KanbanView), {
-    loading: () => <div className="py-16 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>,
+    loading: () => <TodosSkeleton />,
     ssr: false,
 })
 import { TodoSidePeek } from '@/components/todos/side-peek'
 import { AddTodoModal } from '@/components/todos/add-todo-modal'
 import { useWorkspaceStore } from '@/stores/workspace-store'
+import { toast } from '@/components/ui/toast'
 import type { Todo, TodoCategoryItem, TodoStatus, Priority } from '@/types'
 
 type ViewMode = 'table' | 'board'
@@ -345,13 +347,14 @@ export default function TodosPage() {
         try {
             const result = await clearCompletedTodos()
             if (result.success) {
+                toast.success('Semua tugas selesai berhasil dibersihkan')
                 await fetchTodos()
             } else {
-                alert('Gagal hapus: ' + (result.error || 'Unknown error'))
+                toast.error('Gagal membersihkan tugas', result.error)
             }
         } catch (error) {
             console.error('Error clearing completed:', error)
-            alert('Terjadi error, coba lagi.')
+            toast.error('Terjadi error saat membersihkan tugas')
         } finally {
             setClearingCompleted(false)
         }
@@ -522,10 +525,8 @@ export default function TodosPage() {
                 </div>
 
                 {/* Loading */}
-                {loading && (
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                    </div>
+                {loading && todos.length === 0 && (
+                    <TodosSkeleton />
                 )}
 
                 {/* Empty state */}

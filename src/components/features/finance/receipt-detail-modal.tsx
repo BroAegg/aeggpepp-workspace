@@ -18,6 +18,7 @@ import {
   Maximize2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
 import { getReceiptItems, saveReceiptItems, uploadReceiptDirect, deleteReceiptItem } from '@/lib/actions/receipts'
 import type { Transaction, ReceiptItem } from '@/types'
 
@@ -118,13 +119,14 @@ export function ReceiptDetailModal({
       ])
 
       if (res.success) {
+        toast.success('Item struk berhasil ditambahkan')
         setNewItemName('')
         setNewItemQty(1)
         setNewItemPrice('')
         setShowAddForm(false)
         await loadItems(transaction.id)
       } else {
-        alert(res.error || 'Gagal menambahkan item')
+        toast.error('Gagal menambahkan item', res.error)
       }
     } catch (err) {
       console.error('Error adding receipt item:', err)

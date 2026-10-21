@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { GOAL_STATUSES, PRIORITIES } from '@/lib/constants'
 import { createGoal, createGoalTask } from '@/lib/actions/goals'
+import { toast } from '@/components/ui/toast'
 import type { GoalTask } from '@/types'
 
 type GoalStatus = 'backlog' | 'in_progress' | 'completed' | 'archived'
@@ -69,9 +70,10 @@ export function AddGoalModal({ open, defaultStatus = 'backlog', onClose, onCreat
     try {
       const result = await createGoal(formData)
       if (result && 'error' in result) {
-        alert(`Failed to create goal: ${result.error}`)
+        toast.error('Gagal membuat goal', result.error)
         return
       }
+      toast.success('Goal baru berhasil dibuat!')
       if (result && 'id' in result && result.id && formTasks.length > 0) {
         await Promise.all(formTasks.map(task => createGoalTask(result.id!, task.title)))
       }

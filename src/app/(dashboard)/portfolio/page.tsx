@@ -8,6 +8,7 @@ import { Plus, X, ExternalLink, Edit2, Trash2, Link as LinkIcon, Github, Linkedi
 import { cn } from '@/lib/utils'
 import { getPortfolioLinks, createPortfolioLink, updatePortfolioLink, deletePortfolioLink } from '@/lib/actions/portfolio'
 import { useWorkspaceStore } from '@/stores/workspace-store'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { PortfolioLink, PortfolioCategory } from '@/types'
 
 type Category = 'all' | 'project' | 'social' | 'other'
@@ -161,9 +162,19 @@ export default function PortfolioPage() {
         </div>
 
         {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        {loading && links.length === 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="p-4 rounded-xl border border-border/50 bg-card/60 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-40" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

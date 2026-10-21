@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PRIORITIES } from '@/lib/constants'
 import { createTodo, createTodoTask } from '@/lib/actions/todos'
+import { toast } from '@/components/ui/toast'
 import type { TodoCategoryItem, Priority } from '@/types'
 
 interface AddTodoModalProps {
@@ -67,9 +68,10 @@ export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoMo
 
       const result = await createTodo(formData)
       if (result && 'error' in result && result.error) {
-        alert(`Gagal membuat todo: ${result.error}`)
+        toast.error('Gagal membuat tugas', result.error)
         return
       }
+      toast.success('Tugas baru berhasil ditambahkan')
 
       // Add initial sub-tasks concurrently (instant, no sequential delay)
       if (result?.id && tasks.length > 0) {

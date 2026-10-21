@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
-import { Plus, Target, LayoutGrid, Table2, Loader2 } from 'lucide-react'
+import { Plus, Target, LayoutGrid, Table2 } from 'lucide-react'
+import { GoalsSkeleton } from '@/components/goals/goals-skeleton'
 import { cn } from '@/lib/utils'
 import { getGoals, toggleGoalTask } from '@/lib/actions/goals'
 import { KanbanView } from '@/components/goals/kanban-view'
@@ -224,9 +225,7 @@ export default function GoalsPage() {
 
         {/* Loading */}
         {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <GoalsSkeleton />
         ) : goals.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <Target className="w-12 h-12 text-muted-foreground/30 mb-4" />
