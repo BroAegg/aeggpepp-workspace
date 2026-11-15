@@ -33,6 +33,7 @@ export async function getTransactions(userId?: string | 'all'): Promise<Transact
     .from('transactions')
     .select('*, profiles:user_id(display_name, role)')
     .is('deleted_at', null)
+    .not('is_settlement', 'is', true)
     .order('date', { ascending: false })
 
   // If userId is specific string (not 'all' and not undefined), filter by it
