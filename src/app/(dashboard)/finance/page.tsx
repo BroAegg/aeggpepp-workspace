@@ -398,8 +398,12 @@ export default function FinancePage() {
                   savings={savings}
                   viewMode={viewMode}
                   userRole={userProfile?.role}
+                  userProfile={userProfile as any}
                   onOpenQuickExpense={() => setQuickExpenseOpen(true)}
                   onSwitchToAdvanced={() => setActiveTab('transactions')}
+                  onRefresh={() => {
+                    if (userProfile) fetchData(userProfile, viewMode)
+                  }}
                 />
               </div>
             )}
@@ -430,6 +434,7 @@ export default function FinancePage() {
                 budgets={budgets}
                 transactions={transactions}
                 formatCurrency={formatCurrency}
+                billingCycleStartDay={(userProfile as any)?.billing_cycle_start_day}
                 onAddBudget={() => {
                   setEditingBudget(null)
                   setShowBudgetModal(true)
@@ -458,6 +463,9 @@ export default function FinancePage() {
                   setSelectedType('transfer')
                   setShowTransactionModal(true)
                 }}
+                onRefresh={() => {
+                  if (userProfile) fetchData(userProfile, viewMode)
+                }}
               />
             )}
 
@@ -465,6 +473,8 @@ export default function FinancePage() {
             {activeTab === 'subscriptions' && (
               <SubscriptionsTab
                 formatCurrency={formatCurrency}
+                accounts={savings}
+                defaultAccountId={(userProfile as any)?.default_account_id}
                 onRefreshFinance={() => {
                   if (userProfile) fetchData(userProfile, viewMode)
                 }}

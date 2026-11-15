@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Target, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Receipt } from 'lucide-react'
+import { Target, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Receipt, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { getBillingCycle, isDateInBillingCycle } from '@/lib/cycle-utils'
 import { cn } from '@/lib/utils'
 import type { Transaction, Budget } from '@/types'
 
@@ -22,32 +23,32 @@ interface BudgetsTabProps {
     onAddBudget: () => void
     onEditBudget: (budget: Budget) => void
     onDeleteBudget: (id: string) => void
+    billingCycleStartDay?: number
 }
 
-export function BudgetsTab({ budgets, transactions, formatCurrency, onAddBudget, onEditBudget, onDeleteBudget }: BudgetsTabProps) {
-    const [budgetMonth, setBudgetMonth] = useState(() => {
-        const now = new Date()
-        return { month: now.getMonth(), year: now.getFullYear() }
-    })
+export function BudgetsTab({
+    budgets,
+    transactions,
+    formatCurrency,
+    onAddBudget,
+    onEditBudget,
+    onDeleteBudget,
+    billingCycleStartDay = 25,
+}: BudgetsTabProps) {
+    const [cycleOffset, setCycleOffset] = useState<number>(0)
 
-    const monthLabel = new Date(budgetMonth.year, budgetMonth.month).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
-
-    const navigateMonth = (dir: -1 | 1) => {
-        setBudgetMonth(prev => {
-            let m = prev.month + dir, y = prev.year
-            if (m < 0) { m = 11; y-- }
-            if (m > 11) { m = 0; y++ }
-            return { month: m, year: y }
-        })
-    }
+    const activeCycle = useMemo(() => {
+        const ref = new Date()
+        ref.setMonth(ref.getMonth() + cycleOffset)
+        return getBillingCycle(billingCycleStartDay, ref)
+    }, [billingCycleStartDay, cycleOffset])
 
     const budgetData = useMemo(() => {
         const rows = budgets.map(budget => {
             const spent = transactions
                 .filter(t => {
                     if (t.type !== 'expense' || t.category !== budget.category) return false
-                    const d = new Date(t.date)
-                    return d.getMonth() === budgetMonth.month && d.getFullYear() === budgetMonth.year
+                    return isDateInBillingCycle(t.date, activeCycle)
                 })
                 .reduce((sum, t) => sum + t.amount, 0)
             const selisih = budget.amount - spent
@@ -61,7 +62,7 @@ export function BudgetsTab({ budgets, transactions, formatCurrency, onAddBudget,
         const totalSelisih = totalBudget - totalRealisasi
 
         return { rows, totalBudget, totalRealisasi, totalSelisih }
-    }, [budgets, transactions, budgetMonth])
+    }, [budgets, transactions, activeCycle])
 
     return (
         <div>
@@ -72,12 +73,17 @@ export function BudgetsTab({ budgets, transactions, formatCurrency, onAddBudget,
                     <h3 className="text-lg font-semibold text-foreground">Budget vs Realisasi</h3>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-secondary rounded-lg px-1 py-0.5">
-                        <button onClick={() => navigateMonth(-1)} className="p-1.5 hover:bg-card rounded-md transition-colors">
+                    <div className="flex items-center gap-2 bg-secondary rounded-xl px-2 py-1 border border-border/60">
+                        <button onClick={() => setCycleOffset((p) => p - 1)} className="p-1 hover:bg-card rounded-lg transition-colors">
                             <ChevronLeft className="w-4 h-4 text-muted-foreground" />
                         </button>
-                        <span className="text-sm font-medium text-foreground min-w-[140px] text-center">{monthLabel}</span>
-                        <button onClick={() => navigateMonth(1)} className="p-1.5 hover:bg-card rounded-md transition-colors">
+                        <div className="text-center px-1">
+                            <span className="text-xs font-bold text-foreground block tabular-nums">{activeCycle.label}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium block">
+                                {activeCycle.isTodayPayday ? 'Hari ini Gajian! 🎉' : `${activeCycle.daysRemaining} hari menuju gajian`}
+                            </span>
+                        </div>
+                        <button onClick={() => setCycleOffset((p) => p + 1)} className="p-1 hover:bg-card rounded-lg transition-colors">
                             <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         </button>
                     </div>
@@ -149,7 +155,14 @@ export function BudgetsTab({ budgets, transactions, formatCurrency, onAddBudget,
                                                         initial={{ width: 0 }}
                                                         animate={{ width: `${row.percentage}%` }}
                                                         transition={{ duration: 0.5 }}
-                                                        className={cn('h-full rounded-full', row.isOver ? 'bg-red-500' : row.percentage > 80 ? 'bg-yellow-500' : 'bg-emerald-500')}
+                                                        className={cn(
+                                                            'h-full rounded-full transition-all',
+                                                            row.percentage >= 100 || row.isOver
+                                                                ? 'bg-rose-500'
+                                                                : row.percentage >= 80
+                                                                ? 'bg-amber-500'
+                                                                : 'bg-emerald-500'
+                                                        )}
                                                     />
                                                 </div>
                                                 <span className={cn('text-xs font-medium min-w-[36px] text-right', row.isOver ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground')}>

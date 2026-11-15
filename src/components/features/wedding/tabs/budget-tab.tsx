@@ -10,8 +10,10 @@ import {
   CheckCircle2,
   PiggyBank,
   Calendar,
+  CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PayFromPocketModal, type PayTarget } from '@/components/features/finance/modals/pay-from-pocket-modal'
 import { cn } from '@/lib/utils'
 import type { WeddingBudgetItem, SavingsAccount } from '@/types'
 import {
@@ -29,6 +31,7 @@ interface BudgetTabProps {
   onAddBudgetItem: () => void
   onEditBudgetItem: (item: WeddingBudgetItem) => void
   onDeleteBudgetItem: (id: string) => void
+  onRefresh?: () => void
 }
 
 export function BudgetTab({
@@ -37,10 +40,12 @@ export function BudgetTab({
   onAddBudgetItem,
   onEditBudgetItem,
   onDeleteBudgetItem,
+  onRefresh,
 }: BudgetTabProps) {
   const [budgetSearch, setBudgetSearch] = useState('')
   const [budgetCategoryFilter, setBudgetCategoryFilter] = useState<string>('all')
   const [budgetStatusFilter, setBudgetStatusFilter] = useState<string>('all')
+  const [payTarget, setPayTarget] = useState<PayTarget | null>(null)
 
   const weddingSavings = useMemo(() => {
     if (!savings || savings.length === 0) return null
@@ -371,43 +376,88 @@ export function BudgetTab({
                   {(Boolean(item.dp_amount) || Boolean(item.termin2_amount) || Boolean(item.pelunasan_amount)) && (
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
                       {Boolean(item.dp_amount && item.dp_amount > 0) && (
-                        <span
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!item.dp_paid) {
+                              setPayTarget({
+                                type: 'wedding_milestone',
+                                itemId: item.id,
+                                itemName: item.title,
+                                milestone: 'dp',
+                                milestoneLabel: 'Uang Muka (DP)',
+                                amount: item.dp_amount!,
+                                dueDateStr: item.dp_due_date || undefined,
+                              })
+                            }
+                          }}
                           className={cn(
-                            'text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1',
+                            'text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1 transition-all',
                             item.dp_paid
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20 cursor-pointer'
                           )}
+                          title={item.dp_paid ? 'Sudah Lunas' : 'Klik untuk Bayar dari Kantong'}
                         >
-                          {item.dp_paid ? '✓' : '⌛'} DP: {formatShort(item.dp_amount!)}
+                          {item.dp_paid ? '✓' : '💳'} DP: {formatShort(item.dp_amount!)}
                           {item.dp_due_date && ` (${new Date(item.dp_due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })})`}
-                        </span>
+                        </button>
                       )}
                       {Boolean(item.termin2_amount && item.termin2_amount > 0) && (
-                        <span
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!item.termin2_paid) {
+                              setPayTarget({
+                                type: 'wedding_milestone',
+                                itemId: item.id,
+                                itemName: item.title,
+                                milestone: 'termin2',
+                                milestoneLabel: 'Termin 2',
+                                amount: item.termin2_amount!,
+                                dueDateStr: item.termin2_due_date || undefined,
+                              })
+                            }
+                          }}
                           className={cn(
-                            'text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1',
+                            'text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1 transition-all',
                             item.termin2_paid
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20 cursor-pointer'
                           )}
+                          title={item.termin2_paid ? 'Sudah Lunas' : 'Klik untuk Bayar dari Kantong'}
                         >
-                          {item.termin2_paid ? '✓' : '⌛'} Termin 2: {formatShort(item.termin2_amount!)}
+                          {item.termin2_paid ? '✓' : '💳'} Termin 2: {formatShort(item.termin2_amount!)}
                           {item.termin2_due_date && ` (${new Date(item.termin2_due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })})`}
-                        </span>
+                        </button>
                       )}
                       {Boolean(item.pelunasan_amount && item.pelunasan_amount > 0) && (
-                        <span
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!item.pelunasan_paid) {
+                              setPayTarget({
+                                type: 'wedding_milestone',
+                                itemId: item.id,
+                                itemName: item.title,
+                                milestone: 'pelunasan',
+                                milestoneLabel: 'Pelunasan',
+                                amount: item.pelunasan_amount!,
+                                dueDateStr: item.pelunasan_due_date || undefined,
+                              })
+                            }
+                          }}
                           className={cn(
-                            'text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1',
+                            'text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1 transition-all',
                             item.pelunasan_paid
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20 cursor-pointer'
                           )}
+                          title={item.pelunasan_paid ? 'Sudah Lunas' : 'Klik untuk Bayar dari Kantong'}
                         >
-                          {item.pelunasan_paid ? '✓' : '⌛'} Pelunasan: {formatShort(item.pelunasan_amount!)}
+                          {item.pelunasan_paid ? '✓' : '💳'} Pelunasan: {formatShort(item.pelunasan_amount!)}
                           {item.pelunasan_due_date && ` (${new Date(item.pelunasan_due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })})`}
-                        </span>
+                        </button>
                       )}
                     </div>
                   )}
@@ -442,6 +492,18 @@ export function BudgetTab({
           })
         )}
       </div>
+
+      {/* Pay From Pocket Modal */}
+      <PayFromPocketModal
+        isOpen={!!payTarget}
+        onClose={() => setPayTarget(null)}
+        accounts={savings}
+        target={payTarget}
+        onSuccess={() => {
+          if (onRefresh) onRefresh()
+          window.location.reload()
+        }}
+      />
     </div>
   )
 }

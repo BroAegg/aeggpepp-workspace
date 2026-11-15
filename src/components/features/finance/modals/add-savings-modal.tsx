@@ -44,8 +44,14 @@ export function AddSavingsModal({
   if (!isOpen) return null
 
   const handleSelectBank = (preset: BankPreset) => {
+    const prevBankName = selectedBank.name
     setSelectedBank(preset)
-    setAccountName(preset.name)
+    if (accountName.startsWith(prevBankName)) {
+      const suffix = accountName.slice(prevBankName.length)
+      setAccountName(`${preset.name}${suffix}`)
+    } else if (!accountName || accountName === prevBankName) {
+      setAccountName(preset.name)
+    }
   }
 
   const categoryPresets = BANK_PRESETS.filter((p) => p.category === selectedCategory)
@@ -173,10 +179,27 @@ export function AddSavingsModal({
               placeholder="e.g. SeaBank - Operasional Harian"
               className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Contoh: <span className="text-foreground/80 font-medium">&quot;{selectedBank.name} - Tabungan Nikah&quot;</span> atau{' '}
-              <span className="text-foreground/80 font-medium">&quot;{selectedBank.name} - Operasional&quot;</span>
-            </p>
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="text-[10px] text-muted-foreground font-medium">Template Cepat:</span>
+              {[
+                { label: 'Operasional', locked: false },
+                { label: 'Tabungan Nikah', locked: true },
+                { label: 'Dana Darurat', locked: true },
+                { label: 'Tabungan Impian', locked: true },
+              ].map((tpl) => (
+                <button
+                  key={tpl.label}
+                  type="button"
+                  onClick={() => {
+                    setAccountName(`${selectedBank.name} - ${tpl.label}`)
+                    setIsLocked(tpl.locked)
+                  }}
+                  className="text-[10px] px-2 py-0.5 rounded-md bg-secondary hover:bg-secondary/80 text-foreground font-medium border border-border/60 transition-colors"
+                >
+                  + {tpl.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* 4. Alokasi Status: Bebas vs Terkunci (Anti-Slop Design) */}

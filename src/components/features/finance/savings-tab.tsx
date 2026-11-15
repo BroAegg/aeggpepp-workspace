@@ -12,10 +12,14 @@ import {
   ArrowUpRight,
   ShieldCheck,
   Building2,
+  Clock,
+  Settings,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { OwnerBadge } from '@/components/ui/owner-badge'
 import { BankLogo, getBankPreset } from '@/lib/bank-registry'
+import { ReconcileModal } from './modals/reconcile-modal'
+import { AccountLedgerDrawer } from './modals/account-ledger-drawer'
 import { cn } from '@/lib/utils'
 import type { SavingsAccount } from '@/types'
 
@@ -26,6 +30,7 @@ interface SavingsTabProps {
   onOpenSavingsTx: (account: SavingsAccount, type: 'deposit' | 'withdraw') => void
   onDeleteSavings: (id: string) => void
   onOpenTransfer?: (fromAccountId?: string) => void
+  onRefresh?: () => void
   pocketOptions?: any
   getAccountCategory?: any
 }
@@ -39,8 +44,11 @@ export function SavingsTab({
   onOpenSavingsTx,
   onDeleteSavings,
   onOpenTransfer,
+  onRefresh,
 }: SavingsTabProps) {
   const [filter, setFilter] = useState<TabFilter>('all')
+  const [reconcileAccount, setReconcileAccount] = useState<SavingsAccount | null>(null)
+  const [ledgerAccount, setLedgerAccount] = useState<SavingsAccount | null>(null)
 
   // Total liquidity metrics
   const { totalBalance, operationalBalance, lockedBalance, operationalPct, lockedPct } = useMemo(() => {
@@ -268,20 +276,38 @@ export function SavingsTab({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => onDeleteSavings(account.id)}
-                      className="p-1 text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                      title="Hapus kantong"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setReconcileAccount(account)}
+                        className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                        title="Sesuaikan Saldo Riil"
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onDeleteSavings(account.id)}
+                        className="p-1.5 text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Hapus kantong"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Balance Display */}
-                  <div className="my-3">
-                    <span className="text-[11px] text-muted-foreground font-medium block">
-                      Saldo Saat Ini
-                    </span>
+                  {/* Balance Display with Mutasi Trigger */}
+                  <div
+                    className="my-3 cursor-pointer group/bal p-2 -mx-2 rounded-xl hover:bg-secondary/40 transition-colors"
+                    onClick={() => setLedgerAccount(account)}
+                    title="Klik untuk melihat riwayat mutasi"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground font-medium block">
+                        Saldo Saat Ini
+                      </span>
+                      <span className="text-[10px] text-primary font-semibold flex items-center gap-1 group-hover/bal:underline">
+                        <Clock className="w-3 h-3" /> Mutasi
+                      </span>
+                    </div>
                     <p
                       className={cn(
                         'text-2xl font-black tabular-nums tracking-tight mt-0.5',
@@ -299,40 +325,76 @@ export function SavingsTab({
                   )}
                 </div>
 
-                {/* Actions: Transfer & Deposit / Withdraw */}
-                <div className="pt-2.5 border-t border-border/50 flex gap-2">
-                  {onOpenTransfer && (
+                {/* Actions: Mutasi, Sesuaikan, Transfer, Setor/Tarik */}
+                <div className="pt-2.5 border-t border-border/50 space-y-2">
+                  <div className="flex items-center gap-1.5">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 text-xs rounded-xl border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
-                      onClick={() => onOpenTransfer(account.id)}
+                      className="flex-1 text-xs rounded-xl h-8 px-2"
+                      onClick={() => setLedgerAccount(account)}
                     >
-                      <ArrowLeftRight className="w-3 h-3 mr-1" /> Transfer
+                      <Clock className="w-3 h-3 mr-1" /> Mutasi
                     </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 text-xs rounded-xl"
-                    onClick={() => onOpenSavingsTx(account, 'deposit')}
-                  >
-                    <ArrowDownRight className="w-3 h-3 mr-1" /> Deposit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 text-xs rounded-xl"
-                    onClick={() => onOpenSavingsTx(account, 'withdraw')}
-                  >
-                    <ArrowUpRight className="w-3 h-3 mr-1" /> Withdraw
-                  </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs rounded-xl h-8 px-2"
+                      onClick={() => setReconcileAccount(account)}
+                    >
+                      <Settings className="w-3 h-3 mr-1" /> Sesuaikan
+                    </Button>
+                    {onOpenTransfer && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs rounded-xl h-8 px-2 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                        onClick={() => onOpenTransfer(account.id)}
+                      >
+                        <ArrowLeftRight className="w-3 h-3 mr-1" /> Transfer
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      className="flex-1 py-1 rounded-lg border border-border/70 text-[11px] font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors flex items-center justify-center gap-1"
+                      onClick={() => onOpenSavingsTx(account, 'deposit')}
+                    >
+                      <ArrowDownRight className="w-3 h-3 text-emerald-600" /> Setor
+                    </button>
+                    <button
+                      type="button"
+                      className="flex-1 py-1 rounded-lg border border-border/70 text-[11px] font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors flex items-center justify-center gap-1"
+                      onClick={() => onOpenSavingsTx(account, 'withdraw')}
+                    >
+                      <ArrowUpRight className="w-3 h-3 text-rose-600" /> Tarik
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )
           })}
         </div>
       )}
+
+      {/* Reconcile Modal */}
+      <ReconcileModal
+        isOpen={!!reconcileAccount}
+        onClose={() => setReconcileAccount(null)}
+        account={reconcileAccount}
+        onSuccess={() => {
+          onRefresh?.()
+        }}
+      />
+
+      {/* Account Ledger Drawer */}
+      <AccountLedgerDrawer
+        isOpen={!!ledgerAccount}
+        onClose={() => setLedgerAccount(null)}
+        account={ledgerAccount}
+      />
     </div>
   )
 }

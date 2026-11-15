@@ -20,8 +20,10 @@ import {
   deleteSubscription,
   paySubscriptionNow,
 } from '@/lib/actions/subscriptions'
+import { getSavingsAccounts } from '@/lib/actions/finance'
+import { PayFromPocketModal, type PayTarget } from './modals/pay-from-pocket-modal'
 import { toast } from '@/components/ui/toast'
-import type { Subscription } from '@/types'
+import type { Subscription, SavingsAccount } from '@/types'
 
 const PRESET_ICONS = [
   { label: 'WiFi / Internet', icon: '🌐' },
@@ -32,14 +34,22 @@ const PRESET_ICONS = [
   { label: 'Cicilan / Sewa', icon: '🏠' },
 ]
 
+interface SubscriptionsTabProps {
+  formatCurrency: (amount: number) => string
+  onRefreshFinance?: () => void
+  accounts?: SavingsAccount[]
+  defaultAccountId?: string | null
+}
+
 export function SubscriptionsTab({
   formatCurrency,
   onRefreshFinance,
-}: {
-  formatCurrency: (amount: number) => string
-  onRefreshFinance?: () => void
-}) {
+  accounts,
+  defaultAccountId,
+}: SubscriptionsTabProps) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
+  const [pocketAccounts, setPocketAccounts] = useState<SavingsAccount[]>(accounts || [])
+  const [payTarget, setPayTarget] = useState<PayTarget | null>(null)
   const [loading, setLoading] = useState(true)
   const [payingId, setPayingId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -67,6 +77,14 @@ export function SubscriptionsTab({
   useEffect(() => {
     fetchSubs()
   }, [])
+
+  useEffect(() => {
+    if (accounts && accounts.length > 0) {
+      setPocketAccounts(accounts)
+    } else {
+      getSavingsAccounts('all').then(setPocketAccounts).catch(() => {})
+    }
+  }, [accounts])
 
   const now = new Date()
   const currentMonthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -245,18 +263,19 @@ export function SubscriptionsTab({
                       <Button
                         size="sm"
                         disabled={isPaying}
-                        onClick={() => handlePay(sub)}
-                        className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                        onClick={() => {
+                          setPayTarget({
+                            type: 'subscription',
+                            subscription: sub,
+                            title: sub.name,
+                            amount: sub.amount,
+                            dueDateStr: `Tgl ${sub.due_day} bulan ini`,
+                          })
+                        }}
+                        className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5"
                       >
-                        {isPaying ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Mencatat...
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-3.5 h-3.5 mr-1.5" /> Catat Bayar Bulan Ini
-                          </>
-                        )}
+                        <CreditCard className="w-3.5 h-3.5" />
+                        Bayar dari Kantong
                       </Button>
                     )}
 
@@ -383,6 +402,19 @@ export function SubscriptionsTab({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Pay From Pocket Modal */}
+      <PayFromPocketModal
+        isOpen={!!payTarget}
+        onClose={() => setPayTarget(null)}
+        accounts={pocketAccounts}
+        defaultAccountId={defaultAccountId}
+        target={payTarget}
+        onSuccess={() => {
+          fetchSubs()
+          if (onRefreshFinance) onRefreshFinance()
+        }}
+      />
     </div>
   )
 }

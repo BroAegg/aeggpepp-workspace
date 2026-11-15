@@ -454,6 +454,11 @@ export default function WeddingPage() {
               setShowBudgetModal(true)
             }}
             onDeleteBudgetItem={handleDeleteBudget}
+            onRefresh={async () => {
+              const fresh = await getWeddingBudgetItems()
+              setBudgetItems(fresh)
+              setWeddingData({ budgetItems: fresh })
+            }}
           />
         )}
 

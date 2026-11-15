@@ -49,7 +49,11 @@ export async function getFinanceProfile() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: profile } = await supabase.from('profiles').select('id, role').eq('id', user.id).single()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, role, billing_cycle_start_day, default_account_id')
+    .eq('id', user.id)
+    .single()
   if (!profile) return null
 
   let partnerId = undefined
@@ -59,7 +63,13 @@ export async function getFinanceProfile() {
     if (partner) partnerId = partner.id
   }
 
-  return { id: user.id, role: profile.role, partnerId }
+  return {
+    id: user.id,
+    role: profile.role,
+    partnerId,
+    billing_cycle_start_day: profile.billing_cycle_start_day,
+    default_account_id: profile.default_account_id,
+  }
 }
 
 // ============== TRANSACTIONS ==============
