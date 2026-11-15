@@ -331,6 +331,78 @@ export async function updateTransaction(id: string, formData: FormData) {
   return { success: true }
 }
 
+export async function quickUpdateTransaction(
+  id: string,
+  data: {
+    category?: string
+    account_id?: string | null
+  }
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // 1. Fetch current transaction details
+  const { data: oldTx, error: fetchErr } = await supabase
+    .from('transactions')
+    .select('id, type, amount, account_id')
+    .eq('id', id)
+    .single()
+
+  if (fetchErr || !oldTx) {
+    return { error: 'Transaksi tidak ditemukan' }
+  }
+
+  // 2. Anti-drift balance adjustments if account_id is changing
+  if (data.account_id !== undefined && data.account_id !== oldTx.account_id) {
+    const oldAccountId = oldTx.account_id
+    const newAccountId = data.account_id
+    const amount = Number(oldTx.amount) || 0
+
+    // Revert balance on old account
+    if (oldAccountId) {
+      if (oldTx.type === 'expense') {
+        await adjustAccountBalanceInternal(supabase, oldAccountId, amount)
+      } else if (oldTx.type === 'income') {
+        await adjustAccountBalanceInternal(supabase, oldAccountId, -amount)
+      }
+    }
+
+    // Apply balance deduction/addition to new account
+    if (newAccountId) {
+      if (oldTx.type === 'expense') {
+        await adjustAccountBalanceInternal(supabase, newAccountId, -amount)
+      } else if (oldTx.type === 'income') {
+        await adjustAccountBalanceInternal(supabase, newAccountId, amount)
+      }
+    }
+  }
+
+  // 3. Update database record
+  const updatePayload: any = {
+    updated_by: user.id,
+    updated_at: new Date().toISOString(),
+  }
+  if (data.category !== undefined) {
+    updatePayload.category = data.category
+  }
+  if (data.account_id !== undefined) {
+    updatePayload.account_id = data.account_id || null
+  }
+
+  const { error: updateErr } = await supabase
+    .from('transactions')
+    .update(updatePayload)
+    .eq('id', id)
+
+  if (updateErr) {
+    return { error: updateErr.message }
+  }
+
+  revalidatePath('/finance')
+  return { success: true }
+}
+
 export async function deleteTransaction(id: string) {
   const supabase = await createClient()
 

@@ -412,6 +412,7 @@ export default function FinancePage() {
             {activeTab === 'transactions' && (
               <TransactionsTab
                 transactions={transactions}
+                accounts={savings}
                 formatCurrency={formatCurrency}
                 onAddTransaction={() => {
                   setEditingTransaction(null)
@@ -425,6 +426,9 @@ export default function FinancePage() {
                 }}
                 onDeleteTransaction={handleDeleteTransaction}
                 onOpenReceiptModal={(tx) => setReceiptModalTx(tx)}
+                onRefresh={() => {
+                  if (userProfile) fetchData(userProfile, viewMode)
+                }}
               />
             )}
 
@@ -495,6 +499,7 @@ export default function FinancePage() {
         selectedType={selectedType}
         setSelectedType={setSelectedType}
         accounts={savings}
+        defaultAccountId={(userProfile as any)?.default_account_id}
         onSubmit={handleSubmitTransaction}
         saving={saving}
         formRef={formRef}
@@ -545,7 +550,11 @@ export default function FinancePage() {
       <QuickExpenseDrawer
         isOpen={quickExpenseOpen}
         onClose={() => setQuickExpenseOpen(false)}
-        onSuccess={() => fetchData(userProfile, viewMode)}
+        onSuccess={() => {
+          if (userProfile) fetchData(userProfile, viewMode)
+        }}
+        accounts={savings}
+        defaultAccountId={(userProfile as any)?.default_account_id}
       />
     </>
   )

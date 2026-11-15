@@ -1,17 +1,21 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, Coffee, Utensils, Car, Heart, ShoppingBag, Check, Loader2 } from 'lucide-react'
+import { Plus, X, Coffee, Utensils, Car, Heart, ShoppingBag, Check, Loader2, Wallet } from 'lucide-react'
 import { createTransaction } from '@/lib/actions/finance'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { BankLogo } from '@/lib/bank-registry'
 import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
+import type { SavingsAccount } from '@/types'
 
 interface QuickExpenseDrawerProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: () => void
+  accounts?: SavingsAccount[]
+  defaultAccountId?: string | null
 }
 
 const PRESET_CATEGORIES = [
@@ -22,13 +26,32 @@ const PRESET_CATEGORIES = [
   { label: 'Belanja Harian', category: 'shopping', icon: ShoppingBag, defaultAmount: 50000 },
 ]
 
-export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseDrawerProps) {
+export function QuickExpenseDrawer({
+  isOpen,
+  onClose,
+  onSuccess,
+  accounts = [],
+  defaultAccountId,
+}: QuickExpenseDrawerProps) {
   const [amount, setAmount] = useState<number>(0)
   const [category, setCategory] = useState<string>('food')
   const [description, setDescription] = useState<string>('')
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
   const isSubmittingRef = useRef<boolean>(false)
   const [submitted, setSubmitted] = useState<boolean>(false)
+
+  // Auto-select default account or first operational account
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultAccountId && accounts.some((a) => a.id === defaultAccountId)) {
+        setSelectedAccountId(defaultAccountId)
+      } else {
+        const firstOp = accounts.find((a) => !a.is_locked)
+        setSelectedAccountId(firstOp?.id || accounts[0]?.id || '')
+      }
+    }
+  }, [isOpen, defaultAccountId, accounts])
 
   const handleSelectPreset = (preset: typeof PRESET_CATEGORIES[0]) => {
     setCategory(preset.category)
@@ -54,6 +77,10 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
       formData.append('description', description || 'Pengeluaran')
       formData.append('date', new Date().toISOString().split('T')[0])
       formData.append('idempotency_key', crypto.randomUUID())
+      formData.append('source', 'web')
+      if (selectedAccountId) {
+        formData.append('account_id', selectedAccountId)
+      }
 
       const res = await createTransaction(formData)
       if (res && 'error' in res && res.error) {
@@ -133,7 +160,53 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
                     placeholder="Rp 0"
                     className="text-xl font-bold py-2.5 text-center tabular-nums"
                   />
+                  {/* Quick Nominal Chips */}
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    {[
+                      { label: '+10rb', add: 10000 },
+                      { label: '+25rb', add: 25000 },
+                      { label: '+50rb', add: 50000 },
+                      { label: '+100rb', add: 100000 },
+                    ].map((chip) => (
+                      <button
+                        key={chip.label}
+                        type="button"
+                        onClick={() => setAmount((prev) => (Number(prev) || 0) + chip.add)}
+                        className="text-xs px-2.5 py-1 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground font-semibold border border-border/70 transition-colors"
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setAmount(0)}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20 transition-colors ml-auto"
+                    >
+                      Reset
+                    </button>
+                  </div>
                 </div>
+
+                {/* Account Selection */}
+                {accounts.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                      <Wallet className="w-3.5 h-3.5 text-primary" />
+                      Potong dari Kantong:
+                    </label>
+                    <select
+                      value={selectedAccountId}
+                      onChange={(e) => setSelectedAccountId(e.target.value)}
+                      className="w-full text-xs px-3 py-2 rounded-xl bg-background border border-border text-foreground font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {accounts.map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.name} (Saldo: Rp {Number(acc.balance).toLocaleString('id-ID')})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Quick Presets */}
                 <div>

@@ -29,14 +29,16 @@ export function AddTransactionModal({
   selectedType,
   setSelectedType,
   accounts = [],
+  defaultAccountId,
   onSubmit,
   saving,
   formRef,
-}: AddTransactionModalProps) {
+}: AddTransactionModalProps & { defaultAccountId?: string | null }) {
   const [idempotencyKey, setIdempotencyKey] = useState('')
   const [fromAccountId, setFromAccountId] = useState('')
   const [toAccountId, setToAccountId] = useState('')
   const [accountId, setAccountId] = useState('')
+  const [amount, setAmount] = useState<number>(0)
 
   useEffect(() => {
     if (isOpen) {
@@ -45,13 +47,18 @@ export function AddTransactionModal({
         setFromAccountId(editingTransaction.from_account_id || '')
         setToAccountId(editingTransaction.to_account_id || '')
         setAccountId(editingTransaction.account_id || '')
+        setAmount(editingTransaction.amount || 0)
       } else {
+        const def = defaultAccountId && accounts.some((a) => a.id === defaultAccountId)
+          ? defaultAccountId
+          : accounts.find((a) => !a.is_locked)?.id || accounts[0]?.id || ''
         setFromAccountId(accounts[0]?.id || '')
         setToAccountId(accounts[1]?.id || '')
-        setAccountId(accounts[0]?.id || '')
+        setAccountId(def)
+        setAmount(0)
       }
     }
-  }, [isOpen, editingTransaction, accounts])
+  }, [isOpen, editingTransaction, accounts, defaultAccountId])
 
   if (!isOpen) return null
 
@@ -142,9 +149,35 @@ export function AddTransactionModal({
               <CurrencyInput
                 name="amount"
                 required
-                defaultValue={editingTransaction?.amount || 0}
+                value={amount}
+                onChange={(val) => setAmount(val)}
                 className="w-full pl-11 pr-3 py-2 rounded-xl border border-border bg-background text-foreground text-sm tabular-nums placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
+            </div>
+            {/* Quick Nominal Chips */}
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              {[
+                { label: '+10rb', add: 10000 },
+                { label: '+25rb', add: 25000 },
+                { label: '+50rb', add: 50000 },
+                { label: '+100rb', add: 100000 },
+              ].map((chip) => (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={() => setAmount((prev) => (Number(prev) || 0) + chip.add)}
+                  className="text-xs px-2.5 py-1 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground font-semibold border border-border/70 transition-colors"
+                >
+                  {chip.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAmount(0)}
+                className="text-xs px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20 transition-colors ml-auto"
+              >
+                Reset
+              </button>
             </div>
           </div>
 

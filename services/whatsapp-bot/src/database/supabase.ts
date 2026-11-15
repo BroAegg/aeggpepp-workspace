@@ -174,11 +174,66 @@ export function validateTransactionDate(rawDate?: string): string {
 }
 
 /**
+ * Resolves user's default operational account from profiles or savings_accounts
+ */
+export async function getDefaultAccountForUser(userId: string): Promise<string | null> {
+  const supabase = getSupabase();
+  try {
+    // 1. Try profiles.default_account_id
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('default_account_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profile?.default_account_id) {
+      return profile.default_account_id;
+    }
+
+    // 2. Fallback to first non-locked operational pocket for this user
+    const { data: accounts } = await supabase
+      .from('savings_accounts')
+      .select('id, is_locked')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
+    const operational = accounts?.find((a: any) => !a.is_locked);
+    if (operational) return operational.id;
+    if (accounts && accounts.length > 0) return accounts[0].id;
+  } catch (err: any) {
+    logger.warn({ err: err?.message, userId }, '[Supabase] Error resolving default account');
+  }
+  return null;
+}
+
+/**
+ * Adjust account balance atomically via PostgreSQL RPC adjust_account_balance
+ */
+async function adjustAccountBalanceRpc(accountId: string, delta: number): Promise<void> {
+  if (!accountId || delta === 0) return;
+  try {
+    const supabase = getSupabase();
+    const { error } = await supabase.rpc('adjust_account_balance', {
+      p_account_id: accountId,
+      p_delta: delta,
+    });
+    if (error) {
+      logger.warn({ error: error.message, accountId, delta }, '[Supabase] adjust_account_balance RPC error');
+    } else {
+      logger.info({ accountId, delta }, '[Supabase] adjust_account_balance applied successfully');
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message, accountId, delta }, '[Supabase] Exception calling adjust_account_balance');
+  }
+}
+
+/**
  * Direct Auto-Insert transaction to Supabase
  */
 export async function saveReceiptTransaction(payload: SaveReceiptPayload): Promise<{ transactionId: string }> {
   const supabase = getSupabase();
   const validDate = validateTransactionDate(payload.date);
+  const targetAccountId = await getDefaultAccountForUser(payload.user.id);
 
   const insertData: any = {
     user_id: payload.user.id,
@@ -189,7 +244,9 @@ export async function saveReceiptTransaction(payload: SaveReceiptPayload): Promi
     amount: payload.totalAmount,
     description: payload.description || `Belanja di ${payload.merchant}`,
     date: validDate,
-    is_split: !!payload.isSplit,
+    source: 'whatsapp',
+    account_id: targetAccountId,
+    is_split: false,
     is_settled: true,
     is_settlement: false,
     receipt_url: payload.receiptPath || null,
@@ -219,6 +276,11 @@ export async function saveReceiptTransaction(payload: SaveReceiptPayload): Promi
     throw new Error(`Failed to save transaction: ${txError.message}`);
   }
 
+  // Deduct balance from account atomically (zero-drift)
+  if (targetAccountId) {
+    await adjustAccountBalanceRpc(targetAccountId, -payload.totalAmount);
+  }
+
   // Insert line items if available
   if (payload.items && payload.items.length > 0) {
     const itemsToInsert = payload.items.map((it) => ({
@@ -246,11 +308,24 @@ export async function saveReceiptTransaction(payload: SaveReceiptPayload): Promi
 }
 
 /**
- * Soft delete transaction for Instant Undo
+ * Soft delete transaction for Instant Undo with balance restoration (zero-drift)
  */
 export async function softDeleteTransaction(transactionId: string, userId: string): Promise<boolean> {
   try {
     const supabase = getSupabase();
+
+    // 1. Fetch current transaction details before soft deleting
+    const { data: tx, error: fetchErr } = await supabase
+      .from('transactions')
+      .select('id, type, amount, account_id, deleted_at')
+      .eq('id', transactionId)
+      .maybeSingle();
+
+    if (fetchErr) {
+      logger.error({ error: fetchErr.message, transactionId }, '[Supabase] Failed to fetch transaction before undo');
+    }
+
+    // 2. Perform soft delete
     const { error } = await supabase
       .from('transactions')
       .update({
@@ -264,6 +339,15 @@ export async function softDeleteTransaction(transactionId: string, userId: strin
       return false;
     }
 
+    // 3. Atomically restore balance if not previously deleted
+    if (tx && !tx.deleted_at && tx.account_id) {
+      const amount = Number(tx.amount) || 0;
+      // Reversal: if it was an expense, refund (+amount); if income, remove (-amount)
+      const delta = tx.type === 'expense' ? amount : -amount;
+      await adjustAccountBalanceRpc(tx.account_id, delta);
+      logger.info({ transactionId, accountId: tx.account_id, delta }, '[Supabase] Account balance restored on Undo');
+    }
+
     logger.info({ transactionId, userId }, '[Supabase] Transaction successfully soft-deleted');
     return true;
   } catch (err: any) {
@@ -273,7 +357,7 @@ export async function softDeleteTransaction(transactionId: string, userId: strin
 }
 
 /**
- * Save quick text-based expense
+ * Save quick text-based expense with default account & atomic balance update
  */
 export async function saveQuickTransaction(params: {
   user: ResolvedUser;
@@ -287,6 +371,7 @@ export async function saveQuickTransaction(params: {
 }): Promise<{ transactionId: string }> {
   const supabase = getSupabase();
   const dateStr = new Date().toISOString().split('T')[0];
+  const targetAccountId = await getDefaultAccountForUser(params.user.id);
 
   const insertData: any = {
     user_id: params.user.id,
@@ -297,7 +382,9 @@ export async function saveQuickTransaction(params: {
     amount: params.amount,
     description: params.description,
     date: dateStr,
-    is_split: params.type === 'expense' ? !!params.isSplit : false,
+    source: 'whatsapp',
+    account_id: targetAccountId,
+    is_split: false,
     is_settled: true,
     is_settlement: false,
   };
@@ -322,6 +409,12 @@ export async function saveQuickTransaction(params: {
       if (existing?.id) return { transactionId: existing.id };
     }
     throw new Error(`Failed to save quick transaction: ${error.message}`);
+  }
+
+  // Atomically adjust account balance (deduct for expense, add for income)
+  if (targetAccountId) {
+    const delta = params.type === 'expense' ? -params.amount : params.amount;
+    await adjustAccountBalanceRpc(targetAccountId, delta);
   }
 
   return { transactionId: data.id };
