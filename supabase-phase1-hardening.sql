@@ -103,6 +103,52 @@ create policy "Couple members can delete todos"
   on public.todos for delete 
   using (public.is_couple_member());
 
+-- =====================================================
+-- 2. COUPLE MEMBERSHIP HELPER & HARDENED RLS POLICIES
+-- =====================================================
+
+-- Ensure Wedding Tables exist before applying RLS
+create table if not exists public.wedding_budget_items (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  category text not null,
+  title text not null,
+  estimated_cost decimal(12,2) default 0 not null,
+  actual_cost decimal(12,2) default 0 not null,
+  paid_amount decimal(12,2) default 0 not null,
+  status text default 'planned',
+  due_date date,
+  vendor_name text,
+  vendor_contact text,
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create table if not exists public.wedding_guests (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  name text not null,
+  group_type text default 'family_aegg',
+  pax integer default 1 not null check (pax > 0),
+  rsvp_status text default 'pending',
+  phone text,
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create table if not exists public.wedding_rundown (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  time_start text not null,
+  time_end text,
+  title text not null,
+  pic text,
+  notes text,
+  position integer default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- Hardened RLS on Wedding Tables
 alter table public.wedding_budget_items enable row level security;
 drop policy if exists "Couple members can select wedding budget" on public.wedding_budget_items;
