@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils'
 import { OwnerBadge } from '@/components/ui/owner-badge'
 import { calculateFinancialHealth } from '@/lib/financial-health'
 import { FinancialHealthCard } from '@/components/features/finance/financial-health-card'
+import { FinanceCharts } from '@/components/features/finance/finance-charts'
 import { getBillingCycle, isDateInBillingCycle, calculateDailySafeToSpend } from '@/lib/cycle-utils'
 import { PayFromPocketModal, type PayTarget } from '@/components/features/finance/modals/pay-from-pocket-modal'
 import { FinanceSettingsModal } from '@/components/features/finance/modals/finance-settings-modal'
@@ -683,6 +684,14 @@ export function FinanceOverview({
           </motion.div>
         )}
       </div>
+
+      {/* 2.5. Intelligent Anti-Slop Visual Finance Charts */}
+      <FinanceCharts
+        transactions={transactions}
+        cycle={cycle}
+        startDay={startDay}
+        scope={activeScope}
+      />
 
       {/* 3. Timeline Komitmen 14 Hari & 1-Click Bayar dari Kantong */}
       <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-4">
