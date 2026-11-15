@@ -105,7 +105,7 @@ export interface WishlistItem {
 }
 
 // Finance Types
-export type TransactionType = 'income' | 'expense'
+export type TransactionType = 'income' | 'expense' | 'transfer'
 export type BudgetPeriod = 'weekly' | 'monthly' | 'yearly'
 
 export interface Transaction {
@@ -123,6 +123,12 @@ export interface Transaction {
   is_settled: boolean
   is_settlement?: boolean
   receipt_url?: string | null
+  account_id?: string | null
+  from_account_id?: string | null
+  to_account_id?: string | null
+  from_account?: { id: string; name: string; bank_code: string | null } | null
+  to_account?: { id: string; name: string; bank_code: string | null } | null
+  account?: { id: string; name: string; bank_code: string | null } | null
   source?: 'web' | 'telegram' | null
   idempotency_key?: string | null
   deleted_at?: string | null
@@ -196,6 +202,7 @@ export interface SavingsAccount {
   bank_code: string | null
   balance: number
   icon: string | null
+  is_locked?: boolean | null
   created_at: string
   updated_at: string
   profiles?: ItemOwner

@@ -20,7 +20,7 @@ import {
   deleteSavingsAccount,
   getFinanceProfile,
 } from '@/lib/actions/finance'
-import type { Transaction, Budget, SavingsAccount } from '@/types'
+import type { Transaction, Budget, SavingsAccount, TransactionType } from '@/types'
 import { FinanceNavTabs, type FinanceTab } from '@/components/features/finance/finance-nav-tabs'
 import { FinanceSkeleton } from '@/components/features/finance/finance-skeleton'
 import { FinanceOverview } from '@/components/features/finance/finance-overview'
@@ -50,40 +50,8 @@ const SubscriptionsTab = dynamic(
 // Modals
 import { AddTransactionModal } from '@/components/features/finance/modals/add-transaction-modal'
 import { AddBudgetModal } from '@/components/features/finance/modals/add-budget-modal'
-import {
-  AddSavingsModal,
-  type PocketCategory,
-  type PocketOption,
-} from '@/components/features/finance/modals/add-savings-modal'
+import { AddSavingsModal } from '@/components/features/finance/modals/add-savings-modal'
 import { SavingsTransactionModal } from '@/components/features/finance/modals/savings-transaction-modal'
-
-const POCKET_OPTIONS: PocketOption[] = [
-  { code: 'seabank', label: 'SeaBank', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#f97316' },
-  { code: 'bca', label: 'Bank BCA', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#2563eb' },
-  { code: 'jago', label: 'Bank Jago', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#eab308' },
-  { code: 'mandiri', label: 'Bank Mandiri', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#0284c7' },
-  { code: 'bri', label: 'Bank BRI', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#0369a1' },
-  { code: 'bni', label: 'Bank BNI', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#ea580c' },
-  { code: 'other_bank', label: 'Bank Lainnya', icon: '🏦', category: 'bank', categoryLabel: 'Bank', color: '#64748b' },
-  { code: 'dana', label: 'DANA', icon: '📱', category: 'ewallet', categoryLabel: 'E-Wallet', color: '#0284c7' },
-  { code: 'gopay', label: 'GoPay', icon: '📱', category: 'ewallet', categoryLabel: 'E-Wallet', color: '#10b981' },
-  { code: 'ovo', label: 'OVO', icon: '📱', category: 'ewallet', categoryLabel: 'E-Wallet', color: '#7c3aed' },
-  { code: 'shopeepay', label: 'ShopeePay', icon: '📱', category: 'ewallet', categoryLabel: 'E-Wallet', color: '#f97316' },
-  { code: 'cash', label: 'Uang Tunai / Dompet', icon: '💵', category: 'cash', categoryLabel: 'Tunai', color: '#16a34a' },
-  { code: 'friend_loan', label: 'Uang di Teman (Piutang)', icon: '🤝', category: 'friend_loan', categoryLabel: 'Piutang Teman', color: '#d97706' },
-  { code: 'investment', label: 'Investasi / Reksadana / Emas', icon: '📈', category: 'investment', categoryLabel: 'Investasi', color: '#8b5cf6' },
-  { code: 'other', label: 'Rekening Lainnya', icon: '💳', category: 'cash', categoryLabel: 'Lainnya', color: '#64748b' },
-]
-
-const getAccountCategory = (account: SavingsAccount): PocketCategory => {
-  if (account.bank_code === 'friend_loan' || account.type === 'friend_loan') return 'friend_loan'
-  const found = POCKET_OPTIONS.find((p) => p.code === account.bank_code)
-  if (found) return found.category
-  if (account.type === 'ewallet') return 'ewallet'
-  if (account.type === 'bank' || account.type === 'digital') return 'bank'
-  if (account.type === 'investment') return 'investment'
-  return 'cash'
-}
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('id-ID', {
@@ -125,16 +93,13 @@ export default function FinancePage() {
   // Modals state
   const [showTransactionModal, setShowTransactionModal] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-  const [selectedType, setSelectedType] = useState<'income' | 'expense'>('expense')
+  const [selectedType, setSelectedType] = useState<TransactionType>('expense')
   const [receiptModalTx, setReceiptModalTx] = useState<Transaction | null>(null)
 
   const [showBudgetModal, setShowBudgetModal] = useState(false)
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
 
   const [showSavingsModal, setShowSavingsModal] = useState(false)
-  const [savingsCategory, setSavingsCategory] = useState<PocketCategory>('bank')
-  const [savingsBankCode, setSavingsBankCode] = useState<string>('seabank')
-  const [savingsIcon, setSavingsIcon] = useState<string>('🏦')
 
   const [showSavingsTxModal, setShowSavingsTxModal] = useState(false)
   const [selectedSavingsAccount, setSelectedSavingsAccount] = useState<SavingsAccount | null>(null)
@@ -482,25 +447,17 @@ export default function FinancePage() {
               <SavingsTab
                 savings={savings}
                 formatCurrency={formatCurrency}
-                onOpenAddSavings={(category) => {
-                  if (category) {
-                    setSavingsCategory(category)
-                    const opt = POCKET_OPTIONS.find((p) => p.category === category)
-                    if (opt) {
-                      setSavingsBankCode(opt.code)
-                      setSavingsIcon(opt.icon)
-                    }
-                  }
-                  setShowSavingsModal(true)
-                }}
+                onOpenAddSavings={() => setShowSavingsModal(true)}
                 onOpenSavingsTx={(account, type) => {
                   setSelectedSavingsAccount(account)
                   setSavingsTxType(type)
                   setShowSavingsTxModal(true)
                 }}
                 onDeleteSavings={handleDeleteSavings}
-                pocketOptions={POCKET_OPTIONS}
-                getAccountCategory={getAccountCategory}
+                onOpenTransfer={() => {
+                  setSelectedType('transfer')
+                  setShowTransactionModal(true)
+                }}
               />
             )}
 
@@ -527,6 +484,7 @@ export default function FinancePage() {
         editingTransaction={editingTransaction}
         selectedType={selectedType}
         setSelectedType={setSelectedType}
+        accounts={savings}
         onSubmit={handleSubmitTransaction}
         saving={saving}
         formRef={formRef}
@@ -547,13 +505,6 @@ export default function FinancePage() {
       <AddSavingsModal
         isOpen={showSavingsModal}
         onClose={() => setShowSavingsModal(false)}
-        savingsCategory={savingsCategory}
-        setSavingsCategory={setSavingsCategory}
-        savingsBankCode={savingsBankCode}
-        setSavingsBankCode={setSavingsBankCode}
-        savingsIcon={savingsIcon}
-        setSavingsIcon={setSavingsIcon}
-        pocketOptions={POCKET_OPTIONS}
         onSubmit={handleSubmitSavings}
         saving={saving}
       />

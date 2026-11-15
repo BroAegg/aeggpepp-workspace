@@ -2,19 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { X, TrendingUp, TrendingDown, Tag, Loader2 } from 'lucide-react'
+import { X, TrendingUp, TrendingDown, ArrowLeftRight, Tag, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { BankLogo } from '@/lib/bank-registry'
 import { cn } from '@/lib/utils'
 import { TRANSACTION_CATEGORIES } from '@/lib/constants'
-import type { Transaction } from '@/types'
+import type { Transaction, SavingsAccount, TransactionType } from '@/types'
 
 interface AddTransactionModalProps {
   isOpen: boolean
   onClose: () => void
   editingTransaction: Transaction | null
-  selectedType: 'income' | 'expense'
-  setSelectedType: (type: 'income' | 'expense') => void
+  selectedType: TransactionType
+  setSelectedType: (type: TransactionType) => void
+  accounts?: SavingsAccount[]
   onSubmit: (formData: FormData) => Promise<void>
   saving: boolean
   formRef?: React.Ref<HTMLFormElement>
@@ -26,17 +28,30 @@ export function AddTransactionModal({
   editingTransaction,
   selectedType,
   setSelectedType,
+  accounts = [],
   onSubmit,
   saving,
   formRef,
 }: AddTransactionModalProps) {
   const [idempotencyKey, setIdempotencyKey] = useState('')
+  const [fromAccountId, setFromAccountId] = useState('')
+  const [toAccountId, setToAccountId] = useState('')
+  const [accountId, setAccountId] = useState('')
 
   useEffect(() => {
     if (isOpen) {
       setIdempotencyKey(crypto.randomUUID())
+      if (editingTransaction) {
+        setFromAccountId(editingTransaction.from_account_id || '')
+        setToAccountId(editingTransaction.to_account_id || '')
+        setAccountId(editingTransaction.account_id || '')
+      } else {
+        setFromAccountId(accounts[0]?.id || '')
+        setToAccountId(accounts[1]?.id || '')
+        setAccountId(accounts[0]?.id || '')
+      }
     }
-  }, [isOpen])
+  }, [isOpen, editingTransaction, accounts])
 
   if (!isOpen) return null
 
@@ -45,7 +60,7 @@ export function AddTransactionModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
       onClick={onClose}
     >
       <motion.div
@@ -69,38 +84,53 @@ export function AddTransactionModal({
 
         <form ref={formRef} action={onSubmit} className="space-y-4" encType="multipart/form-data">
           <input type="hidden" name="idempotency_key" value={idempotencyKey} />
+
+          {/* 3-Way Transaction Type Toggle (Anti-Slop Clean Style) */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Jenis Transaksi
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedType('income')}
-                className={cn(
-                  'px-4 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all flex items-center justify-center gap-2',
-                  selectedType === 'income'
-                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
-                    : 'border-border hover:border-emerald-500/50 text-muted-foreground'
-                )}
-              >
-                <TrendingUp className="w-4 h-4" /> Income
-              </button>
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedType('expense')}
                 className={cn(
-                  'px-4 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all flex items-center justify-center gap-2',
+                  'px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all flex items-center justify-center gap-1.5',
                   selectedType === 'expense'
                     ? 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400 font-bold'
-                    : 'border-border hover:border-red-500/50 text-muted-foreground'
+                    : 'border-border/80 hover:border-red-500/40 text-muted-foreground'
                 )}
               >
-                <TrendingDown className="w-4 h-4" /> Expense
+                <TrendingDown className="w-3.5 h-3.5" /> Pengeluaran
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedType('income')}
+                className={cn(
+                  'px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all flex items-center justify-center gap-1.5',
+                  selectedType === 'income'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
+                    : 'border-border/80 hover:border-emerald-500/40 text-muted-foreground'
+                )}
+              >
+                <TrendingUp className="w-3.5 h-3.5" /> Pemasukan
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedType('transfer')}
+                className={cn(
+                  'px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all flex items-center justify-center gap-1.5',
+                  selectedType === 'transfer'
+                    ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold'
+                    : 'border-border/80 hover:border-blue-500/40 text-muted-foreground'
+                )}
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5" /> Transfer
               </button>
             </div>
           </div>
 
+          {/* Nominal Input */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
               Nominal
@@ -118,6 +148,80 @@ export function AddTransactionModal({
             </div>
           </div>
 
+          {/* TRANSFER FIELDS: Dari Akun -> Ke Akun */}
+          {selectedType === 'transfer' ? (
+            <div className="space-y-3 bg-secondary/30 p-3.5 rounded-xl border border-border/80">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  Dari Rekening / Kantong Asal
+                </label>
+                <select
+                  name="from_account_id"
+                  value={fromAccountId}
+                  onChange={(e) => setFromAccountId(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="" disabled>Pilih Rekening Asal</option>
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} (Saldo: Rp {Number(acc.balance).toLocaleString('id-ID')})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-center -my-1">
+                <div className="p-1 rounded-full bg-secondary text-muted-foreground border border-border">
+                  <ArrowLeftRight className="w-3.5 h-3.5 rotate-90 sm:rotate-0" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  Ke Rekening / Kantong Tujuan
+                </label>
+                <select
+                  name="to_account_id"
+                  value={toAccountId}
+                  onChange={(e) => setToAccountId(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="" disabled>Pilih Rekening Tujuan</option>
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id} disabled={acc.id === fromAccountId}>
+                      {acc.name} {acc.id === fromAccountId ? '(Rekening Asal)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : (
+            /* NON-TRANSFER: Optional account linkage */
+            accounts.length > 0 && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Lokasi Uang / Rekening Terkait <span className="text-[10px] lowercase text-muted-foreground">(opsional)</span>
+                </label>
+                <select
+                  name="account_id"
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  <option value="">-- Tanpa tautan rekening (hanya buku kas) --</option>
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} (Saldo: Rp {Number(acc.balance).toLocaleString('id-ID')})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )
+          )}
+
+          {/* Keterangan */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
               Keterangan
@@ -126,29 +230,51 @@ export function AddTransactionModal({
               type="text"
               name="description"
               required
-              placeholder="e.g. Beli makan siang, Kopi susu"
+              placeholder={
+                selectedType === 'transfer'
+                  ? 'e.g. Pindah dana operasional ke tabungan nikah'
+                  : selectedType === 'income'
+                  ? 'e.g. Gaji bulanan, Bonus proyek'
+                  : 'e.g. Belanja mingguan, Makan siang'
+              }
               defaultValue={editingTransaction?.description ?? ''}
-              className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
 
+          {/* Kategori & Tanggal (hanya jika bukan transfer) */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Kategori
-              </label>
-              <select
-                name="category"
-                defaultValue={editingTransaction?.category || (selectedType === 'income' ? 'salary' : 'food')}
-                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-              >
-                {TRANSACTION_CATEGORIES[selectedType].map((cat) => (
-                  <option key={cat.value} value={cat.value}>
-                    {cat.icon} {cat.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {selectedType !== 'transfer' ? (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Kategori
+                </label>
+                <select
+                  name="category"
+                  defaultValue={editingTransaction?.category || (selectedType === 'income' ? 'salary' : 'food')}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                >
+                  {TRANSACTION_CATEGORIES[selectedType].map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.icon} {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Kategori
+                </label>
+                <input
+                  type="text"
+                  name="category"
+                  value="Transfer"
+                  readOnly
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-secondary/50 text-muted-foreground text-xs"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                 Tanggal
@@ -186,34 +312,44 @@ export function AddTransactionModal({
               <input
                 type="text"
                 name="sub_title"
-                placeholder="e.g. Belanja, Trip"
+                placeholder="e.g. Belanja, Trip, Nikahan"
                 defaultValue={editingTransaction?.sub_title ?? ''}
                 className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Foto Struk (Opsional)
-            </label>
-            <input
-              type="file"
-              name="receipt_file"
-              accept="image/*"
-              className="w-full text-xs text-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-secondary file:text-foreground hover:file:bg-secondary/80"
-            />
-            {editingTransaction?.receipt_url && (
-              <p className="mt-1 text-[11px] text-emerald-500">✓ Struk sudah ada (upload baru untuk mengganti)</p>
-            )}
-          </div>
+          {selectedType !== 'transfer' && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Foto Struk (Opsional)
+              </label>
+              <input
+                type="file"
+                name="receipt_file"
+                accept="image/*"
+                className="w-full text-xs text-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-secondary file:text-foreground hover:file:bg-secondary/80"
+              />
+              {editingTransaction?.receipt_url && (
+                <p className="mt-1 text-[11px] text-emerald-500">✓ Struk sudah ada (upload baru untuk mengganti)</p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-2.5 pt-3 border-t border-border/60">
             <Button type="button" variant="outline" className="flex-1 text-xs" onClick={onClose}>
               Batal
             </Button>
             <Button type="submit" className="flex-1 text-xs" disabled={saving}>
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : editingTransaction ? 'Simpan' : 'Tambah'}
+              {saving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : editingTransaction ? (
+                'Simpan'
+              ) : selectedType === 'transfer' ? (
+                'Eksekusi Transfer'
+              ) : (
+                'Tambah Transaksi'
+              )}
             </Button>
           </div>
         </form>

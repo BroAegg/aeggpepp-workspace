@@ -3,28 +3,34 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Building2,
+  Wallet,
+  Lock,
+  ArrowLeftRight,
   Plus,
-  PiggyBank,
   Trash2,
   ArrowDownRight,
   ArrowUpRight,
+  ShieldCheck,
+  Building2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { OwnerBadge } from '@/components/ui/owner-badge'
+import { BankLogo, getBankPreset } from '@/lib/bank-registry'
 import { cn } from '@/lib/utils'
 import type { SavingsAccount } from '@/types'
-import type { PocketCategory, PocketOption } from './modals/add-savings-modal'
 
 interface SavingsTabProps {
   savings: SavingsAccount[]
   formatCurrency: (amount: number) => string
-  onOpenAddSavings: (category?: PocketCategory) => void
+  onOpenAddSavings: () => void
   onOpenSavingsTx: (account: SavingsAccount, type: 'deposit' | 'withdraw') => void
   onDeleteSavings: (id: string) => void
-  pocketOptions: PocketOption[]
-  getAccountCategory: (account: SavingsAccount) => PocketCategory
+  onOpenTransfer?: (fromAccountId?: string) => void
+  pocketOptions?: any
+  getAccountCategory?: any
 }
+
+type TabFilter = 'all' | 'operational' | 'locked' | 'bank' | 'ewallet' | 'cash'
 
 export function SavingsTab({
   savings,
@@ -32,396 +38,295 @@ export function SavingsTab({
   onOpenAddSavings,
   onOpenSavingsTx,
   onDeleteSavings,
-  pocketOptions,
-  getAccountCategory,
+  onOpenTransfer,
 }: SavingsTabProps) {
-  const [pocketFilter, setPocketFilter] = useState<'all' | PocketCategory>('all')
+  const [filter, setFilter] = useState<TabFilter>('all')
 
-  const totalSavings = useMemo(() => {
-    return savings.reduce((s, a) => s + a.balance, 0)
-  }, [savings])
-
-  const assetBreakdown = useMemo(() => {
-    const breakdown: Record<PocketCategory, { count: number; amount: number; pct: number }> = {
-      bank: { count: 0, amount: 0, pct: 0 },
-      ewallet: { count: 0, amount: 0, pct: 0 },
-      cash: { count: 0, amount: 0, pct: 0 },
-      friend_loan: { count: 0, amount: 0, pct: 0 },
-      investment: { count: 0, amount: 0, pct: 0 },
-    }
+  // Total liquidity metrics
+  const { totalBalance, operationalBalance, lockedBalance, operationalPct, lockedPct } = useMemo(() => {
+    let total = 0
+    let op = 0
+    let lock = 0
 
     savings.forEach((acc) => {
-      const cat = getAccountCategory(acc)
-      if (breakdown[cat]) {
-        breakdown[cat].count += 1
-        breakdown[cat].amount += acc.balance
+      const bal = Number(acc.balance) || 0
+      total += bal
+      if (acc.is_locked) {
+        lock += bal
+      } else {
+        op += bal
       }
     })
 
-    const total = totalSavings > 0 ? totalSavings : 1
-    ;(Object.keys(breakdown) as PocketCategory[]).forEach((k) => {
-      breakdown[k].pct = Math.max(0, (breakdown[k].amount / total) * 100)
+    const opPct = total > 0 ? (op / total) * 100 : 0
+    const lockPct = total > 0 ? (lock / total) * 100 : 0
+
+    return {
+      totalBalance: total,
+      operationalBalance: op,
+      lockedBalance: lock,
+      operationalPct: opPct,
+      lockedPct: lockPct,
+    }
+  }, [savings])
+
+  const filteredAccounts = useMemo(() => {
+    return savings.filter((acc) => {
+      if (filter === 'operational') return !acc.is_locked
+      if (filter === 'locked') return !!acc.is_locked
+      if (filter === 'bank') {
+        const preset = getBankPreset(acc.bank_code)
+        return preset.category === 'digital_bank' || preset.category === 'conventional_bank' || acc.type === 'bank'
+      }
+      if (filter === 'ewallet') {
+        const preset = getBankPreset(acc.bank_code)
+        return preset.category === 'ewallet' || acc.type === 'ewallet'
+      }
+      if (filter === 'cash') {
+        const preset = getBankPreset(acc.bank_code)
+        return preset.category === 'cash' || acc.type === 'cash'
+      }
+      return true
     })
-
-    return breakdown
-  }, [savings, totalSavings, getAccountCategory])
-
-  const filteredSavings = useMemo(() => {
-    if (pocketFilter === 'all') return savings
-    return savings.filter((a) => getAccountCategory(a) === pocketFilter)
-  }, [savings, pocketFilter, getAccountCategory])
+  }, [savings, filter])
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header & Main Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <span className="p-1.5 rounded-xl bg-primary/10 text-primary">🗺️</span>
+            <span className="p-1.5 rounded-xl bg-primary/10 text-primary">
+              <Building2 className="w-4 h-4" />
+            </span>
             Lokasi Uang & Likuiditas
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Pantau di mana saja uang tersimpan — Bank, E-Wallet, Tunai, hingga Piutang Teman.
+            Pemisahan tegas antara Dana Operasional Bebas dan Tabungan Nikah Terkunci.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => onOpenAddSavings('friend_loan')}
-            variant="outline"
-            size="sm"
-            className="border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 text-xs rounded-xl"
-          >
-            <span className="mr-1.5">🤝</span> + Catat Piutang
-          </Button>
-          <Button onClick={() => onOpenAddSavings()} size="sm" className="rounded-xl">
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> Tambah Lokasi
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {onOpenTransfer && (
+            <Button
+              onClick={() => onOpenTransfer()}
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs flex-1 sm:flex-none border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5 mr-1.5" /> Transfer Antar Rekening
+            </Button>
+          )}
+          <Button onClick={onOpenAddSavings} size="sm" className="rounded-xl text-xs flex-1 sm:flex-none">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Tambah Kantong
           </Button>
         </div>
       </div>
 
-      {/* Net Worth Banner & 4 Pillars Breakdown */}
-      <div className="bg-card border border-border rounded-2xl p-5 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-border/60">
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Total Likuiditas Seluruh Lokasi
-            </p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight mt-1">
-              {formatCurrency(totalSavings)}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-secondary/50 px-3 py-1.5 rounded-full">
-            <Building2 className="w-3.5 h-3.5 text-primary" />
-            <span>{savings.length} Lokasi Terdata</span>
-          </div>
+      {/* 3 Pillars Summary (Anti-Slop: Clean, High Data Density, Professional) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {/* Total Liquidity */}
+        <div className="bg-card border border-border/80 rounded-2xl p-4 shadow-2xs space-y-1">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Total Seluruh Likuiditas
+          </p>
+          <p className="text-2xl font-black text-foreground tabular-nums tracking-tight">
+            {formatCurrency(totalBalance)}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Tersebar di {savings.length} rekening & kantong aktif
+          </p>
         </div>
 
-        {/* Visual Stacked Progress Bar */}
-        {totalSavings > 0 && (
-          <div className="space-y-2">
-            <div className="h-2.5 w-full bg-secondary/80 rounded-full overflow-hidden flex">
-              {assetBreakdown.bank.pct > 0 && (
-                <div style={{ width: `${assetBreakdown.bank.pct}%` }} className="bg-blue-600 transition-all" />
-              )}
-              {assetBreakdown.ewallet.pct > 0 && (
-                <div style={{ width: `${assetBreakdown.ewallet.pct}%` }} className="bg-sky-500 transition-all" />
-              )}
-              {assetBreakdown.cash.pct > 0 && (
-                <div style={{ width: `${assetBreakdown.cash.pct}%` }} className="bg-emerald-500 transition-all" />
-              )}
-              {assetBreakdown.friend_loan.pct > 0 && (
-                <div style={{ width: `${assetBreakdown.friend_loan.pct}%` }} className="bg-amber-500 transition-all" />
-              )}
-              {assetBreakdown.investment.pct > 0 && (
-                <div style={{ width: `${assetBreakdown.investment.pct}%` }} className="bg-purple-500 transition-all" />
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-blue-600" /> Bank ({assetBreakdown.bank.pct.toFixed(0)}%)
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-sky-500" /> E-Wallet ({assetBreakdown.ewallet.pct.toFixed(0)}%)
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Tunai ({assetBreakdown.cash.pct.toFixed(0)}%)
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-500" /> Piutang ({assetBreakdown.friend_loan.pct.toFixed(0)}%)
-              </span>
-              {assetBreakdown.investment.amount > 0 && (
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-purple-500" /> Investasi ({assetBreakdown.investment.pct.toFixed(0)}%)
-                </span>
-              )}
-            </div>
+        {/* Operational Funds */}
+        <div className="bg-emerald-500/[0.04] border border-emerald-500/30 rounded-2xl p-4 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Wallet className="w-3.5 h-3.5" /> Dana Bebas Operasional
+            </p>
+            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded">
+              {operationalPct.toFixed(0)}%
+            </span>
           </div>
-        )}
+          <p className="text-2xl font-black text-emerald-800 dark:text-emerald-300 tabular-nums tracking-tight">
+            {formatCurrency(operationalBalance)}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Bisa dibelanjakan untuk makan, belanja, dan tagihan
+          </p>
+        </div>
 
-        {/* 4 Pillars Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-          <div
-            onClick={() => setPocketFilter(pocketFilter === 'bank' ? 'all' : 'bank')}
-            className={cn(
-              'p-3.5 rounded-xl border transition-all cursor-pointer',
-              pocketFilter === 'bank'
-                ? 'border-blue-500 bg-blue-500/10 shadow-xs'
-                : 'border-border/70 bg-secondary/40 hover:bg-secondary/70'
-            )}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-base">🏦</span>
-              <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                {assetBreakdown.bank.pct.toFixed(0)}%
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground font-medium">Bank</p>
-            <p className="text-sm sm:text-base font-bold text-foreground tabular-nums">
-              {formatCurrency(assetBreakdown.bank.amount)}
+        {/* Locked Wedding & Emergency Funds */}
+        <div className="bg-amber-500/[0.04] border border-amber-500/30 rounded-2xl p-4 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" /> Dana Terkunci (Nikah & Impian)
             </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{assetBreakdown.bank.count} rekening</p>
+            <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-1.5 py-0.5 rounded">
+              {lockedPct.toFixed(0)}%
+            </span>
           </div>
-
-          <div
-            onClick={() => setPocketFilter(pocketFilter === 'ewallet' ? 'all' : 'ewallet')}
-            className={cn(
-              'p-3.5 rounded-xl border transition-all cursor-pointer',
-              pocketFilter === 'ewallet'
-                ? 'border-sky-500 bg-sky-500/10 shadow-xs'
-                : 'border-border/70 bg-secondary/40 hover:bg-secondary/70'
-            )}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-base">📱</span>
-              <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded">
-                {assetBreakdown.ewallet.pct.toFixed(0)}%
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground font-medium">E-Wallet</p>
-            <p className="text-sm sm:text-base font-bold text-foreground tabular-nums">
-              {formatCurrency(assetBreakdown.ewallet.amount)}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{assetBreakdown.ewallet.count} akun</p>
-          </div>
-
-          <div
-            onClick={() => setPocketFilter(pocketFilter === 'cash' ? 'all' : 'cash')}
-            className={cn(
-              'p-3.5 rounded-xl border transition-all cursor-pointer',
-              pocketFilter === 'cash'
-                ? 'border-emerald-500 bg-emerald-500/10 shadow-xs'
-                : 'border-border/70 bg-secondary/40 hover:bg-secondary/70'
-            )}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-base">💵</span>
-              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                {assetBreakdown.cash.pct.toFixed(0)}%
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground font-medium">Uang Tunai</p>
-            <p className="text-sm sm:text-base font-bold text-foreground tabular-nums">
-              {formatCurrency(assetBreakdown.cash.amount)}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{assetBreakdown.cash.count} tempat</p>
-          </div>
-
-          <div
-            onClick={() => setPocketFilter(pocketFilter === 'friend_loan' ? 'all' : 'friend_loan')}
-            className={cn(
-              'p-3.5 rounded-xl border transition-all cursor-pointer',
-              pocketFilter === 'friend_loan'
-                ? 'border-amber-500 bg-amber-500/10 shadow-xs'
-                : 'border-border/70 bg-secondary/40 hover:bg-secondary/70'
-            )}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-base">🤝</span>
-              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                {assetBreakdown.friend_loan.pct.toFixed(0)}%
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground font-medium">Piutang Teman</p>
-            <p className="text-sm sm:text-base font-bold text-foreground tabular-nums">
-              {formatCurrency(assetBreakdown.friend_loan.amount)}
-            </p>
-            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">
-              {assetBreakdown.friend_loan.count} orang pinjam
-            </p>
-          </div>
+          <p className="text-2xl font-black text-amber-800 dark:text-amber-300 tabular-nums tracking-tight">
+            {formatCurrency(lockedBalance)}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Terproteksi aman untuk hari H & masa depan berdua
+          </p>
         </div>
       </div>
 
-      {/* Filter Chips */}
+      {/* Progress Bar of Allocation */}
+      {totalBalance > 0 && (
+        <div className="space-y-1.5 bg-card border border-border/70 p-3 rounded-xl">
+          <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+            <span>Rasio Alokasi Dana</span>
+            <span className="tabular-nums">
+              Bebas {operationalPct.toFixed(0)}% • Terkunci {lockedPct.toFixed(0)}%
+            </span>
+          </div>
+          <div className="h-2 w-full bg-secondary rounded-full overflow-hidden flex">
+            <div style={{ width: `${operationalPct}%` }} className="bg-emerald-500 transition-all" />
+            <div style={{ width: `${lockedPct}%` }} className="bg-amber-500 transition-all" />
+          </div>
+        </div>
+      )}
+
+      {/* Filter Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
         {[
           { id: 'all' as const, label: `Semua (${savings.length})` },
-          { id: 'bank' as const, label: `🏦 Bank (${assetBreakdown.bank.count})` },
-          { id: 'ewallet' as const, label: `📱 E-Wallet (${assetBreakdown.ewallet.count})` },
-          { id: 'cash' as const, label: `💵 Tunai (${assetBreakdown.cash.count})` },
-          { id: 'friend_loan' as const, label: `🤝 Di Teman (${assetBreakdown.friend_loan.count})` },
-          ...(assetBreakdown.investment.amount > 0
-            ? [{ id: 'investment' as const, label: `📈 Investasi (${assetBreakdown.investment.count})` }]
-            : []),
-        ].map((chip) => (
+          { id: 'operational' as const, label: '🟢 Dana Bebas' },
+          { id: 'locked' as const, label: '🔒 Dana Terkunci' },
+          { id: 'bank' as const, label: '🏦 Bank' },
+          { id: 'ewallet' as const, label: '📱 E-Wallet' },
+          { id: 'cash' as const, label: '💵 Kas / Tunai' },
+        ].map((tab) => (
           <button
-            key={chip.id}
-            onClick={() => setPocketFilter(chip.id)}
+            key={tab.id}
+            onClick={() => setFilter(tab.id)}
             className={cn(
               'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all shrink-0',
-              pocketFilter === chip.id
-                ? 'bg-primary text-primary-foreground shadow-xs'
+              filter === tab.id
+                ? 'bg-primary text-primary-foreground shadow-2xs'
                 : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
             )}
           >
-            {chip.label}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Pocket Cards Grid */}
-      {filteredSavings.length === 0 ? (
-        <div className="text-center py-14 bg-card border border-border rounded-2xl">
-          <PiggyBank className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2" />
-          <p className="text-xs text-muted-foreground mb-3">
-            {pocketFilter === 'all'
-              ? 'Belum ada akun atau lokasi uang terdaftar'
-              : `Belum ada lokasi uang di kategori "${pocketFilter}"`}
+      {/* Account Cards Grid */}
+      {filteredAccounts.length === 0 ? (
+        <div className="text-center py-14 bg-card border border-border rounded-2xl space-y-3">
+          <Building2 className="w-10 h-10 mx-auto text-muted-foreground/40" />
+          <p className="text-xs text-muted-foreground">
+            Belum ada kantong atau rekening di kategori ini.
           </p>
-          <Button
-            onClick={() => onOpenAddSavings(pocketFilter === 'all' ? 'bank' : pocketFilter)}
-            size="sm"
-            className="rounded-xl"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> Tambah Lokasi Uang
+          <Button onClick={onOpenAddSavings} size="sm" className="rounded-xl text-xs">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Tambah Kantong Baru
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSavings.map((account) => {
-            const category = getAccountCategory(account)
-            const isFriendLoan = category === 'friend_loan'
-            const pocketInfo = pocketOptions.find((b) => b.code === account.bank_code)
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {filteredAccounts.map((account) => {
+            const preset = getBankPreset(account.bank_code)
+            const isLocked = !!account.is_locked
 
             return (
               <motion.div
                 key={account.id}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={cn(
-                  'rounded-2xl p-5 group border transition-all flex flex-col justify-between shadow-xs',
-                  isFriendLoan
-                    ? 'bg-amber-500/[0.04] border-amber-500/40 hover:border-amber-500/60'
-                    : 'bg-card border-border hover:border-primary/40'
+                  'rounded-2xl p-4.5 border transition-all flex flex-col justify-between shadow-2xs group bg-card',
+                  isLocked
+                    ? 'border-amber-500/30 hover:border-amber-500/50'
+                    : 'border-border/80 hover:border-primary/40'
                 )}
               >
                 <div>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          'w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0',
-                          isFriendLoan ? 'bg-amber-500/15' : 'bg-primary/10'
-                        )}
-                      >
-                        {account.icon || pocketInfo?.icon || (isFriendLoan ? '🤝' : '💰')}
-                      </div>
+                      <BankLogo bankCode={account.bank_code} className="w-10 h-10 shrink-0" />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="font-bold text-foreground text-sm truncate">{account.name}</h4>
-                          {isFriendLoan ? (
-                            <span className="text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded-full">
-                              Piutang Teman
-                            </span>
-                          ) : pocketInfo ? (
-                            <span className="text-[10px] font-medium bg-secondary text-muted-foreground px-1.5 py-0.5 rounded">
-                              {pocketInfo.label}
-                            </span>
-                          ) : null}
+                        <h4 className="font-bold text-foreground text-sm truncate">{account.name}</h4>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <span className="text-[10px] font-medium text-muted-foreground">
+                            {preset.name}
+                          </span>
+                          <span
+                            className={cn(
+                              'text-[10px] font-semibold px-1.5 py-0.2 rounded-full',
+                              isLocked
+                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                                : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                            )}
+                          >
+                            {isLocked ? '🔒 Terkunci (Nikah)' : '🟢 Dana Bebas'}
+                          </span>
                         </div>
-                        <p className="text-xs text-muted-foreground capitalize mt-0.5">
-                          {category === 'bank'
-                            ? 'Rekening Bank'
-                            : category === 'ewallet'
-                            ? 'Dompet Digital'
-                            : category === 'friend_loan'
-                            ? 'Uang Belum Kembali'
-                            : category === 'cash'
-                            ? 'Uang Tunai'
-                            : 'Investasi'}
-                        </p>
                       </div>
                     </div>
+
                     <button
                       onClick={() => onDeleteSavings(account.id)}
-                      className="p-1 md:opacity-0 md:group-hover:opacity-100 hover:bg-red-500/10 rounded-lg transition-all text-muted-foreground hover:text-red-500"
-                      title="Hapus lokasi"
+                      className="p-1 text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                      title="Hapus kantong"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  {/* Amount display */}
+                  {/* Balance Display */}
                   <div className="my-3">
                     <span className="text-[11px] text-muted-foreground font-medium block">
-                      {isFriendLoan ? 'Sisa Piutang / Uang Belum Kembali' : 'Saldo Saat Ini'}
+                      Saldo Saat Ini
                     </span>
                     <p
                       className={cn(
-                        'text-2xl font-black tabular-nums tracking-tight',
-                        isFriendLoan ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'
+                        'text-2xl font-black tabular-nums tracking-tight mt-0.5',
+                        isLocked ? 'text-amber-700 dark:text-amber-400' : 'text-foreground'
                       )}
                     >
-                      {formatCurrency(account.balance)}
+                      {formatCurrency(Number(account.balance) || 0)}
                     </p>
                   </div>
 
                   {account.profiles && (
-                    <div className="mb-4">
+                    <div className="mb-3">
                       <OwnerBadge role={account.profiles.role} />
                     </div>
                   )}
                 </div>
 
-                {/* Actions */}
-                <div className="pt-2 border-t border-border/50">
-                  {isFriendLoan ? (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl"
-                        onClick={() => onOpenSavingsTx(account, 'withdraw')}
-                      >
-                        <ArrowDownRight className="w-3.5 h-3.5 mr-1" /> Terima Pelunasan
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 text-xs border-amber-500/30 rounded-xl"
-                        onClick={() => onOpenSavingsTx(account, 'deposit')}
-                      >
-                        <Plus className="w-3 h-3 mr-1" /> Tambah Pinjaman
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="flex-1 text-xs rounded-xl"
-                        onClick={() => onOpenSavingsTx(account, 'deposit')}
-                      >
-                        <ArrowDownRight className="w-3.5 h-3.5 mr-1" /> Deposit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 text-xs rounded-xl"
-                        onClick={() => onOpenSavingsTx(account, 'withdraw')}
-                      >
-                        <ArrowUpRight className="w-3.5 h-3.5 mr-1" /> Withdraw
-                      </Button>
-                    </div>
+                {/* Actions: Transfer & Deposit / Withdraw */}
+                <div className="pt-2.5 border-t border-border/50 flex gap-2">
+                  {onOpenTransfer && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs rounded-xl border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                      onClick={() => onOpenTransfer(account.id)}
+                    >
+                      <ArrowLeftRight className="w-3 h-3 mr-1" /> Transfer
+                    </Button>
                   )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 text-xs rounded-xl"
+                    onClick={() => onOpenSavingsTx(account, 'deposit')}
+                  >
+                    <ArrowDownRight className="w-3 h-3 mr-1" /> Deposit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 text-xs rounded-xl"
+                    onClick={() => onOpenSavingsTx(account, 'withdraw')}
+                  >
+                    <ArrowUpRight className="w-3 h-3 mr-1" /> Withdraw
+                  </Button>
                 </div>
               </motion.div>
             )

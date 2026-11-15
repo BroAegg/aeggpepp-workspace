@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, ShieldCheck, Lock, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CurrencyInput } from '@/components/ui/currency-input'
+import { BANK_PRESETS, BankLogo, type BankCategory, type BankPreset } from '@/lib/bank-registry'
 import { cn } from '@/lib/utils'
 
 export type PocketCategory = 'bank' | 'ewallet' | 'cash' | 'friend_loan' | 'investment'
@@ -20,49 +22,56 @@ export interface PocketOption {
 interface AddSavingsModalProps {
   isOpen: boolean
   onClose: () => void
-  savingsCategory: PocketCategory
-  setSavingsCategory: (cat: PocketCategory) => void
-  savingsBankCode: string
-  setSavingsBankCode: (code: string) => void
-  savingsIcon: string
-  setSavingsIcon: (icon: string) => void
-  pocketOptions: PocketOption[]
   onSubmit: (formData: FormData) => Promise<void>
   saving: boolean
+  defaultCategory?: BankCategory
 }
 
 export function AddSavingsModal({
   isOpen,
   onClose,
-  savingsCategory,
-  setSavingsCategory,
-  savingsBankCode,
-  setSavingsBankCode,
-  savingsIcon,
-  setSavingsIcon,
-  pocketOptions,
   onSubmit,
   saving,
+  defaultCategory = 'digital_bank',
 }: AddSavingsModalProps) {
+  const [selectedCategory, setSelectedCategory] = useState<BankCategory>(defaultCategory)
+  const [selectedBank, setSelectedBank] = useState<BankPreset>(() => {
+    return BANK_PRESETS.find((b) => b.category === defaultCategory) || BANK_PRESETS[0]
+  })
+  const [accountName, setAccountName] = useState(selectedBank.name)
+  const [isLocked, setIsLocked] = useState(false)
+
   if (!isOpen) return null
+
+  const handleSelectBank = (preset: BankPreset) => {
+    setSelectedBank(preset)
+    setAccountName(preset.name)
+  }
+
+  const categoryPresets = BANK_PRESETS.filter((p) => p.category === selectedCategory)
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-border/80 max-h-[90vh] overflow-y-auto"
+        className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-border/80 max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-foreground">Tambah Lokasi Uang / Akun</h2>
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Tambah Kantong / Lokasi Uang</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Pilih rekening bank, dompet digital, atau kantong kas untuk manajemen likuiditas.
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground"
@@ -72,97 +81,154 @@ export function AddSavingsModal({
         </div>
 
         <form action={onSubmit} className="space-y-4">
+          <input type="hidden" name="bank_code" value={selectedBank.code} />
+          <input type="hidden" name="icon" value={selectedBank.shortName} />
+          <input
+            type="hidden"
+            name="type"
+            value={
+              selectedCategory === 'ewallet'
+                ? 'ewallet'
+                : selectedCategory === 'cash'
+                ? 'cash'
+                : selectedBank.code === 'friend_loan'
+                ? 'friend_loan'
+                : 'bank'
+            }
+          />
+          <input type="hidden" name="is_locked" value={isLocked ? 'true' : 'false'} />
+
+          {/* 1. Kategori Platform */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-              Kategori Lokasi Uang
+              Kategori Layanan
             </label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-4 gap-1.5">
               {[
-                { id: 'bank' as const, label: 'Bank', icon: '🏦' },
-                { id: 'ewallet' as const, label: 'E-Wallet', icon: '📱' },
-                { id: 'cash' as const, label: 'Tunai', icon: '💵' },
-                { id: 'friend_loan' as const, label: 'Di Teman', icon: '🤝' },
-                { id: 'investment' as const, label: 'Investasi', icon: '📈' },
+                { id: 'digital_bank' as const, label: 'Digital' },
+                { id: 'conventional_bank' as const, label: 'Bank' },
+                { id: 'ewallet' as const, label: 'E-Wallet' },
+                { id: 'cash' as const, label: 'Kas / Lain' },
               ].map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
                   onClick={() => {
-                    setSavingsCategory(cat.id)
-                    const firstOpt = pocketOptions.find((p) => p.category === cat.id)
-                    if (firstOpt) {
-                      setSavingsBankCode(firstOpt.code)
-                      setSavingsIcon(firstOpt.icon)
-                    }
+                    setSelectedCategory(cat.id)
+                    const firstMatch = BANK_PRESETS.find((p) => p.category === cat.id)
+                    if (firstMatch) handleSelectBank(firstMatch)
                   }}
                   className={cn(
-                    'flex flex-col items-center justify-center p-2 rounded-xl border text-xs font-medium transition-all gap-1',
-                    savingsCategory === cat.id
-                      ? 'border-primary bg-primary/10 text-primary font-bold shadow-xs'
-                      : 'border-border/70 hover:bg-secondary/50 text-muted-foreground'
+                    'py-2 px-2 rounded-xl border text-xs font-semibold transition-all text-center',
+                    selectedCategory === cat.id
+                      ? 'border-primary bg-primary/10 text-primary font-bold shadow-2xs'
+                      : 'border-border/70 hover:bg-secondary/60 text-muted-foreground'
                   )}
                 >
-                  <span className="text-base">{cat.icon}</span>
-                  <span className="text-[11px] truncate w-full text-center">{cat.label}</span>
+                  {cat.label}
                 </button>
               ))}
             </div>
-            <input type="hidden" name="type" value={savingsCategory} />
           </div>
 
+          {/* 2. Grid Logo Bank / E-Wallet Siap Pilih */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Platform / Layanan
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Pilih Platform (Logo Resmi)
             </label>
-            <select
-              name="bank_code"
-              value={savingsBankCode}
-              onChange={(e) => {
-                setSavingsBankCode(e.target.value)
-                const opt = pocketOptions.find((p) => p.code === e.target.value)
-                if (opt) setSavingsIcon(opt.icon)
-              }}
-              className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            >
-              {pocketOptions
-                .filter((b) => b.category === savingsCategory)
-                .map((b) => (
-                  <option key={b.code} value={b.code}>
-                    {b.icon} {b.label}
-                  </option>
-                ))}
-            </select>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1 border border-border/60 rounded-xl bg-secondary/20">
+              {categoryPresets.map((preset) => {
+                const isSelected = selectedBank.code === preset.code
+                return (
+                  <button
+                    key={preset.code}
+                    type="button"
+                    onClick={() => handleSelectBank(preset)}
+                    className={cn(
+                      'flex items-center gap-2 p-2 rounded-xl border text-left transition-all',
+                      isSelected
+                        ? 'border-primary bg-primary/10 ring-1 ring-primary/40 font-bold'
+                        : 'border-border/60 bg-card hover:bg-secondary/50 text-foreground'
+                    )}
+                  >
+                    <BankLogo bankCode={preset.code} className="w-6 h-6 shrink-0" />
+                    <span className="text-[11px] truncate font-medium">{preset.name}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
+          {/* 3. Label Akun / Nama Kantong */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              {savingsCategory === 'friend_loan' ? 'Nama Peminjam & Keterangan' : 'Nama Akun / Lokasi'}
+              Nama Rekening / Label Kantong
             </label>
             <input
               type="text"
               name="name"
               required
-              placeholder={
-                savingsCategory === 'friend_loan'
-                  ? 'e.g. Dipinjam Budi (Talangan Liburan)'
-                  : savingsCategory === 'bank'
-                  ? 'e.g. SeaBank Tabungan Bersama'
-                  : savingsCategory === 'ewallet'
-                  ? 'e.g. DANA Belanja Harian'
-                  : 'e.g. Kas Dompet Harian'
-              }
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              placeholder="e.g. SeaBank - Operasional Harian"
               className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
-            {savingsCategory === 'friend_loan' && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
-                💡 Uang ini akan dicatat sebagai piutang aktif yang belum kembali ke kantong kalian.
-              </p>
-            )}
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Contoh: <span className="text-foreground/80 font-medium">&quot;{selectedBank.name} - Tabungan Nikah&quot;</span> atau{' '}
+              <span className="text-foreground/80 font-medium">&quot;{selectedBank.name} - Operasional&quot;</span>
+            </p>
           </div>
 
+          {/* 4. Alokasi Status: Bebas vs Terkunci (Anti-Slop Design) */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Alokasi Likuiditas
+            </label>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsLocked(false)}
+                className={cn(
+                  'p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-1',
+                  !isLocked
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 ring-1 ring-emerald-500/40'
+                    : 'border-border/70 hover:bg-secondary/40 text-muted-foreground'
+                )}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Wallet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-bold text-foreground">Dana Bebas</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Operasional harian, belanja, makan, dan tagihan rutin.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsLocked(true)}
+                className={cn(
+                  'p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-1',
+                  isLocked
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-800 dark:text-amber-300 ring-1 ring-amber-500/40'
+                    : 'border-border/70 hover:bg-secondary/40 text-muted-foreground'
+                )}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span className="text-xs font-bold text-foreground">Dana Terkunci</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Tabungan Nikah, DP Vendor, atau Dana Darurat bersama.
+                </p>
+              </button>
+            </div>
+          </div>
+
+          {/* 5. Saldo Awal */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              {savingsCategory === 'friend_loan' ? 'Jumlah Uang yang Dipinjam' : 'Saldo Awal'}
+              Saldo Awal
             </label>
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
@@ -171,24 +237,8 @@ export function AddSavingsModal({
               <CurrencyInput
                 name="balance"
                 placeholder="0"
-                className="w-full pl-11 pr-3 py-2 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full pl-11 pr-3 py-2 rounded-xl border border-border bg-background text-foreground text-sm tabular-nums placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Icon (Emoji)
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                name="icon"
-                value={savingsIcon}
-                onChange={(e) => setSavingsIcon(e.target.value)}
-                className="w-16 text-center text-lg px-2 py-1.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-              />
-              <span className="text-[11px] text-muted-foreground">Otomatis dipilih dari platform, bisa Anda ubah</span>
             </div>
           </div>
 
@@ -197,7 +247,7 @@ export function AddSavingsModal({
               Batal
             </Button>
             <Button type="submit" className="flex-1 text-xs" disabled={saving}>
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Simpan Lokasi Uang'}
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Simpan Kantong'}
             </Button>
           </div>
         </form>

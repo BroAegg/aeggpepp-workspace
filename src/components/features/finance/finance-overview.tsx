@@ -71,20 +71,26 @@ export function FinanceOverview({
     const totalBudget = budgets.reduce((s, b) => s + b.amount, 0) || 5000000
     const budgetPercent = Math.min(Math.round((expense / totalBudget) * 100), 100)
 
-    // Wedding fund
-    const weddingSavings = savings.find(
-      (s) =>
-        s.name.toLowerCase().includes('nikah') ||
-        s.name.toLowerCase().includes('wedding')
-    )
-    const totalSavingsAmount = savings.reduce((s, a) => s + a.balance, 0)
+    const totalSavingsAmount = savings.reduce((s, a) => s + (Number(a.balance) || 0), 0)
+    const operationalSavings = savings
+      .filter((s) => !s.is_locked)
+      .reduce((s, a) => s + (Number(a.balance) || 0), 0)
+    const lockedSavings = savings
+      .filter(
+        (s) =>
+          !!s.is_locked ||
+          s.name.toLowerCase().includes('nikah') ||
+          s.name.toLowerCase().includes('wedding')
+      )
+      .reduce((s, a) => s + (Number(a.balance) || 0), 0)
 
     return {
       expense,
       income,
       totalBudget,
       budgetPercent,
-      weddingSavings,
+      operationalSavings,
+      lockedSavings,
       totalSavingsAmount,
       recentExpenses: monthlyTx
         .filter((t) => t.type === 'expense')
@@ -183,67 +189,67 @@ export function FinanceOverview({
         </div>
       </motion.div>
 
-      {/* 2. Main Pockets (Clean Cards) */}
+      {/* 2. Main Pockets (Clean Anti-Slop Cards) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Pocket A: Dana Pernikahan */}
+        {/* Pocket A: Dana Bebas Operasional */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-3 relative"
+          className="bg-card border border-emerald-500/30 rounded-xl p-5 shadow-xs space-y-3 relative"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <Heart className="w-3.5 h-3.5 text-primary" />
-              Alokasi Pernikahan
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+              <Wallet className="w-3.5 h-3.5" />
+              Dana Bebas Operasional
             </span>
-            <span className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-md">
-              Target Bersama
+            <span className="text-[10px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md">
+              🟢 Siap Pakai
             </span>
           </div>
           <div>
             <h4 className="text-2xl font-bold text-foreground tracking-tight tabular-nums">
-              {formatRupiah(stats.weddingSavings?.balance || stats.totalSavingsAmount * 0.6 || 0)}
+              {formatRupiah(stats.operationalSavings)}
             </h4>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Akumulasi tabungan pernikahan bersama
+              Saldo belanja, makan, dan kebutuhan harian
             </p>
           </div>
-          <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
-            <div className="bg-primary h-full rounded-full" style={{ width: '45%' }} />
+          <div className="text-xs text-muted-foreground">
+            Bisa dibelanjakan tanpa mengganggu tabungan
           </div>
         </motion.div>
 
-        {/* Pocket B: Kas Bersama & Operasional */}
+        {/* Pocket B: Dana Terkunci (Nikah & Impian) */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-card border border-border rounded-xl p-5 shadow-xs space-y-3"
+          className="bg-card border border-amber-500/30 rounded-xl p-5 shadow-xs space-y-3"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-              Kas Operasional & Kebutuhan
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+              <Heart className="w-3.5 h-3.5 text-amber-500" />
+              Dana Terkunci (Nikah & Impian)
             </span>
-            <span className="text-[10px] font-medium bg-secondary text-muted-foreground px-2 py-0.5 rounded-md">
-              Bulan Ini
+            <span className="text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-md">
+              🔒 Terproteksi
             </span>
           </div>
           <div>
-            <h4 className="text-2xl font-bold text-foreground tracking-tight tabular-nums">
-              {formatRupiah(stats.expense)}
+            <h4 className="text-2xl font-bold text-amber-700 dark:text-amber-400 tracking-tight tabular-nums">
+              {formatRupiah(stats.lockedSavings)}
             </h4>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Total belanja & kebutuhan yang telah tercatat
+              Alokasi hari H, DP vendor, dan dana impian
             </p>
           </div>
           <div className="text-xs text-muted-foreground">
-            Buku kas terverifikasi & sinkron
+            Aman terpisah dari arus kas operasional
           </div>
         </motion.div>
 
-        {/* Pocket C: Total Simpanan */}
+        {/* Pocket C: Total Likuiditas */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -252,8 +258,8 @@ export function FinanceOverview({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <Wallet className="w-3.5 h-3.5 text-muted-foreground" />
-              Total Saldo Simpanan
+              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+              Total Likuiditas Gabungan
             </span>
             <span className="text-[10px] font-medium bg-secondary text-muted-foreground px-2 py-0.5 rounded-md">
               {savings.length} Akun
@@ -264,11 +270,11 @@ export function FinanceOverview({
               {formatRupiah(stats.totalSavingsAmount)}
             </h4>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Total saldo pada seluruh akun tabungan
+              Total seluruh rekening, dompet digital & kas
             </p>
           </div>
           <div className="text-xs text-muted-foreground">
-            Rekening & dompet digital terhubung
+            Seluruh saldo terdata & sinkron realtime
           </div>
         </motion.div>
       </div>
