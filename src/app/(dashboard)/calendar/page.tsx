@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -91,6 +91,7 @@ export default function CalendarPage() {
   )
   const [loading, setLoading] = useState(!eventsLoaded && cachedEvents.length === 0)
   const [saving, setSaving] = useState(false)
+  const isSubmittingRef = useRef(false)
   const [showModal, setShowModal] = useState(false)
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
   const [showSyncModal, setShowSyncModal] = useState(false)
@@ -301,7 +302,8 @@ export default function CalendarPage() {
   }
 
   const handleSave = async () => {
-    if (!formTitle.trim()) return
+    if (!formTitle.trim() || isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setSaving(true)
 
     const startDatetime = formAllDay
@@ -318,6 +320,7 @@ export default function CalendarPage() {
     formData.set('end_date', endDatetime)
     formData.set('all_day', String(formAllDay))
     formData.set('color', formColor)
+    formData.set('idempotency_key', crypto.randomUUID())
 
     try {
       if (editingEvent) {
@@ -332,6 +335,7 @@ export default function CalendarPage() {
       console.error('Error saving event:', error)
     } finally {
       setSaving(false)
+      isSubmittingRef.current = false
     }
   }
 

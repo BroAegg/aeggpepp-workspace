@@ -48,6 +48,7 @@ export default function PortfolioPage() {
   const [editingLink, setEditingLink] = useState<LinkWithUser | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<Category>('all')
   const formRef = useRef<HTMLFormElement>(null)
+  const isSubmittingRef = useRef(false)
 
   useEffect(() => {
     fetchLinks()
@@ -98,23 +99,29 @@ export default function PortfolioPage() {
   }
 
   const handleSubmit = async (formData: FormData) => {
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setSaving(true)
 
-    if (editingLink) {
-      const result = await updatePortfolioLink(editingLink.id, formData)
-      if (result.success) {
-        await fetchLinks()
-        closeModal()
+    try {
+      formData.set('idempotency_key', crypto.randomUUID())
+      if (editingLink) {
+        const result = await updatePortfolioLink(editingLink.id, formData)
+        if (result.success) {
+          await fetchLinks()
+          closeModal()
+        }
+      } else {
+        const result = await createPortfolioLink(formData)
+        if (result.success) {
+          await fetchLinks()
+          closeModal()
+        }
       }
-    } else {
-      const result = await createPortfolioLink(formData)
-      if (result.success) {
-        await fetchLinks()
-        closeModal()
-      }
+    } finally {
+      setSaving(false)
+      isSubmittingRef.current = false
     }
-
-    setSaving(false)
   }
 
   const openEditModal = (link: LinkWithUser) => {

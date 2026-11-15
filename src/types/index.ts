@@ -121,6 +121,7 @@ export interface Transaction {
   split_with: string | null
   paid_by: string | null
   is_settled: boolean
+  is_settlement?: boolean
   receipt_url?: string | null
   source?: 'web' | 'telegram' | null
   idempotency_key?: string | null
@@ -361,6 +362,36 @@ export interface WeddingRundownItem {
   time_end: string | null
   title: string
   pic: string | null
+  notes: string | null
+  position: number
+  created_at: string
+  profiles?: ItemOwner
+}
+
+// Subscription / Recurring Bills Types
+export interface Subscription {
+  id: string
+  user_id: string
+  name: string
+  amount: number
+  billing_cycle: 'monthly' | 'yearly'
+  due_day: number
+  category: string
+  icon: string | null
+  is_active: boolean
+  last_paid_at: string | null
+  created_at: string
+  profiles?: ItemOwner
+}
+
+// Wedding KUA Checklist Types
+export interface WeddingKuaChecklistItem {
+  id: string
+  user_id: string
+  document_name: string
+  description: string | null
+  is_completed_aegg: boolean
+  is_completed_peppaa: boolean
   notes: string | null
   position: number
   created_at: string

@@ -8,10 +8,12 @@ import {
   Trash2,
   Phone,
   CheckCircle2,
+  PiggyBank,
+  Calendar,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { WeddingBudgetItem } from '@/types'
+import type { WeddingBudgetItem, SavingsAccount } from '@/types'
 import {
   TARGET_BUDGET,
   TARGET_PAX,
@@ -23,6 +25,7 @@ import {
 
 interface BudgetTabProps {
   budgetItems: WeddingBudgetItem[]
+  savings?: SavingsAccount[]
   onAddBudgetItem: () => void
   onEditBudgetItem: (item: WeddingBudgetItem) => void
   onDeleteBudgetItem: (id: string) => void
@@ -30,6 +33,7 @@ interface BudgetTabProps {
 
 export function BudgetTab({
   budgetItems,
+  savings = [],
   onAddBudgetItem,
   onEditBudgetItem,
   onDeleteBudgetItem,
@@ -37,6 +41,32 @@ export function BudgetTab({
   const [budgetSearch, setBudgetSearch] = useState('')
   const [budgetCategoryFilter, setBudgetCategoryFilter] = useState<string>('all')
   const [budgetStatusFilter, setBudgetStatusFilter] = useState<string>('all')
+
+  const weddingSavings = useMemo(() => {
+    if (!savings || savings.length === 0) return null
+    const matched = savings.filter(
+      (s) =>
+        s.name.toLowerCase().includes('nikah') ||
+        s.name.toLowerCase().includes('wedding')
+    )
+    if (matched.length === 0) return null
+    const totalBalance = matched.reduce((sum, s) => sum + s.balance, 0)
+    const percentOfTarget = TARGET_BUDGET > 0 ? Math.min(100, Math.round((totalBalance / TARGET_BUDGET) * 100)) : 0
+    const deficit = Math.max(0, TARGET_BUDGET - totalBalance)
+    const estimatedMonthsNeeded = totalBalance > 0 && deficit > 0 ? Math.ceil(deficit / Math.max(2000000, totalBalance / 3)) : 0
+    const estDate = new Date()
+    estDate.setMonth(estDate.getMonth() + estimatedMonthsNeeded)
+    const estMonthYear = estDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+
+    return {
+      totalBalance,
+      percentOfTarget,
+      deficit,
+      estimatedMonthsNeeded,
+      estMonthYear,
+      accounts: matched,
+    }
+  }, [savings])
 
   const { totalEstimated, totalActual, totalPaid, totalUnpaid } = useMemo(() => {
     let est = 0
@@ -149,6 +179,60 @@ export function BudgetTab({
           />
         </div>
       </div>
+
+      {/* Auto-Linked Wedding Savings Progress */}
+      {weddingSavings && (
+        <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                <PiggyBank className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                  Tabungan Nikah Terkumpul (Auto-Linked)
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                    Live Finance Sync
+                  </span>
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Saldo terhubung dari akun: {weddingSavings.accounts.map((a) => a.name).join(', ')}
+                </p>
+              </div>
+            </div>
+            <div className="text-left sm:text-right">
+              <span className="text-lg font-bold text-primary font-mono">
+                {formatCurrency(weddingSavings.totalBalance)}
+              </span>
+              <p className="text-[11px] text-muted-foreground">
+                {weddingSavings.percentOfTarget}% dari target {formatShort(TARGET_BUDGET)}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <div className="w-full bg-secondary/80 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-primary h-full rounded-full transition-all duration-500"
+                style={{ width: `${weddingSavings.percentOfTarget}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 flex-wrap gap-1">
+              <span>
+                {weddingSavings.deficit > 0
+                  ? `Kekurangan dana: ${formatCurrency(weddingSavings.deficit)}`
+                  : 'Target dana pernikahan tercapai penuh! 🎉'}
+              </span>
+              {weddingSavings.deficit > 0 && (
+                <span className="flex items-center gap-1 text-primary font-medium">
+                  <Calendar className="w-3.5 h-3.5" />
+                  Estimasi terpenuhi: {weddingSavings.estMonthYear}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter Bar & Action */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">

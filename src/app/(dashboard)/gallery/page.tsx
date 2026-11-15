@@ -109,6 +109,7 @@ export default function GalleryPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const isSubmittingRef = useRef(false)
 
   // Fetch photos on mount (SWR: revalidate in background)
   useEffect(() => {
@@ -189,20 +190,22 @@ export default function GalleryPage() {
   }
 
   const handleUpload = async (formData: FormData) => {
-    if (!selectedFile) return
-
+    if (!selectedFile || isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setUploading(true)
 
     try {
       // ⚡ Compress image client-side before sending to Supabase
       const compressed = await compressImage(selectedFile)
       formData.set('file', compressed)
+      formData.set('idempotency_key', crypto.randomUUID())
 
       const result = await createGalleryItem(formData)
 
       if (result && 'error' in result) {
         toast.error('Gagal mengupload foto', result.error)
         setUploading(false)
+        isSubmittingRef.current = false
         return
       }
 
@@ -219,6 +222,7 @@ export default function GalleryPage() {
       toast.error('Gagal mengupload foto', 'Periksa koneksi internet atau storage bucket Supabase')
     } finally {
       setUploading(false)
+      isSubmittingRef.current = false
     }
   }
 

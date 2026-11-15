@@ -58,6 +58,11 @@ const AdvisorTab = dynamic(
   () => import('@/components/features/finance/advisor-tab').then((m) => m.AdvisorTab),
   { loading: () => <FinanceSkeleton />, ssr: false }
 )
+const SubscriptionsTab = dynamic(
+  () => import('@/components/features/finance/subscriptions-tab').then((m) => m.SubscriptionsTab),
+  { loading: () => <FinanceSkeleton />, ssr: false }
+)
+import { CoupleSplitSettlementCard } from '@/components/features/finance/couple-split-settlement-card'
 
 // Modals
 import { AddTransactionModal } from '@/components/features/finance/modals/add-transaction-modal'
@@ -438,15 +443,24 @@ export default function FinancePage() {
 
             {/* TAB: OVERVIEW */}
             {activeTab === 'overview' && (
-              <FinanceOverview
-                transactions={transactions}
-                budgets={budgets}
-                savings={savings}
-                viewMode={viewMode}
-                userRole={userProfile?.role}
-                onOpenQuickExpense={() => setQuickExpenseOpen(true)}
-                onSwitchToAdvanced={() => setActiveTab('analytics')}
-              />
+              <div className="space-y-6">
+                <CoupleSplitSettlementCard
+                  transactions={transactions}
+                  userProfile={userProfile}
+                  onSettled={() => {
+                    if (userProfile) fetchData(userProfile, viewMode)
+                  }}
+                />
+                <FinanceOverview
+                  transactions={transactions}
+                  budgets={budgets}
+                  savings={savings}
+                  viewMode={viewMode}
+                  userRole={userProfile?.role}
+                  onOpenQuickExpense={() => setQuickExpenseOpen(true)}
+                  onSwitchToAdvanced={() => setActiveTab('analytics')}
+                />
+              </div>
             )}
 
             {/* TAB: TRANSACTIONS */}
@@ -493,6 +507,16 @@ export default function FinancePage() {
                 onDeleteSavings={handleDeleteSavings}
                 pocketOptions={POCKET_OPTIONS}
                 getAccountCategory={getAccountCategory}
+              />
+            )}
+
+            {/* TAB: SUBSCRIPTIONS (TAGIHAN RUTIN BULANAN) */}
+            {activeTab === 'subscriptions' && (
+              <SubscriptionsTab
+                formatCurrency={formatCurrency}
+                onRefreshFinance={() => {
+                  if (userProfile) fetchData(userProfile, viewMode)
+                }}
               />
             )}
 

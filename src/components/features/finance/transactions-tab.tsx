@@ -9,10 +9,12 @@ import {
   Edit2,
   Trash2,
   Tag,
+  Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { OwnerBadge } from '@/components/ui/owner-badge'
 import { TRANSACTION_CATEGORIES } from '@/lib/constants'
+import { exportTransactionsToCsv } from '@/lib/export-utils'
 import { cn } from '@/lib/utils'
 import type { Transaction } from '@/types'
 
@@ -90,9 +92,20 @@ export function TransactionsTab({
             <option value="peppaa">Peppaa</option>
           </select>
         </div>
-        <Button onClick={onAddTransaction} size="sm" className="rounded-xl">
-          <Plus className="w-3.5 h-3.5 mr-1.5" /> Transaksi
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportTransactionsToCsv(filteredTransactions)}
+            className="rounded-xl text-xs"
+            title="Download Excel / CSV"
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5" /> Export Excel
+          </Button>
+          <Button onClick={onAddTransaction} size="sm" className="rounded-xl">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Transaksi
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs">

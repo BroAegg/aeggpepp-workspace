@@ -49,6 +49,7 @@ export default function WishlistPage() {
   const [priorityFilter, setPriorityFilter] = useState<Priority>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const formRef = useRef<HTMLFormElement>(null)
+  const isSubmittingRef = useRef(false)
 
   useEffect(() => {
     fetchItems()
@@ -75,8 +76,11 @@ export default function WishlistPage() {
   }
 
   const handleSubmit = async (formData: FormData) => {
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setSaving(true)
     try {
+      formData.set('idempotency_key', crypto.randomUUID())
       if (editingItem) {
         await updateWishlistItem(editingItem.id, formData)
       } else {
@@ -88,6 +92,7 @@ export default function WishlistPage() {
       console.error('Error saving item:', error)
     } finally {
       setSaving(false)
+      isSubmittingRef.current = false
     }
   }
 

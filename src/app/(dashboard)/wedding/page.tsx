@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
-import { Gem, Plus, Users, Clock, DollarSign } from 'lucide-react'
+import { Gem, Plus, Users, Clock, DollarSign, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWorkspaceStore } from '@/stores/workspace-store'
 import type {
@@ -49,19 +49,24 @@ const RundownTab = dynamic(
   () => import('@/components/features/wedding/tabs/rundown-tab').then((m) => m.RundownTab),
   { loading: () => <WeddingSkeleton />, ssr: false }
 )
+const KuaTab = dynamic(
+  () => import('@/components/features/wedding/tabs/kua-tab').then((m) => m.KuaTab),
+  { loading: () => <WeddingSkeleton />, ssr: false }
+)
 
 // Modals
 import { BudgetItemModal } from '@/components/features/wedding/modals/budget-item-modal'
 import { GuestModal } from '@/components/features/wedding/modals/guest-modal'
 import { RundownModal } from '@/components/features/wedding/modals/rundown-modal'
 
-type WeddingTab = 'budget' | 'guests' | 'rundown'
+type WeddingTab = 'budget' | 'guests' | 'rundown' | 'kua'
 
 export default function WeddingPage() {
   const {
     weddingBudgetItems: cachedBudget,
     weddingGuests: cachedGuests,
     weddingRundown: cachedRundown,
+    savings: cachedSavings,
     weddingLoaded,
     setWeddingData,
     toggleGuestRSVPOptimistic,
@@ -415,6 +420,19 @@ export default function WeddingPage() {
               {rundown.length} Sesi
             </span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('kua')}
+            className={cn(
+              'px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all',
+              activeTab === 'kua'
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+            )}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Berkas KUA
+          </button>
         </div>
 
         {/* Loading Skeleton only for initial empty state */}
@@ -426,6 +444,7 @@ export default function WeddingPage() {
         {activeTab === 'budget' && (
           <BudgetTab
             budgetItems={budgetItems}
+            savings={cachedSavings}
             onAddBudgetItem={() => {
               setEditingBudgetItem(null)
               setShowBudgetModal(true)
@@ -470,6 +489,9 @@ export default function WeddingPage() {
             onDeleteRundown={handleDeleteRundown}
           />
         )}
+
+        {/* TAB 4: BERKAS KUA */}
+        {activeTab === 'kua' && <KuaTab />}
       </main>
 
       {/* ========== MODALS ========== */}

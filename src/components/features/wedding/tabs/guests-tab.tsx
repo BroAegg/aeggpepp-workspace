@@ -8,9 +8,11 @@ import {
   Phone,
   Edit2,
   Trash2,
+  Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { exportWeddingGuestsToCsv } from '@/lib/export-utils'
 import type { WeddingGuest, WeddingRsvpStatus } from '@/types'
 import {
   TARGET_PAX,
@@ -193,6 +195,16 @@ export function GuestsTab({
             <option value="pending">Menunggu</option>
             <option value="declined">Berhalangan</option>
           </select>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportWeddingGuestsToCsv(filteredGuests)}
+            className="rounded-xl shrink-0 text-xs"
+            title="Download Excel / CSV"
+          >
+            <Download className="w-3.5 h-3.5 mr-1" /> Export Excel
+          </Button>
 
           <Button onClick={onAddGuest} size="sm" className="rounded-xl shrink-0">
             <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Tamu
