@@ -129,11 +129,6 @@ export function TransactionsTab({
                       <p className="font-semibold text-foreground text-sm truncate">
                         {transaction.description || transaction.category}
                       </p>
-                      {transaction.is_split && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 shrink-0">
-                          Split
-                        </span>
-                      )}
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                       <span className="capitalize">{transaction.category.replace(/_/g, ' ')}</span>

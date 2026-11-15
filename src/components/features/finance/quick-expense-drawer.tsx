@@ -26,7 +26,6 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
   const [amount, setAmount] = useState<number>(0)
   const [category, setCategory] = useState<string>('food')
   const [description, setDescription] = useState<string>('')
-  const [isShared, setIsShared] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
   const isSubmittingRef = useRef<boolean>(false)
   const [submitted, setSubmitted] = useState<boolean>(false)
@@ -54,7 +53,6 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
       formData.append('amount', amount.toString())
       formData.append('description', description || 'Pengeluaran')
       formData.append('date', new Date().toISOString().split('T')[0])
-      formData.append('is_shared', isShared ? 'true' : 'false')
       formData.append('idempotency_key', crypto.randomUUID())
 
       const res = await createTransaction(formData)
@@ -133,7 +131,7 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
                     value={amount}
                     onChange={(val) => setAmount(val)}
                     placeholder="Rp 0"
-                    className="text-xl font-bold py-2.5 text-center"
+                    className="text-xl font-bold py-2.5 text-center tabular-nums"
                   />
                 </div>
 
@@ -175,28 +173,6 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
                     placeholder="Keterangan transaksi (opsional)"
                     className="w-full text-xs px-3 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
-                </div>
-
-                {/* Pocket Selector: Personal vs Joint */}
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/60 border border-border">
-                  <div className="text-xs">
-                    <span className="font-medium text-foreground">Alokasi:</span>
-                    <span className="ml-1 text-muted-foreground">
-                      {isShared ? 'Dana Bersama' : 'Dana Pribadi'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsShared(!isShared)}
-                    className={cn(
-                      'text-xs font-medium px-2.5 py-1 rounded-md border transition-all',
-                      isShared
-                        ? 'bg-primary/15 text-primary border-primary/30 font-semibold'
-                        : 'bg-background text-muted-foreground border-border hover:text-foreground'
-                    )}
-                  >
-                    {isShared ? 'Beralih ke Pribadi' : 'Jadikan Dana Bersama'}
-                  </button>
                 </div>
 
                 {/* Submit Button */}

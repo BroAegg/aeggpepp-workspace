@@ -113,7 +113,7 @@ export function AddTransactionModal({
                 name="amount"
                 required
                 defaultValue={editingTransaction?.amount || 0}
-                className="w-full pl-11 pr-3 py-2 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full pl-11 pr-3 py-2 rounded-xl border border-border bg-background text-foreground text-sm tabular-nums placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
           </div>
@@ -157,25 +157,40 @@ export function AddTransactionModal({
                 type="date"
                 name="date"
                 defaultValue={editingTransaction?.date || new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              <span className="flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5" /> Sub Judul / Label Grup
-                <span className="text-[10px] text-muted-foreground font-normal lowercase">(opsional)</span>
-              </span>
-            </label>
-            <input
-              type="text"
-              name="sub_title"
-              placeholder="e.g. Belanja Nov 2025, Trip Bali, Bulanan"
-              defaultValue={editingTransaction?.sub_title ?? ''}
-              className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Dicatat Oleh
+              </label>
+              <select
+                name="paid_by"
+                defaultValue={editingTransaction?.paid_by || 'aegg'}
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              >
+                <option value="aegg">Aegg</option>
+                <option value="peppaa">Peppaa</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Tag className="w-3 h-3" /> Label Grup
+                  <span className="text-[10px] text-muted-foreground lowercase">(opsional)</span>
+                </span>
+              </label>
+              <input
+                type="text"
+                name="sub_title"
+                placeholder="e.g. Belanja, Trip"
+                defaultValue={editingTransaction?.sub_title ?? ''}
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+            </div>
           </div>
 
           <div>

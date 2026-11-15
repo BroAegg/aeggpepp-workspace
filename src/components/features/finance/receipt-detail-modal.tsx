@@ -19,7 +19,13 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
-import { getReceiptItems, saveReceiptItems, uploadReceiptDirect, deleteReceiptItem } from '@/lib/actions/receipts'
+import {
+  getReceiptItems,
+  saveReceiptItems,
+  uploadReceiptDirect,
+  deleteReceiptItem,
+  getReceiptSignedUrl,
+} from '@/lib/actions/receipts'
 import type { Transaction, ReceiptItem } from '@/types'
 
 interface ReceiptDetailModalProps {
@@ -40,6 +46,8 @@ export function ReceiptDetailModal({
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
+  const [signedUrl, setSignedUrl] = useState<string | null>(null)
+  const [loadingSignedUrl, setLoadingSignedUrl] = useState(false)
 
   // Quick Add Item Form
   const [showAddForm, setShowAddForm] = useState(false)
@@ -52,13 +60,40 @@ export function ReceiptDetailModal({
   const [fullscreenImage, setFullscreenImage] = useState(false)
 
   useEffect(() => {
+    let isCurrent = true
     if (isOpen && transaction) {
-      setReceiptUrl(transaction.receipt_url || null)
+      const rawUrl = transaction.receipt_url || null
+      setReceiptUrl(rawUrl)
       setUploadError(null)
       setShowAddForm(false)
       loadItems(transaction.id)
+
+      if (rawUrl) {
+        setLoadingSignedUrl(true)
+        getReceiptSignedUrl(rawUrl)
+          .then((resolved) => {
+            if (isCurrent) {
+              setSignedUrl(resolved)
+              setLoadingSignedUrl(false)
+            }
+          })
+          .catch(() => {
+            if (isCurrent) {
+              setSignedUrl(rawUrl)
+              setLoadingSignedUrl(false)
+            }
+          })
+      } else {
+        setSignedUrl(null)
+        setLoadingSignedUrl(false)
+      }
     } else {
       setItems([])
+      setSignedUrl(null)
+      setLoadingSignedUrl(false)
+    }
+    return () => {
+      isCurrent = false
     }
   }, [isOpen, transaction])
 
@@ -89,6 +124,8 @@ export function ReceiptDetailModal({
       const res = await uploadReceiptDirect(formData)
       if (res.success && res.receipt_url) {
         setReceiptUrl(res.receipt_url)
+        const freshSigned = await getReceiptSignedUrl(res.receipt_url)
+        setSignedUrl(freshSigned || res.receipt_url)
         if (onReceiptUpdated) {
           onReceiptUpdated(transaction.id, res.receipt_url)
         }
@@ -220,12 +257,12 @@ export function ReceiptDetailModal({
             {/* Receipt Photo Section */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <span>📸 Foto Struk Fisik</span>
+                <label className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <span>Foto Struk Fisik</span>
                 </label>
-                {receiptUrl && (
+                {(signedUrl || receiptUrl) && (
                   <a
-                    href={receiptUrl}
+                    href={(signedUrl || receiptUrl)!}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs text-primary hover:underline flex items-center gap-1"
@@ -236,10 +273,15 @@ export function ReceiptDetailModal({
                 )}
               </div>
 
-              {receiptUrl ? (
+              {loadingSignedUrl ? (
+                <div className="rounded-xl border border-border/80 bg-secondary/20 p-8 flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span>Memuat foto struk privat...</span>
+                </div>
+              ) : signedUrl || receiptUrl ? (
                 <div className="relative group rounded-xl overflow-hidden border border-border/80 bg-black/5 dark:bg-black/30 aspect-video max-h-48 flex items-center justify-center">
                   <img
-                    src={receiptUrl}
+                    src={(signedUrl || receiptUrl)!}
                     alt="Foto Struk"
                     className="max-h-48 w-auto object-contain cursor-pointer transition-transform group-hover:scale-102"
                     onClick={() => setFullscreenImage(true)}
@@ -470,7 +512,7 @@ export function ReceiptDetailModal({
         </motion.div>
 
         {/* Fullscreen Photo Modal */}
-        {fullscreenImage && receiptUrl && (
+        {fullscreenImage && (signedUrl || receiptUrl) && (
           <div
             className="fixed inset-0 z-60 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
             onClick={() => setFullscreenImage(false)}
@@ -483,7 +525,7 @@ export function ReceiptDetailModal({
                 <X className="w-5 h-5" />
               </button>
               <img
-                src={receiptUrl}
+                src={(signedUrl || receiptUrl)!}
                 alt="Fullscreen Receipt"
                 className="max-h-[85vh] w-auto object-contain rounded-lg"
               />

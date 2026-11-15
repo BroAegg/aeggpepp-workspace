@@ -104,11 +104,7 @@ export async function createTransaction(formData: FormData) {
       return { error: 'Failed to upload receipt: ' + uploadError.message }
     }
 
-    const { data: urlData } = supabase.storage
-      .from('receipts')
-      .getPublicUrl(fileName)
-
-    receiptUrl = urlData.publicUrl
+    receiptUrl = fileName
   }
 
   const insertPayload: any = {
@@ -119,10 +115,10 @@ export async function createTransaction(formData: FormData) {
     amount,
     description: description || null,
     date: date || new Date().toISOString().split('T')[0],
-    is_split: isSplit,
-    split_with: isSplit ? (splitWith || 'partner') : null, // Default to partner for now
+    is_split: false,
+    split_with: null,
     paid_by: paidBy || user.id,
-    is_settled: isSettled,
+    is_settled: false,
     receipt_url: receiptUrl,
   }
 
@@ -176,10 +172,10 @@ export async function updateTransaction(id: string, formData: FormData) {
     amount,
     description: description || null,
     date,
-    is_split: isSplit,
-    split_with: isSplit ? (splitWith || 'partner') : null,
+    is_split: false,
+    split_with: null,
     paid_by: paidBy || user.id,
-    is_settled: isSettled,
+    is_settled: false,
   }
 
   // Handle receipt upload
@@ -198,11 +194,7 @@ export async function updateTransaction(id: string, formData: FormData) {
       return { error: 'Failed to upload receipt: ' + uploadError.message }
     }
 
-    const { data: urlData } = supabase.storage
-      .from('receipts')
-      .getPublicUrl(fileName)
-
-    updateData.receipt_url = urlData.publicUrl
+    updateData.receipt_url = fileName
   }
 
   updateData.updated_by = user.id

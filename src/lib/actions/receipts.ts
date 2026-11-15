@@ -2,7 +2,16 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getSignedStorageUrl } from '@/lib/supabase/storage'
 import type { ReceiptItem } from '@/types'
+
+/**
+ * Resolves a signed URL for private bucket receipts
+ */
+export async function getReceiptSignedUrl(pathOrUrl: string | null | undefined): Promise<string | null> {
+  if (!pathOrUrl) return null
+  return await getSignedStorageUrl('receipts', pathOrUrl, 3600)
+}
 
 /**
  * Fetch line items for a specific receipt / transaction
@@ -115,30 +124,23 @@ export async function uploadReceiptDirect(formData: FormData): Promise<{
       return { success: false, error: `Gagal upload gambar: ${uploadError.message}` }
     }
 
-    // Get public URL
-    const { data: publicUrlData } = supabase.storage
-      .from('receipts')
-      .getPublicUrl(fileName)
+    // Store relative storage path in private bucket
+    const receiptPath = fileName
 
-    const receiptUrl = publicUrlData?.publicUrl || null
+    const { error: updateError } = await supabase
+      .from('transactions')
+      .update({
+        receipt_url: receiptPath,
+        source: 'web',
+      })
+      .eq('id', transactionId)
 
-    if (receiptUrl) {
-      // Update transaction receipt_url and source
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({
-          receipt_url: receiptUrl,
-          source: 'web',
-        })
-        .eq('id', transactionId)
-
-      if (updateError) {
-        console.error('Error updating transaction with receipt_url:', updateError)
-      }
+    if (updateError) {
+      console.error('Error updating transaction with receipt_url:', updateError)
     }
 
     revalidatePath('/finance')
-    return { success: true, receipt_url: receiptUrl || undefined }
+    return { success: true, receipt_url: receiptPath }
   } catch (err: any) {
     console.error('Direct receipt upload error:', err)
     return { success: false, error: err?.message || 'Terjadi kesalahan saat upload struk' }

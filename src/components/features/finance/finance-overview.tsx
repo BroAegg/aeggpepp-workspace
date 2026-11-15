@@ -353,7 +353,7 @@ export function FinanceOverview({
             onClick={onSwitchToAdvanced}
             className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
           >
-            Lihat Buku Kas Lengkap
+            Lihat Semua Transaksi
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

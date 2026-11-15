@@ -34,35 +34,18 @@ const TransactionsTab = dynamic(
   () => import('@/components/features/finance/transactions-tab').then((m) => m.TransactionsTab),
   { loading: () => <FinanceSkeleton />, ssr: false }
 )
-const SavingsTab = dynamic(
-  () => import('@/components/features/finance/savings-tab').then((m) => m.SavingsTab),
-  { loading: () => <FinanceSkeleton />, ssr: false }
-)
-const LedgerTab = dynamic(
-  () => import('@/components/features/finance/ledger-tab').then((m) => m.LedgerTab),
-  { loading: () => <FinanceSkeleton />, ssr: false }
-)
-const AnalyticsTab = dynamic(
-  () => import('@/components/features/finance/analytics-tab').then((m) => m.AnalyticsTab),
-  { loading: () => <FinanceSkeleton />, ssr: false }
-)
 const BudgetsTab = dynamic(
   () => import('@/components/features/finance/budgets-tab').then((m) => m.BudgetsTab),
   { loading: () => <FinanceSkeleton />, ssr: false }
 )
-const RecapTab = dynamic(
-  () => import('@/components/features/finance/recap-tab').then((m) => m.RecapTab),
-  { loading: () => <FinanceSkeleton />, ssr: false }
-)
-const AdvisorTab = dynamic(
-  () => import('@/components/features/finance/advisor-tab').then((m) => m.AdvisorTab),
+const SavingsTab = dynamic(
+  () => import('@/components/features/finance/savings-tab').then((m) => m.SavingsTab),
   { loading: () => <FinanceSkeleton />, ssr: false }
 )
 const SubscriptionsTab = dynamic(
   () => import('@/components/features/finance/subscriptions-tab').then((m) => m.SubscriptionsTab),
   { loading: () => <FinanceSkeleton />, ssr: false }
 )
-import { CoupleSplitSettlementCard } from '@/components/features/finance/couple-split-settlement-card'
 
 // Modals
 import { AddTransactionModal } from '@/components/features/finance/modals/add-transaction-modal'
@@ -444,13 +427,6 @@ export default function FinancePage() {
             {/* TAB: OVERVIEW */}
             {activeTab === 'overview' && (
               <div className="space-y-6">
-                <CoupleSplitSettlementCard
-                  transactions={transactions}
-                  userProfile={userProfile}
-                  onSettled={() => {
-                    if (userProfile) fetchData(userProfile, viewMode)
-                  }}
-                />
                 <FinanceOverview
                   transactions={transactions}
                   budgets={budgets}
@@ -458,7 +434,7 @@ export default function FinancePage() {
                   viewMode={viewMode}
                   userRole={userProfile?.role}
                   onOpenQuickExpense={() => setQuickExpenseOpen(true)}
-                  onSwitchToAdvanced={() => setActiveTab('analytics')}
+                  onSwitchToAdvanced={() => setActiveTab('transactions')}
                 />
               </div>
             )}
@@ -480,6 +456,24 @@ export default function FinancePage() {
                 }}
                 onDeleteTransaction={handleDeleteTransaction}
                 onOpenReceiptModal={(tx) => setReceiptModalTx(tx)}
+              />
+            )}
+
+            {/* TAB: BUDGETS */}
+            {activeTab === 'budgets' && (
+              <BudgetsTab
+                budgets={budgets}
+                transactions={transactions}
+                formatCurrency={formatCurrency}
+                onAddBudget={() => {
+                  setEditingBudget(null)
+                  setShowBudgetModal(true)
+                }}
+                onEditBudget={(b) => {
+                  setEditingBudget(b)
+                  setShowBudgetModal(true)
+                }}
+                onDeleteBudget={handleDeleteBudget}
               />
             )}
 
@@ -517,54 +511,6 @@ export default function FinancePage() {
                 onRefreshFinance={() => {
                   if (userProfile) fetchData(userProfile, viewMode)
                 }}
-              />
-            )}
-
-            {/* TAB: LEDGER (BUKU KAS) */}
-            {activeTab === 'ledger' && (
-              <LedgerTab
-                transactions={transactions}
-                formatCurrency={formatCurrency}
-                onRefresh={() => fetchData(userProfile, viewMode)}
-              />
-            )}
-
-            {/* TAB: AI ADVISOR */}
-            {activeTab === 'advisor' && <AdvisorTab />}
-
-            {/* TAB: ANALYTICS */}
-            {activeTab === 'analytics' && (
-              <AnalyticsTab
-                transactions={transactions}
-                formatCurrency={formatCurrency}
-                formatShort={formatShort}
-              />
-            )}
-
-            {/* TAB: BUDGETS */}
-            {activeTab === 'budgets' && (
-              <BudgetsTab
-                budgets={budgets}
-                transactions={transactions}
-                formatCurrency={formatCurrency}
-                onAddBudget={() => {
-                  setEditingBudget(null)
-                  setShowBudgetModal(true)
-                }}
-                onEditBudget={(b) => {
-                  setEditingBudget(b)
-                  setShowBudgetModal(true)
-                }}
-                onDeleteBudget={handleDeleteBudget}
-              />
-            )}
-
-            {/* TAB: RECAP */}
-            {activeTab === 'recap' && (
-              <RecapTab
-                transactions={transactions}
-                formatCurrency={formatCurrency}
-                onRefresh={() => fetchData(userProfile, viewMode)}
               />
             )}
           </div>
