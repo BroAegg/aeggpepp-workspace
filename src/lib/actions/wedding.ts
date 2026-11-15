@@ -118,32 +118,79 @@ export async function createWeddingBudgetItem(formData: FormData) {
   const category = (formData.get('category') as WeddingCategory) || 'other'
   const estimated_cost = parseFloat((formData.get('estimated_cost') as string) || '0')
   const actual_cost = parseFloat((formData.get('actual_cost') as string) || '0')
-  const paid_amount = parseFloat((formData.get('paid_amount') as string) || '0')
+  let paid_amount = parseFloat((formData.get('paid_amount') as string) || '0')
   const status = (formData.get('status') as WeddingItemStatus) || 'planned'
   const due_date = (formData.get('due_date') as string) || null
   const vendor_name = (formData.get('vendor_name') as string)?.trim() || null
   const vendor_contact = (formData.get('vendor_contact') as string)?.trim() || null
   const notes = (formData.get('notes') as string)?.trim() || null
 
+  const dp_amount = parseFloat((formData.get('dp_amount') as string) || '0')
+  const dp_due_date = (formData.get('dp_due_date') as string) || null
+  const dp_paid = formData.get('dp_paid') === 'true'
+
+  const termin2_amount = parseFloat((formData.get('termin2_amount') as string) || '0')
+  const termin2_due_date = (formData.get('termin2_due_date') as string) || null
+  const termin2_paid = formData.get('termin2_paid') === 'true'
+
+  const pelunasan_amount = parseFloat((formData.get('pelunasan_amount') as string) || '0')
+  const pelunasan_due_date = (formData.get('pelunasan_due_date') as string) || null
+  const pelunasan_paid = formData.get('pelunasan_paid') === 'true'
+
+  if (dp_paid || termin2_paid || pelunasan_paid) {
+    let sumPaid = 0
+    if (dp_paid) sumPaid += dp_amount
+    if (termin2_paid) sumPaid += termin2_amount
+    if (pelunasan_paid) sumPaid += pelunasan_amount
+    if (sumPaid > 0) paid_amount = sumPaid
+  }
+
   if (!title) return { error: 'Judul pos pengeluaran wajib diisi' }
 
-  const { data, error } = await supabase
+  const payload: any = {
+    user_id: user.id,
+    title,
+    category,
+    estimated_cost,
+    actual_cost,
+    paid_amount,
+    status,
+    due_date,
+    vendor_name,
+    vendor_contact,
+    notes,
+    dp_amount,
+    dp_due_date,
+    dp_paid,
+    termin2_amount,
+    termin2_due_date,
+    termin2_paid,
+    pelunasan_amount,
+    pelunasan_due_date,
+    pelunasan_paid,
+  }
+
+  let { data, error } = await supabase
     .from('wedding_budget_items')
-    .insert({
-      user_id: user.id,
-      title,
-      category,
-      estimated_cost,
-      actual_cost,
-      paid_amount,
-      status,
-      due_date,
-      vendor_name,
-      vendor_contact,
-      notes,
-    })
+    .insert(payload)
     .select('id')
     .single()
+
+  // Graceful fallback if milestone columns have not been migrated in DB yet
+  if (error && error.message?.includes('dp_amount')) {
+    delete payload.dp_amount
+    delete payload.dp_due_date
+    delete payload.dp_paid
+    delete payload.termin2_amount
+    delete payload.termin2_due_date
+    delete payload.termin2_paid
+    delete payload.pelunasan_amount
+    delete payload.pelunasan_due_date
+    delete payload.pelunasan_paid
+    const retry = await supabase.from('wedding_budget_items').insert(payload).select('id').single()
+    data = retry.data
+    error = retry.error
+  }
 
   if (error) {
     console.error('Error creating wedding budget item:', error)
@@ -163,31 +210,76 @@ export async function updateWeddingBudgetItem(id: string, formData: FormData) {
   const category = (formData.get('category') as WeddingCategory) || 'other'
   const estimated_cost = parseFloat((formData.get('estimated_cost') as string) || '0')
   const actual_cost = parseFloat((formData.get('actual_cost') as string) || '0')
-  const paid_amount = parseFloat((formData.get('paid_amount') as string) || '0')
+  let paid_amount = parseFloat((formData.get('paid_amount') as string) || '0')
   const status = (formData.get('status') as WeddingItemStatus) || 'planned'
   const due_date = (formData.get('due_date') as string) || null
   const vendor_name = (formData.get('vendor_name') as string)?.trim() || null
   const vendor_contact = (formData.get('vendor_contact') as string)?.trim() || null
   const notes = (formData.get('notes') as string)?.trim() || null
 
+  const dp_amount = parseFloat((formData.get('dp_amount') as string) || '0')
+  const dp_due_date = (formData.get('dp_due_date') as string) || null
+  const dp_paid = formData.get('dp_paid') === 'true'
+
+  const termin2_amount = parseFloat((formData.get('termin2_amount') as string) || '0')
+  const termin2_due_date = (formData.get('termin2_due_date') as string) || null
+  const termin2_paid = formData.get('termin2_paid') === 'true'
+
+  const pelunasan_amount = parseFloat((formData.get('pelunasan_amount') as string) || '0')
+  const pelunasan_due_date = (formData.get('pelunasan_due_date') as string) || null
+  const pelunasan_paid = formData.get('pelunasan_paid') === 'true'
+
+  if (dp_paid || termin2_paid || pelunasan_paid) {
+    let sumPaid = 0
+    if (dp_paid) sumPaid += dp_amount
+    if (termin2_paid) sumPaid += termin2_amount
+    if (pelunasan_paid) sumPaid += pelunasan_amount
+    if (sumPaid > 0) paid_amount = sumPaid
+  }
+
   if (!title) return { error: 'Judul pos pengeluaran wajib diisi' }
 
-  const { error } = await supabase
+  const payload: any = {
+    title,
+    category,
+    estimated_cost,
+    actual_cost,
+    paid_amount,
+    status,
+    due_date,
+    vendor_name,
+    vendor_contact,
+    notes,
+    dp_amount,
+    dp_due_date,
+    dp_paid,
+    termin2_amount,
+    termin2_due_date,
+    termin2_paid,
+    pelunasan_amount,
+    pelunasan_due_date,
+    pelunasan_paid,
+    updated_at: new Date().toISOString(),
+  }
+
+  let { error } = await supabase
     .from('wedding_budget_items')
-    .update({
-      title,
-      category,
-      estimated_cost,
-      actual_cost,
-      paid_amount,
-      status,
-      due_date,
-      vendor_name,
-      vendor_contact,
-      notes,
-      updated_at: new Date().toISOString(),
-    })
+    .update(payload)
     .eq('id', id)
+
+  if (error && error.message?.includes('dp_amount')) {
+    delete payload.dp_amount
+    delete payload.dp_due_date
+    delete payload.dp_paid
+    delete payload.termin2_amount
+    delete payload.termin2_due_date
+    delete payload.termin2_paid
+    delete payload.pelunasan_amount
+    delete payload.pelunasan_due_date
+    delete payload.pelunasan_paid
+    const retry = await supabase.from('wedding_budget_items').update(payload).eq('id', id)
+    error = retry.error
+  }
 
   if (error) {
     console.error('Error updating wedding budget item:', error)

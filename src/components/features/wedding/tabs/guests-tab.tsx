@@ -45,16 +45,38 @@ export function GuestsTab({
     let confirmedPax = 0
     let pendingPax = 0
     let declinedPax = 0
+    let confirmedInvitations = 0
+    let pendingInvitations = 0
+    let declinedInvitations = 0
 
     guests.forEach((g) => {
       const p = g.pax || 1
       totalPax += p
-      if (g.rsvp_status === 'attending') confirmedPax += p
-      else if (g.rsvp_status === 'pending') pendingPax += p
-      else if (g.rsvp_status === 'declined') declinedPax += p
+      if (g.rsvp_status === 'attending') {
+        confirmedPax += p
+        confirmedInvitations += 1
+      } else if (g.rsvp_status === 'pending') {
+        pendingPax += p
+        pendingInvitations += 1
+      } else if (g.rsvp_status === 'declined') {
+        declinedPax += p
+        declinedInvitations += 1
+      }
     })
 
-    return { totalPax, confirmedPax, pendingPax, declinedPax }
+    const avgPax = guests.length > 0 ? (totalPax / guests.length).toFixed(1) : '1.0'
+
+    return {
+      totalPax,
+      confirmedPax,
+      pendingPax,
+      declinedPax,
+      totalInvitations: guests.length,
+      confirmedInvitations,
+      pendingInvitations,
+      declinedInvitations,
+      avgPax,
+    }
   }, [guests])
 
   const filteredGuests = useMemo(() => {
@@ -70,43 +92,54 @@ export function GuestsTab({
 
   return (
     <div className="space-y-6">
-      {/* Guest Summary Cards */}
+      {/* Guest Summary Cards: Total Undangan (Amplop/Link) vs Estimasi Pax Katering */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-xs space-y-1 shadow-xs">
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Target Kehadiran
+        <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1 shadow-2xs">
+          <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
+            Total Undangan / Link
           </span>
-          <div className="text-2xl font-bold text-foreground">{TARGET_PAX} Pax</div>
+          <div className="text-2xl font-black text-foreground tabular-nums">
+            {guestStats.totalInvitations} Undangan
+          </div>
           <div className="text-xs text-muted-foreground">
-            Terdata: {guestStats.totalPax} Pax (
-            {Math.min(100, Math.round((guestStats.totalPax / TARGET_PAX) * 100))}% kuota)
+            Rata-rata {guestStats.avgPax} pax per undangan
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-xs space-y-1 shadow-xs">
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+        <div className="p-4 rounded-2xl border border-primary/30 bg-primary/5 space-y-1 shadow-2xs">
+          <span className="text-[11px] text-primary font-semibold uppercase tracking-wider">
+            Estimasi Pax Katering
+          </span>
+          <div className="text-2xl font-black text-foreground tabular-nums">
+            {guestStats.totalPax} Pax
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {Math.min(100, Math.round((guestStats.totalPax / TARGET_PAX) * 100))}% dari kuota {TARGET_PAX} pax
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 space-y-1 shadow-2xs">
+          <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold uppercase tracking-wider">
             Konfirmasi Hadir
           </span>
-          <div className="text-2xl font-bold text-emerald-500">{guestStats.confirmedPax} Pax</div>
+          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+            {guestStats.confirmedPax} Pax
+          </div>
           <div className="text-xs text-muted-foreground">
-            {Math.round((guestStats.confirmedPax / TARGET_PAX) * 100)}% dari target {TARGET_PAX}
+            {guestStats.confirmedInvitations} undangan pasti datang
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-xs space-y-1 shadow-xs">
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Menunggu Konfirmasi
+        <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-1 shadow-2xs">
+          <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold uppercase tracking-wider">
+            Menunggu / Pending
           </span>
-          <div className="text-2xl font-bold text-amber-500">{guestStats.pendingPax} Pax</div>
-          <div className="text-xs text-muted-foreground">Perlu di-follow up</div>
-        </div>
-
-        <div className="p-4 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-xs space-y-1 shadow-xs">
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Berhalangan
-          </span>
-          <div className="text-2xl font-bold text-rose-500">{guestStats.declinedPax} Pax</div>
-          <div className="text-xs text-muted-foreground">Tidak dapat hadir</div>
+          <div className="text-2xl font-black text-amber-600 dark:text-amber-400 tabular-nums">
+            {guestStats.pendingPax} Pax
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {guestStats.pendingInvitations} undangan perlu difollow-up
+          </div>
         </div>
       </div>
 

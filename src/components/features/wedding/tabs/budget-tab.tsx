@@ -366,6 +366,51 @@ export function BudgetTab({
                       )}
                     </div>
                   )}
+
+                  {/* Payment Milestone Chips */}
+                  {(Boolean(item.dp_amount) || Boolean(item.termin2_amount) || Boolean(item.pelunasan_amount)) && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {Boolean(item.dp_amount && item.dp_amount > 0) && (
+                        <span
+                          className={cn(
+                            'text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1',
+                            item.dp_paid
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                          )}
+                        >
+                          {item.dp_paid ? '✓' : '⌛'} DP: {formatShort(item.dp_amount!)}
+                          {item.dp_due_date && ` (${new Date(item.dp_due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })})`}
+                        </span>
+                      )}
+                      {Boolean(item.termin2_amount && item.termin2_amount > 0) && (
+                        <span
+                          className={cn(
+                            'text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1',
+                            item.termin2_paid
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                          )}
+                        >
+                          {item.termin2_paid ? '✓' : '⌛'} Termin 2: {formatShort(item.termin2_amount!)}
+                          {item.termin2_due_date && ` (${new Date(item.termin2_due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })})`}
+                        </span>
+                      )}
+                      {Boolean(item.pelunasan_amount && item.pelunasan_amount > 0) && (
+                        <span
+                          className={cn(
+                            'text-[10px] px-2 py-0.5 rounded-md font-medium border flex items-center gap-1',
+                            item.pelunasan_paid
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                          )}
+                        >
+                          {item.pelunasan_paid ? '✓' : '⌛'} Pelunasan: {formatShort(item.pelunasan_amount!)}
+                          {item.pelunasan_due_date && ` (${new Date(item.pelunasan_due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })})`}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Cost Details Footer */}

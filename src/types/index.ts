@@ -334,6 +334,15 @@ export interface WeddingBudgetItem {
   vendor_name: string | null
   vendor_contact: string | null
   notes: string | null
+  dp_amount?: number | null
+  dp_due_date?: string | null
+  dp_paid?: boolean | null
+  termin2_amount?: number | null
+  termin2_due_date?: string | null
+  termin2_paid?: boolean | null
+  pelunasan_amount?: number | null
+  pelunasan_due_date?: string | null
+  pelunasan_paid?: boolean | null
   created_at: string
   updated_at?: string
   profiles?: ItemOwner
@@ -358,6 +367,8 @@ export interface WeddingGuest {
   rsvp_status: WeddingRsvpStatus
   phone: string | null
   notes: string | null
+  is_invitation_sent?: boolean | null
+  invitation_type?: 'digital' | 'physical' | null
   created_at: string
   profiles?: ItemOwner
 }
