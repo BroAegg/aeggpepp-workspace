@@ -303,10 +303,15 @@ export default function WishlistPage() {
                     </div>
                   )}
                   {/* Badges */}
-                  <div className="absolute top-2 left-2 flex items-center gap-2">
+                  <div className="absolute top-2 left-2 flex items-center gap-1.5 flex-wrap">
                     <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium capitalize", priorityColors[item.priority as keyof typeof priorityColors])}>
                       {item.priority}
                     </span>
+                    {item.is_surprise && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-pink-500/15 text-pink-700 dark:text-pink-300 border border-pink-500/20 flex items-center gap-1">
+                        🎁 Kado Kejutan
+                      </span>
+                    )}
                   </div>
 
                 </div>
@@ -491,7 +496,26 @@ export default function WishlistPage() {
                     <option value="low">Rendah (Low)</option>
                   </select>
                 </div>
-                <input type="hidden" name="is_shared" value="true" />
+                {/* Kado Kejutan (Secret Surprise Gift) */}
+                <div className="p-3 bg-secondary/50 rounded-xl border border-border/70">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="is_surprise"
+                      value="true"
+                      defaultChecked={editingItem?.is_surprise || false}
+                      className="mt-0.5 w-4 h-4 rounded text-primary focus:ring-primary/20 border-border"
+                    />
+                    <div>
+                      <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        🎁 Kado Kejutan (Secret Gift)
+                      </span>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                        Sembunyikan item ini dari layar pasangan sampai berhasil dibeli!
+                      </p>
+                    </div>
+                  </label>
+                </div>
 
                 {/* Actions */}
                 <div className="flex gap-3 mt-6">

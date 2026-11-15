@@ -40,6 +40,7 @@ export function AddSavingsModal({
   })
   const [accountName, setAccountName] = useState(selectedBank.name)
   const [isLocked, setIsLocked] = useState(false)
+  const [selectedScope, setSelectedScope] = useState<'aegg' | 'peppaa' | 'joint'>('aegg')
 
   if (!isOpen) return null
 
@@ -202,7 +203,55 @@ export function AddSavingsModal({
             </div>
           </div>
 
-          {/* 4. Alokasi Status: Bebas vs Terkunci (Anti-Slop Design) */}
+          <input type="hidden" name="scope" value={selectedScope} />
+          <input type="hidden" name="is_locked" value={isLocked ? 'true' : 'false'} />
+
+          {/* 4. Kepemilikan & Ruang (Multi-POV) */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Kepemilikan / Ruang
+            </label>
+            <div className="grid grid-cols-3 gap-2 p-1 bg-secondary/70 rounded-xl border border-border/60">
+              <button
+                type="button"
+                onClick={() => setSelectedScope('aegg')}
+                className={cn(
+                  'py-1.5 text-xs font-bold rounded-lg transition-all',
+                  selectedScope === 'aegg'
+                    ? 'bg-card text-foreground shadow-xs border border-border/80'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Aegg
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedScope('peppaa')}
+                className={cn(
+                  'py-1.5 text-xs font-bold rounded-lg transition-all',
+                  selectedScope === 'peppaa'
+                    ? 'bg-card text-foreground shadow-xs border border-border/80'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Peppaa
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedScope('joint')}
+                className={cn(
+                  'py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1',
+                  selectedScope === 'joint'
+                    ? 'bg-card text-foreground shadow-xs border border-border/80'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <span>💍</span> Kas Bersama
+              </button>
+            </div>
+          </div>
+
+          {/* 5. Alokasi Status: Bebas vs Terkunci (Anti-Slop Design) */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Alokasi Likuiditas
@@ -229,7 +278,10 @@ export function AddSavingsModal({
 
               <button
                 type="button"
-                onClick={() => setIsLocked(true)}
+                onClick={() => {
+                  setIsLocked(true)
+                  setSelectedScope('joint')
+                }}
                 className={cn(
                   'p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-1',
                   isLocked

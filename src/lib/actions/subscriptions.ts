@@ -3,17 +3,23 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createTransaction } from '@/lib/actions/finance'
-import type { Subscription } from '@/types'
+import type { Subscription, Scope } from '@/types'
 
-export async function getSubscriptions(): Promise<Subscription[]> {
+export async function getSubscriptions(scope?: Scope | 'all'): Promise<Subscription[]> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('subscriptions')
     .select('*, profiles:user_id(display_name, role)')
     .order('due_day', { ascending: true })
+
+  if (scope && scope !== 'all') {
+    query = query.eq('scope', scope)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching subscriptions:', error)
@@ -34,25 +40,37 @@ export async function createSubscription(formData: FormData) {
   const billingCycle = (formData.get('billing_cycle') as 'monthly' | 'yearly') || 'monthly'
   const category = (formData.get('category') as string) || 'bills'
   const icon = (formData.get('icon') as string) || '⚡'
+  const rawScope = formData.get('scope') as string
+  const scope: Scope = (rawScope as Scope) || 'aegg'
 
   if (!name || isNaN(amount) || isNaN(dueDay)) {
     return { error: 'Nama, nominal, dan tanggal jatuh tempo wajib diisi' }
   }
 
-  const { data, error } = await supabase
+  const payload: any = {
+    user_id: user.id,
+    name: name.trim(),
+    amount,
+    due_day: dueDay,
+    billing_cycle: billingCycle,
+    category,
+    icon,
+    is_active: true,
+    scope,
+  }
+
+  let { data, error } = await supabase
     .from('subscriptions')
-    .insert({
-      user_id: user.id,
-      name: name.trim(),
-      amount,
-      due_day: dueDay,
-      billing_cycle: billingCycle,
-      category,
-      icon,
-      is_active: true,
-    })
+    .insert(payload)
     .select('id')
     .single()
+
+  if (error && error.message?.includes('scope')) {
+    delete payload.scope
+    const retry = await supabase.from('subscriptions').insert(payload).select('id').single()
+    data = retry.data
+    error = retry.error
+  }
 
   if (error) {
     return { error: error.message }

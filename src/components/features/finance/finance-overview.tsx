@@ -33,12 +33,15 @@ import { FinanceSettingsModal } from '@/components/features/finance/modals/finan
 import { getSubscriptions } from '@/lib/actions/subscriptions'
 import { getWeddingBudgetItems } from '@/lib/actions/wedding'
 import { useWorkspaceStore } from '@/stores/workspace-store'
+import type { Scope } from '@/types'
 
 interface FinanceOverviewProps {
   transactions: Transaction[]
+  allTransactions?: Transaction[]
   budgets: Budget[]
   savings: SavingsAccount[]
-  viewMode: 'me' | 'partner' | 'combined'
+  scope?: Scope | 'all'
+  viewMode?: 'me' | 'partner' | 'combined'
   onOpenQuickExpense: () => void
   onSwitchToAdvanced: () => void
   userRole?: string
@@ -47,6 +50,7 @@ interface FinanceOverviewProps {
     role: string
     billing_cycle_start_day?: number
     default_account_id?: string | null
+    joint_default_account_id?: string | null
   } | null
   onRefresh?: () => void
 }
@@ -66,8 +70,10 @@ interface TimelineCommitmentItem {
 
 export function FinanceOverview({
   transactions,
+  allTransactions,
   budgets,
   savings,
+  scope,
   viewMode,
   onOpenQuickExpense,
   onSwitchToAdvanced,
@@ -81,6 +87,7 @@ export function FinanceOverview({
   const [weddingItems, setWeddingItems] = useState<WeddingBudgetItem[]>([])
 
   const { weddingBudgetItems: cachedWedding } = useWorkspaceStore()
+  const activeScope: Scope | 'all' = scope || (viewMode === 'combined' ? 'all' : (userRole as Scope))
 
   // Load subscriptions & wedding items for 14-day timeline & liquidity metrics
   useEffect(() => {
@@ -136,9 +143,11 @@ export function FinanceOverview({
     // Calculate Daily Safe-to-Spend
     const safeToSpend = calculateDailySafeToSpend(remainingBudget, cycle.daysRemaining)
 
-    // Calculate Unpaid Wedding Commitments
+    // Calculate Unpaid Wedding Commitments (Exclude sponsored/parent funded)
     let totalUnpaidVendor = 0
     weddingItems.forEach((item) => {
+      if (item.is_sponsored) return
+
       let milestoneSum = 0
       let hasMilestone = false
       if (item.dp_amount && item.dp_amount > 0) {
@@ -181,6 +190,41 @@ export function FinanceOverview({
         .slice(0, 5),
     }
   }, [transactions, budgets, savings, cycle, weddingItems])
+
+  // Multi-POV Contribution Calculations
+  const fullTxList = allTransactions || transactions
+  const outgoingContributions = useMemo(() => {
+    if (activeScope !== 'aegg' && activeScope !== 'peppaa') return 0
+    return fullTxList
+      .filter((t) => isDateInBillingCycle(t.date, cycle))
+      .filter(
+        (t) =>
+          t.type === 'transfer' &&
+          t.transfer_category === 'contribution' &&
+          (t.scope === activeScope || t.paid_by === userProfile?.id)
+      )
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+  }, [fullTxList, cycle, activeScope, userProfile?.id])
+
+  const incomingContributions = useMemo(() => {
+    const cycleTx = fullTxList.filter((t) => isDateInBillingCycle(t.date, cycle))
+    const contributionTxs = cycleTx.filter(
+      (t) => t.type === 'transfer' && t.transfer_category === 'contribution'
+    )
+    let aegg = 0
+    let peppaa = 0
+    contributionTxs.forEach((t) => {
+      const amt = Number(t.amount) || 0
+      if (t.paid_by === userProfile?.id) {
+        if (userProfile?.role === 'aegg') aegg += amt
+        else peppaa += amt
+      } else {
+        if (userProfile?.role === 'aegg') peppaa += amt
+        else aegg += amt
+      }
+    })
+    return { aegg, peppaa, total: aegg + peppaa }
+  }, [fullTxList, cycle, userProfile])
 
   // 2. Build 14-Day Upcoming Commitments Timeline
   const upcomingCommitments = useMemo(() => {
@@ -510,34 +554,96 @@ export function FinanceOverview({
           </div>
         </motion.div>
 
-        {/* Pocket C: Total Likuiditas Gabungan */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-3"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-              Total Likuiditas Gabungan
-            </span>
-            <span className="text-[10px] font-medium bg-secondary text-muted-foreground px-2 py-0.5 rounded-md">
-              {savings.length} Kantong
-            </span>
-          </div>
-          <div>
-            <h4 className="text-2xl font-black text-foreground tracking-tight tabular-nums">
-              {formatRupiah(stats.totalSavingsAmount)}
-            </h4>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Total seluruh rekening bank, e-wallet & kas
-            </p>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Seluruh saldo terdata & sinkron realtime
-          </div>
-        </motion.div>
+        {/* Pocket C: POV-Tailored Contribution / Consolidated Card */}
+        {activeScope === 'aegg' || activeScope === 'peppaa' ? (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-primary" />
+                Kontribusi ke Kas Bersama
+              </span>
+              <span className="text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md">
+                📤 Siklus Ini
+              </span>
+            </div>
+            <div>
+              <h4 className="text-2xl font-black text-foreground tracking-tight tabular-nums">
+                {formatRupiah(outgoingContributions)}
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Alokasi dari kantong {activeScope === 'aegg' ? 'Aegg' : 'Peppaa'} untuk kas bersama
+              </p>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {outgoingContributions > 0
+                ? 'Tercatat sebagai transfer kontribusi ke kas pasangan & nikah.'
+                : 'Belum ada transfer kontribusi di siklus gaji aktif ini.'}
+            </div>
+          </motion.div>
+        ) : activeScope === 'joint' ? (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-emerald-500" />
+                Kontribusi Masuk Pasangan
+              </span>
+              <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                📥 Kas Bersama
+              </span>
+            </div>
+            <div>
+              <h4 className="text-2xl font-black text-foreground tracking-tight tabular-nums">
+                {formatRupiah(incomingContributions.total)}
+              </h4>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
+                <span>Aegg: <strong className="text-foreground tabular-nums">{formatRupiah(incomingContributions.aegg)}</strong></span>
+                <span>•</span>
+                <span>Peppaa: <strong className="text-foreground tabular-nums">{formatRupiah(incomingContributions.peppaa)}</strong></span>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Total transfer masuk untuk mendanai operasional & vendor wedding
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                Total Likuiditas Gabungan
+              </span>
+              <span className="text-[10px] font-medium bg-secondary text-muted-foreground px-2 py-0.5 rounded-md">
+                {savings.length} Kantong
+              </span>
+            </div>
+            <div>
+              <h4 className="text-2xl font-black text-foreground tracking-tight tabular-nums">
+                {formatRupiah(stats.totalSavingsAmount)}
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Total seluruh rekening bank, e-wallet & kas
+              </p>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Seluruh saldo terdata & sinkron realtime
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* 3. Timeline Komitmen 14 Hari & 1-Click Bayar dari Kantong */}

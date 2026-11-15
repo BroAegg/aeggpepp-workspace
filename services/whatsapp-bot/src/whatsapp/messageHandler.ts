@@ -213,6 +213,33 @@ export async function handleIncomingMessage(sock: WASocket, msg: WAMessage): Pro
   }
 }
 
+/**
+ * Heuristic auto-scope routing:
+ * - In Couple Group: defaults to 'joint' (Kas Bersama). If message mentions explicit personal keywords ("pribadi", "uangku", "punyaku", "dompetku", "kantongku", "sendiri"), route to user's role.
+ * - In Private DM: defaults to user's role (Personal). If message mentions explicit joint keywords ("gabungan", "bersama", "nikah", "wedding", "kas", "patungan", "berdua", "kita"), route to 'joint'.
+ */
+export function resolveTransactionScope(
+  isGroup: boolean,
+  text: string,
+  userRole: 'aegg' | 'peppaa'
+): 'aegg' | 'peppaa' | 'joint' {
+  const lower = text.toLowerCase();
+  const jointKeywords = ['gabungan', 'bersama', 'nikah', 'wedding', 'kas', 'patungan', 'berdua', 'kita'];
+  const personalKeywords = ['pribadi', 'uangku', 'punyaku', 'dompetku', 'kantongku', 'sendiri'];
+
+  if (isGroup) {
+    if (personalKeywords.some((kw) => lower.includes(kw))) {
+      return userRole;
+    }
+    return 'joint';
+  } else {
+    if (jointKeywords.some((kw) => lower.includes(kw))) {
+      return 'joint';
+    }
+    return userRole;
+  }
+}
+
 async function processFlushedPayload(
   sock: WASocket,
   payload: {
@@ -288,6 +315,9 @@ async function processFlushedPayload(
         combinedText.toLowerCase().includes('berdua') ||
         combinedText.toLowerCase().includes('50:50');
 
+      // Auto-resolve transaction scope (joint vs personal)
+      const scope = resolveTransactionScope(isGroup, combinedText, user.role);
+
       // 4. Deterministic Idempotency Key (UUID v5 based on WhatsApp message key)
       const rawMsgId = lastMsg.key.id || `${Date.now()}_${user.id}`;
       const idempotencyKey = uuidv5(rawMsgId, IDEMPOTENCY_NAMESPACE);
@@ -303,6 +333,7 @@ async function processFlushedPayload(
         isSplit,
         idempotencyKey,
         items: parsedReceipt.items,
+        scope,
       });
 
       // 6. Format Nanang Receipt Reply with Undo Prompt
@@ -314,6 +345,7 @@ async function processFlushedPayload(
         items: parsedReceipt.items,
         paidByRole: user.role,
         isSplit,
+        scope,
       });
 
       stopTyping();
@@ -362,6 +394,7 @@ async function processFlushedPayload(
 
         const rawMsgId = lastMsg.key.id || `${Date.now()}_${user.id}`;
         const idempotencyKey = uuidv5(rawMsgId, IDEMPOTENCY_NAMESPACE);
+        const scope = resolveTransactionScope(isGroup, combinedText, user.role);
 
         const { transactionId } = await saveQuickTransaction({
           user,
@@ -372,6 +405,7 @@ async function processFlushedPayload(
           merchant: financeResult.merchant,
           isSplit: financeResult.isSplit,
           idempotencyKey,
+          scope,
         });
 
         const reply = formatNanangFinance({
@@ -382,6 +416,7 @@ async function processFlushedPayload(
           merchant: financeResult.merchant,
           paidByRole: user.role,
           isSplit: financeResult.isSplit,
+          scope,
         });
 
         stopTyping();

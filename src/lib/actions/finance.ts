@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { logActivity } from '@/lib/actions/activity'
-import type { Transaction, Budget, TransactionType, BudgetPeriod, SavingsAccount, SavingsTransaction, AccountMutationItem, MutationType } from '@/types'
+import type { Transaction, Budget, TransactionType, BudgetPeriod, SavingsAccount, SavingsTransaction, AccountMutationItem, MutationType, Scope } from '@/types'
 
 // ============== UTILS & RPC BALANCE HELPER ==============
 export async function adjustAccountBalanceInternal(
@@ -51,7 +51,7 @@ export async function getFinanceProfile() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, billing_cycle_start_day, default_account_id')
+    .select('id, role, billing_cycle_start_day, default_account_id, joint_default_account_id')
     .eq('id', user.id)
     .single()
   if (!profile) return null
@@ -69,12 +69,16 @@ export async function getFinanceProfile() {
     partnerId,
     billing_cycle_start_day: profile.billing_cycle_start_day,
     default_account_id: profile.default_account_id,
+    joint_default_account_id: (profile as any).joint_default_account_id || null,
   }
 }
 
 // ============== TRANSACTIONS ==============
 
-export async function getTransactions(userId?: string | 'all'): Promise<Transaction[]> {
+export async function getTransactions(
+  userId?: string | 'all',
+  scope?: Scope | 'all'
+): Promise<Transaction[]> {
   const supabase = await createClient()
 
   let query = supabase
@@ -84,13 +88,13 @@ export async function getTransactions(userId?: string | 'all'): Promise<Transact
     .not('is_settlement', 'is', true)
     .order('date', { ascending: false })
 
-  // If userId is specific string (not 'all' and not undefined), filter by it
-  // If undefined, default to current user (legacy behavior, but we should be explicit given the new requirement)
-  // Actually, to support "Combined", we want 'all' to NOT filter by user_id.
-  // Unless we want to enforce only seeing own + partner? 
-  // RLS allows seeing all, so 'all' means all.
-
-  if (userId && userId !== 'all') {
+  if (scope && scope !== 'all') {
+    if (scope === 'joint') {
+      query = query.or('scope.eq.joint,transfer_category.eq.contribution')
+    } else {
+      query = query.eq('scope', scope)
+    }
+  } else if (userId && userId !== 'all') {
     query = query.eq('user_id', userId)
   } else if (!userId) {
     // Default: View own transactions if no arg provided
@@ -196,6 +200,22 @@ export async function createTransaction(formData: FormData) {
     receiptUrl = fileName
   }
 
+  const rawScope = formData.get('scope') as string | null
+  let scope: Scope = (rawScope as Scope) || 'aegg'
+  let transferCategory: 'internal' | 'contribution' = ((formData.get('transfer_category') as string) || 'internal') as any
+
+  if (type === 'transfer' && fromAccountId && toAccountId) {
+    const { data: toAcc } = await supabase
+      .from('savings_accounts')
+      .select('scope, is_locked')
+      .eq('id', toAccountId)
+      .maybeSingle()
+    if (toAcc && (toAcc.scope === 'joint' || toAcc.is_locked)) {
+      transferCategory = 'contribution'
+      scope = 'joint'
+    }
+  }
+
   const insertPayload: any = {
     user_id: user.id,
     type,
@@ -213,6 +233,8 @@ export async function createTransaction(formData: FormData) {
     from_account_id: fromAccountId,
     to_account_id: toAccountId,
     source,
+    scope,
+    transfer_category: transferCategory,
   }
 
   if (idempotencyKey) {
@@ -226,7 +248,17 @@ export async function createTransaction(formData: FormData) {
     .single()
 
   // Graceful fallback if account columns or source don't exist yet in DB schema
-  if (error && (error.message?.includes('from_account_id') || error.message?.includes('to_account_id') || error.message?.includes('account_id') || error.message?.includes('source'))) {
+  if (
+    error &&
+    (error.message?.includes('from_account_id') ||
+      error.message?.includes('to_account_id') ||
+      error.message?.includes('account_id') ||
+      error.message?.includes('source') ||
+      error.message?.includes('scope') ||
+      error.message?.includes('transfer_category'))
+  ) {
+    delete insertPayload.scope
+    delete insertPayload.transfer_category
     delete insertPayload.account_id
     delete insertPayload.from_account_id
     delete insertPayload.to_account_id
@@ -499,7 +531,10 @@ export async function deleteTransaction(id: string) {
 
 // ============== BUDGETS ==============
 
-export async function getBudgets(userId?: string | 'all'): Promise<Budget[]> {
+export async function getBudgets(
+  userId?: string | 'all',
+  scope?: Scope | 'all'
+): Promise<Budget[]> {
   const supabase = await createClient()
 
   let query = supabase
@@ -507,7 +542,9 @@ export async function getBudgets(userId?: string | 'all'): Promise<Budget[]> {
     .select('*')
     .order('category', { ascending: true })
 
-  if (userId && userId !== 'all') {
+  if (scope && scope !== 'all') {
+    query = query.eq('scope', scope)
+  } else if (userId && userId !== 'all') {
     query = query.eq('user_id', userId)
   } else if (!userId) {
     const { data: { user } } = await supabase.auth.getUser()
@@ -535,6 +572,8 @@ export async function createBudget(formData: FormData) {
   const category = formData.get('category') as string
   const amount = parseFloat(formData.get('amount') as string)
   const period = (formData.get('period') as BudgetPeriod) || 'monthly'
+  const rawScope = formData.get('scope') as string
+  const scope: Scope = (rawScope as Scope) || 'aegg'
 
   if (!category || !amount) {
     return { error: 'Category and amount are required' }
@@ -560,12 +599,20 @@ export async function createBudget(formData: FormData) {
     }
   } else {
     // Create new budget
-    const { error } = await supabase.from('budgets').insert({
+    const budgetPayload: any = {
       user_id: user.id,
       category,
       amount,
       period,
-    })
+      scope,
+    }
+
+    let { error } = await supabase.from('budgets').insert(budgetPayload)
+    if (error && error.message?.includes('scope')) {
+      delete budgetPayload.scope
+      const retry = await supabase.from('budgets').insert(budgetPayload)
+      error = retry.error
+    }
 
     if (error) {
       return { error: error.message }
@@ -620,7 +667,10 @@ export async function deleteBudget(id: string) {
 
 // ============== SAVINGS ACCOUNTS ==============
 
-export async function getSavingsAccounts(userId?: string | 'all'): Promise<SavingsAccount[]> {
+export async function getSavingsAccounts(
+  userId?: string | 'all',
+  scope?: Scope | 'all'
+): Promise<SavingsAccount[]> {
   const supabase = await createClient()
 
   let query = supabase
@@ -628,7 +678,13 @@ export async function getSavingsAccounts(userId?: string | 'all'): Promise<Savin
     .select('*, profiles:user_id(display_name, role)')
     .order('created_at', { ascending: true })
 
-  if (userId && userId !== 'all') {
+  if (scope && scope !== 'all') {
+    if (scope === 'joint') {
+      query = query.or('scope.eq.joint,is_locked.eq.true')
+    } else {
+      query = query.eq('scope', scope)
+    }
+  } else if (userId && userId !== 'all') {
     query = query.eq('user_id', userId)
   } else if (!userId) {
     const { data: { user } } = await supabase.auth.getUser()
@@ -659,6 +715,8 @@ export async function createSavingsAccount(formData: FormData) {
   const balance = parseFloat(formData.get('balance') as string) || 0
   const icon = formData.get('icon') as string
   const is_locked = formData.get('is_locked') === 'true'
+  const rawScope = formData.get('scope') as string
+  const scope: Scope = (rawScope as Scope) || (is_locked ? 'joint' : 'aegg')
 
   if (!name?.trim()) {
     return { error: 'Nama lokasi uang wajib diisi' }
@@ -672,13 +730,15 @@ export async function createSavingsAccount(formData: FormData) {
     balance,
     icon: icon || null,
     is_locked,
+    scope,
   }
 
   let { error } = await supabase.from('savings_accounts').insert(payload)
 
-  // Defensive fallback if is_locked column has not been added to DB yet
-  if (error && error.message?.includes('is_locked')) {
+  // Defensive fallback if scope or is_locked column has not been added to DB yet
+  if (error && (error.message?.includes('is_locked') || error.message?.includes('scope'))) {
     delete payload.is_locked
+    delete payload.scope
     const retry = await supabase.from('savings_accounts').insert(payload)
     error = retry.error
   }
@@ -1050,6 +1110,7 @@ export async function getAccountMutations(accountId: string): Promise<AccountMut
 export async function updateProfileFinanceSettings(data: {
   billingCycleStartDay?: number
   defaultAccountId?: string | null
+  jointDefaultAccountId?: string | null
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -1061,6 +1122,9 @@ export async function updateProfileFinanceSettings(data: {
   }
   if (data.defaultAccountId !== undefined) {
     payload.default_account_id = data.defaultAccountId
+  }
+  if (data.jointDefaultAccountId !== undefined) {
+    payload.joint_default_account_id = data.jointDefaultAccountId
   }
 
   const { error } = await supabase

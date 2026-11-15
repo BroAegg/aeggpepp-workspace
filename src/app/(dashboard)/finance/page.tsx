@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,8 @@ import {
   deleteSavingsAccount,
   getFinanceProfile,
 } from '@/lib/actions/finance'
-import type { Transaction, Budget, SavingsAccount, TransactionType } from '@/types'
+import type { Transaction, Budget, SavingsAccount, TransactionType, Scope } from '@/types'
+import { cn } from '@/lib/utils'
 import { FinanceNavTabs, type FinanceTab } from '@/components/features/finance/finance-nav-tabs'
 import { FinanceSkeleton } from '@/components/features/finance/finance-skeleton'
 import { FinanceOverview } from '@/components/features/finance/finance-overview'
@@ -85,8 +86,8 @@ export default function FinancePage() {
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<FinanceTab>('overview')
 
-  // Partner view mode
-  const [viewMode, setViewMode] = useState<'me' | 'partner' | 'combined'>('combined')
+  // Multi-POV scope: 'aegg' | 'peppaa' | 'joint' | 'all'
+  const [selectedScope, setSelectedScope] = useState<Scope | 'all'>('all')
   const [userProfile, setUserProfile] = useState<{ id: string; role: string; partnerId?: string } | null>(null)
   const [quickExpenseOpen, setQuickExpenseOpen] = useState(false)
 
@@ -142,6 +143,9 @@ export default function FinancePage() {
       .then(([profile, txData, budgetsData, savingsData]) => {
         if (!isMounted) return
         setUserProfile(profile)
+        if (profile?.role === 'peppaa' || profile?.role === 'aegg') {
+          setSelectedScope(profile.role as Scope)
+        }
         setTransactions(txData)
         setBudgets(budgetsData)
         setSavings(savingsData)
@@ -164,27 +168,22 @@ export default function FinancePage() {
   // Auto-revalidate when back online
   useEffect(() => {
     const handleOnline = () => {
-      if (userProfile) fetchData(userProfile, viewMode)
+      if (userProfile) fetchData()
     }
     window.addEventListener('online', handleOnline)
     return () => window.removeEventListener('online', handleOnline)
-  }, [userProfile, viewMode])
+  }, [userProfile])
 
-  const fetchData = async (profile: typeof userProfile, mode: typeof viewMode) => {
+  const fetchData = async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setLoading(false)
       return
     }
     try {
-      let targetId: string | 'all' | undefined = undefined
-      if (mode === 'combined') targetId = 'all'
-      else if (mode === 'partner' && profile?.partnerId) targetId = profile.partnerId
-      else if (mode === 'me' && profile?.id) targetId = profile.id
-
       const [txData, budgetsData, savingsData] = await Promise.all([
-        getTransactions(targetId),
-        getBudgets(targetId),
-        getSavingsAccounts(targetId),
+        getTransactions('all'),
+        getBudgets('all'),
+        getSavingsAccounts('all'),
       ])
       setTransactions(txData)
       setBudgets(budgetsData)
@@ -200,6 +199,33 @@ export default function FinancePage() {
       setLoading(false)
     }
   }
+
+  // Multi-POV in-memory filtered datasets (instant 0ms switching)
+  const filteredTransactions = useMemo(() => {
+    if (selectedScope === 'all') return transactions
+    if (selectedScope === 'joint') {
+      return transactions.filter(
+        (t) => t.scope === 'joint' || (!t.scope && (t.category === 'wedding' || t.category === 'joint'))
+      )
+    }
+    return transactions.filter((t) => {
+      if (t.scope) return t.scope === selectedScope
+      const userRole = userProfile?.role
+      if (userRole === selectedScope) return t.user_id === userProfile?.id
+      return t.user_id !== userProfile?.id
+    })
+  }, [transactions, selectedScope, userProfile])
+
+  const filteredBudgets = useMemo(() => {
+    if (selectedScope === 'all') return budgets
+    return budgets.filter((b) => b.scope === selectedScope)
+  }, [budgets, selectedScope])
+
+  const filteredSavings = useMemo(() => {
+    if (selectedScope === 'all') return savings
+    if (selectedScope === 'joint') return savings.filter((s) => s.scope === 'joint' || s.is_locked)
+    return savings.filter((s) => s.scope === selectedScope && !s.is_locked)
+  }, [savings, selectedScope])
 
   // Transaction Handlers
   const handleSubmitTransaction = async (formData: FormData) => {
@@ -221,7 +247,7 @@ export default function FinancePage() {
       toast.success(editingTransaction ? 'Transaksi berhasil diperbarui' : 'Transaksi berhasil ditambahkan')
       setShowTransactionModal(false)
       setEditingTransaction(null)
-      await fetchData(userProfile, viewMode)
+      await fetchData()
     } catch (error) {
       toast.error('Error menyimpan transaksi')
       console.error('Error saving transaction:', error)
@@ -236,7 +262,7 @@ export default function FinancePage() {
     try {
       await deleteTransactionAction(id)
       toast.success('Transaksi dihapus')
-      await fetchData(userProfile, viewMode)
+      await fetchData()
     } catch (error) {
       toast.error('Gagal menghapus transaksi')
       console.error('Error deleting transaction:', error)
@@ -262,7 +288,7 @@ export default function FinancePage() {
       toast.success(editingBudget ? 'Budget berhasil diperbarui' : 'Budget baru berhasil dibuat')
       setShowBudgetModal(false)
       setEditingBudget(null)
-      await fetchData(userProfile, viewMode)
+      await fetchData()
     } catch (error) {
       toast.error('Error menyimpan budget')
       console.error('Error saving budget:', error)
@@ -276,7 +302,7 @@ export default function FinancePage() {
     if (!confirm('Hapus target anggaran ini?')) return
     try {
       await deleteBudget(id)
-      await fetchData(userProfile, viewMode)
+      await fetchData()
     } catch (error) {
       console.error('Error deleting budget:', error)
     }
@@ -295,7 +321,7 @@ export default function FinancePage() {
       }
       toast.success('Lokasi uang berhasil disimpan')
       setShowSavingsModal(false)
-      await fetchData(userProfile, viewMode)
+      await fetchData()
     } catch (error) {
       toast.error('Error membuat lokasi uang')
       console.error('Error creating savings:', error)
@@ -323,7 +349,7 @@ export default function FinancePage() {
       toast.success('Saldo lokasi uang berhasil diperbarui')
       setShowSavingsTxModal(false)
       setSelectedSavingsAccount(null)
-      await fetchData(userProfile, viewMode)
+      await fetchData()
     } catch (error) {
       toast.error('Error memperbarui saldo')
       console.error('Error updating savings balance:', error)
@@ -338,7 +364,7 @@ export default function FinancePage() {
     try {
       await deleteSavingsAccount(id)
       toast.success('Lokasi uang dihapus')
-      await fetchData(userProfile, viewMode)
+      await fetchData()
     } catch (error) {
       toast.error('Gagal menghapus lokasi uang')
       console.error('Error deleting savings account:', error)
@@ -384,6 +410,71 @@ export default function FinancePage() {
               </div>
             </div>
 
+            {/* 4-Way Multi-POV Segmented Switcher */}
+            <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-border/50">
+              <div className="inline-flex p-1 bg-secondary/80 rounded-xl border border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setSelectedScope('aegg')}
+                  className={cn(
+                    'px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                    selectedScope === 'aegg'
+                      ? 'bg-card text-foreground shadow-xs border border-border/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Aegg
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedScope('peppaa')}
+                  className={cn(
+                    'px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                    selectedScope === 'peppaa'
+                      ? 'bg-card text-foreground shadow-xs border border-border/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Peppaa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedScope('joint')}
+                  className={cn(
+                    'px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5',
+                    selectedScope === 'joint'
+                      ? 'bg-card text-foreground shadow-xs border border-border/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <span>💍</span> Kas Bersama
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedScope('all')}
+                  className={cn(
+                    'px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                    selectedScope === 'all'
+                      ? 'bg-card text-foreground shadow-xs border border-border/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Semua (Konsolidasi)
+                </button>
+              </div>
+
+              <span className="text-[11px] text-muted-foreground">
+                Ruang:{' '}
+                <strong className="text-foreground">
+                  {selectedScope === 'all'
+                    ? 'Konsolidasi Semua Ruang'
+                    : selectedScope === 'joint'
+                    ? 'Kas & Tabungan Bersama'
+                    : `Pribadi ${selectedScope === 'aegg' ? 'Aegg' : 'Peppaa'}`}
+                </strong>
+              </span>
+            </div>
+
             {/* Skeleton Loading on initial empty state */}
             {loading && transactions.length === 0 && budgets.length === 0 && savings.length === 0 && (
               <FinanceSkeleton />
@@ -393,16 +484,17 @@ export default function FinancePage() {
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 <FinanceOverview
-                  transactions={transactions}
-                  budgets={budgets}
-                  savings={savings}
-                  viewMode={viewMode}
+                  transactions={filteredTransactions}
+                  allTransactions={transactions}
+                  budgets={filteredBudgets}
+                  savings={filteredSavings}
+                  scope={selectedScope}
                   userRole={userProfile?.role}
                   userProfile={userProfile as any}
                   onOpenQuickExpense={() => setQuickExpenseOpen(true)}
                   onSwitchToAdvanced={() => setActiveTab('transactions')}
                   onRefresh={() => {
-                    if (userProfile) fetchData(userProfile, viewMode)
+                    fetchData()
                   }}
                 />
               </div>
@@ -411,8 +503,8 @@ export default function FinancePage() {
             {/* TAB: TRANSACTIONS */}
             {activeTab === 'transactions' && (
               <TransactionsTab
-                transactions={transactions}
-                accounts={savings}
+                transactions={filteredTransactions}
+                accounts={filteredSavings}
                 formatCurrency={formatCurrency}
                 onAddTransaction={() => {
                   setEditingTransaction(null)
@@ -427,7 +519,7 @@ export default function FinancePage() {
                 onDeleteTransaction={handleDeleteTransaction}
                 onOpenReceiptModal={(tx) => setReceiptModalTx(tx)}
                 onRefresh={() => {
-                  if (userProfile) fetchData(userProfile, viewMode)
+                  fetchData()
                 }}
               />
             )}
@@ -435,8 +527,8 @@ export default function FinancePage() {
             {/* TAB: BUDGETS */}
             {activeTab === 'budgets' && (
               <BudgetsTab
-                budgets={budgets}
-                transactions={transactions}
+                budgets={filteredBudgets}
+                transactions={filteredTransactions}
                 formatCurrency={formatCurrency}
                 billingCycleStartDay={(userProfile as any)?.billing_cycle_start_day}
                 onAddBudget={() => {
@@ -454,7 +546,7 @@ export default function FinancePage() {
             {/* TAB: SAVINGS (LOKASI UANG) */}
             {activeTab === 'savings' && (
               <SavingsTab
-                savings={savings}
+                savings={filteredSavings}
                 formatCurrency={formatCurrency}
                 onOpenAddSavings={() => setShowSavingsModal(true)}
                 onOpenSavingsTx={(account, type) => {
@@ -468,7 +560,7 @@ export default function FinancePage() {
                   setShowTransactionModal(true)
                 }}
                 onRefresh={() => {
-                  if (userProfile) fetchData(userProfile, viewMode)
+                  fetchData()
                 }}
               />
             )}
@@ -477,10 +569,10 @@ export default function FinancePage() {
             {activeTab === 'subscriptions' && (
               <SubscriptionsTab
                 formatCurrency={formatCurrency}
-                accounts={savings}
+                accounts={filteredSavings}
                 defaultAccountId={(userProfile as any)?.default_account_id}
                 onRefreshFinance={() => {
-                  if (userProfile) fetchData(userProfile, viewMode)
+                  fetchData()
                 }}
               />
             )}
@@ -543,7 +635,7 @@ export default function FinancePage() {
         onClose={() => setReceiptModalTx(null)}
         transaction={receiptModalTx}
         onReceiptUpdated={() => {
-          if (userProfile) fetchData(userProfile, viewMode)
+          fetchData()
         }}
       />
 
@@ -551,7 +643,7 @@ export default function FinancePage() {
         isOpen={quickExpenseOpen}
         onClose={() => setQuickExpenseOpen(false)}
         onSuccess={() => {
-          if (userProfile) fetchData(userProfile, viewMode)
+          fetchData()
         }}
         accounts={savings}
         defaultAccountId={(userProfile as any)?.default_account_id}

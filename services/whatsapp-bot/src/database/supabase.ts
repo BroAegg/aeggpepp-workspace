@@ -154,6 +154,7 @@ export interface SaveReceiptPayload {
   isSplit?: boolean;
   idempotencyKey?: string | null;
   items: ReceiptItemInput[];
+  scope?: 'aegg' | 'peppaa' | 'joint';
 }
 
 /**
@@ -174,36 +175,77 @@ export function validateTransactionDate(rawDate?: string): string {
 }
 
 /**
+ * Resolves target account for user based on scope ('aegg' | 'peppaa' | 'joint')
+ */
+export async function getTargetAccountForUser(
+  userId: string,
+  scope?: 'aegg' | 'peppaa' | 'joint'
+): Promise<string | null> {
+  const supabase = getSupabase();
+  try {
+    if (scope === 'joint') {
+      // 1. Try profiles.joint_default_account_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('joint_default_account_id, default_account_id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile?.joint_default_account_id) {
+        return profile.joint_default_account_id;
+      }
+
+      // 2. Fallback to first joint or locked savings account
+      const { data: jointAccounts } = await supabase
+        .from('savings_accounts')
+        .select('id, is_locked, scope')
+        .or('scope.eq.joint,is_locked.eq.true')
+        .order('created_at', { ascending: true })
+        .limit(1);
+
+      if (jointAccounts && jointAccounts.length > 0) {
+        return jointAccounts[0].id;
+      }
+
+      // 3. Fallback to profile.default_account_id
+      if (profile?.default_account_id) {
+        return profile.default_account_id;
+      }
+    } else {
+      // Personal scope ('aegg' | 'peppaa')
+      // 1. Try profiles.default_account_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('default_account_id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile?.default_account_id) {
+        return profile.default_account_id;
+      }
+
+      // 2. Fallback to user's first personal operational pocket
+      const { data: accounts } = await supabase
+        .from('savings_accounts')
+        .select('id, is_locked, scope')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
+
+      const operational = accounts?.find((a: any) => !a.is_locked && a.scope !== 'joint');
+      if (operational) return operational.id;
+      if (accounts && accounts.length > 0) return accounts[0].id;
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message, userId, scope }, '[Supabase] Error resolving target account');
+  }
+  return null;
+}
+
+/**
  * Resolves user's default operational account from profiles or savings_accounts
  */
 export async function getDefaultAccountForUser(userId: string): Promise<string | null> {
-  const supabase = getSupabase();
-  try {
-    // 1. Try profiles.default_account_id
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('default_account_id')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (profile?.default_account_id) {
-      return profile.default_account_id;
-    }
-
-    // 2. Fallback to first non-locked operational pocket for this user
-    const { data: accounts } = await supabase
-      .from('savings_accounts')
-      .select('id, is_locked')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true });
-
-    const operational = accounts?.find((a: any) => !a.is_locked);
-    if (operational) return operational.id;
-    if (accounts && accounts.length > 0) return accounts[0].id;
-  } catch (err: any) {
-    logger.warn({ err: err?.message, userId }, '[Supabase] Error resolving default account');
-  }
-  return null;
+  return getTargetAccountForUser(userId);
 }
 
 /**
@@ -233,7 +275,8 @@ async function adjustAccountBalanceRpc(accountId: string, delta: number): Promis
 export async function saveReceiptTransaction(payload: SaveReceiptPayload): Promise<{ transactionId: string }> {
   const supabase = getSupabase();
   const validDate = validateTransactionDate(payload.date);
-  const targetAccountId = await getDefaultAccountForUser(payload.user.id);
+  const targetScope = payload.scope || (payload.user.role === 'peppaa' ? 'peppaa' : 'aegg');
+  const targetAccountId = await getTargetAccountForUser(payload.user.id, targetScope);
 
   const insertData: any = {
     user_id: payload.user.id,
@@ -245,6 +288,7 @@ export async function saveReceiptTransaction(payload: SaveReceiptPayload): Promi
     description: payload.description || `Belanja di ${payload.merchant}`,
     date: validDate,
     source: 'whatsapp',
+    scope: targetScope,
     account_id: targetAccountId,
     is_split: false,
     is_settled: true,
@@ -368,10 +412,12 @@ export async function saveQuickTransaction(params: {
   merchant?: string;
   isSplit?: boolean;
   idempotencyKey?: string;
+  scope?: 'aegg' | 'peppaa' | 'joint';
 }): Promise<{ transactionId: string }> {
   const supabase = getSupabase();
   const dateStr = new Date().toISOString().split('T')[0];
-  const targetAccountId = await getDefaultAccountForUser(params.user.id);
+  const targetScope = params.scope || (params.user.role === 'peppaa' ? 'peppaa' : 'aegg');
+  const targetAccountId = await getTargetAccountForUser(params.user.id, targetScope);
 
   const insertData: any = {
     user_id: params.user.id,
@@ -383,6 +429,7 @@ export async function saveQuickTransaction(params: {
     description: params.description,
     date: dateStr,
     source: 'whatsapp',
+    scope: targetScope,
     account_id: targetAccountId,
     is_split: false,
     is_settled: true,

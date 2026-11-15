@@ -27,6 +27,8 @@ export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoMo
   const [formDueDate, setFormDueDate] = useState('')
   const [tasks, setTasks] = useState<string[]>([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [scope, setScope] = useState<'aegg' | 'peppaa' | 'joint'>('joint')
+  const [isPrivate, setIsPrivate] = useState(false)
 
   const resetForm = () => {
     setFormTitle('')
@@ -36,6 +38,8 @@ export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoMo
     setFormDueDate('')
     setTasks([])
     setNewTaskTitle('')
+    setScope('joint')
+    setIsPrivate(false)
   }
 
   const handleClose = () => {
@@ -65,6 +69,8 @@ export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoMo
       formData.set('priority', formPriority)
       formData.set('category', formCategory)
       formData.set('due_date', formDueDate)
+      formData.set('scope', scope)
+      formData.set('is_private', isPrivate ? 'true' : 'false')
       formData.set('idempotency_key', crypto.randomUUID())
 
       const result = await createTodo(formData)
@@ -175,6 +181,65 @@ export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoMo
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Ruang / Scope & Private Toggle */}
+              <div className="p-3 bg-secondary/40 rounded-xl border border-border/70 space-y-2.5">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                    Ruang / Kepemilikan
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-background rounded-lg border border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setScope('joint')}
+                      className={cn(
+                        'py-1 text-xs font-bold rounded-md transition-all',
+                        scope === 'joint'
+                          ? 'bg-secondary text-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      💍 Bersama
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScope('aegg')}
+                      className={cn(
+                        'py-1 text-xs font-bold rounded-md transition-all',
+                        scope === 'aegg'
+                          ? 'bg-secondary text-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      Aegg
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScope('peppaa')}
+                      className={cn(
+                        'py-1 text-xs font-bold rounded-md transition-all',
+                        scope === 'peppaa'
+                          ? 'bg-secondary text-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      Peppaa
+                    </button>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer pt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={isPrivate}
+                    onChange={(e) => setIsPrivate(e.target.checked)}
+                    className="w-4 h-4 rounded text-primary focus:ring-primary/20 border-border"
+                  />
+                  <span className="text-xs font-medium text-foreground">
+                    🔒 Tugas Privat (Hanya saya yang dapat melihat)
+                  </span>
+                </label>
               </div>
 
               {/* Due Date */}

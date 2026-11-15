@@ -11,11 +11,10 @@ export async function getWishlistItems(): Promise<WishlistItem[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
-  // Get own items + shared items from partner
+  // Get own items + shared items from partner (filter out unpurchased surprise gifts from partner)
   const { data, error } = await supabase
     .from('wishlist')
     .select('*, profiles:user_id(display_name, role)')
-    .or(`user_id.eq.${user.id},is_shared.eq.true`)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -23,7 +22,15 @@ export async function getWishlistItems(): Promise<WishlistItem[]> {
     return []
   }
 
-  return data || []
+  // Filter items: show if own item OR (shared AND not a secret surprise from partner unless already purchased)
+  const filtered = (data || []).filter((item: any) => {
+    if (item.user_id === user.id) return true
+    if (item.is_shared === false) return false
+    if (item.is_surprise && !item.is_purchased) return false
+    return true
+  })
+
+  return filtered as WishlistItem[]
 }
 
 export async function createWishlistItem(formData: FormData) {
@@ -38,11 +45,14 @@ export async function createWishlistItem(formData: FormData) {
   const url = formData.get('url') as string
   const imageUrl = formData.get('image_url') as string
   const priority = (formData.get('priority') as Priority) || 'medium'
+  const is_surprise = formData.get('is_surprise') === 'true'
+  const is_shared = formData.get('is_shared') !== 'false'
+
   if (!title) {
     return { error: 'Title is required' }
   }
 
-  const { error } = await supabase.from('wishlist').insert({
+  const payload: any = {
     user_id: user.id,
     title,
     price,
@@ -51,8 +61,18 @@ export async function createWishlistItem(formData: FormData) {
     image_url: imageUrl || null,
     priority,
     is_purchased: false,
-    is_shared: true,
-  })
+    is_shared,
+    is_surprise,
+  }
+
+  let { error } = await supabase.from('wishlist').insert(payload)
+
+  // Defensive fallback if is_surprise column is not yet present
+  if (error && error.message?.includes('is_surprise')) {
+    delete payload.is_surprise
+    const retry = await supabase.from('wishlist').insert(payload)
+    error = retry.error
+  }
 
   if (error) {
     return { error: error.message }
@@ -76,18 +96,30 @@ export async function updateWishlistItem(id: string, formData: FormData) {
   const url = formData.get('url') as string
   const imageUrl = formData.get('image_url') as string
   const priority = (formData.get('priority') as Priority) || 'medium'
-  const { error } = await supabase
+  const is_surprise = formData.get('is_surprise') === 'true'
+  const is_shared = formData.get('is_shared') !== 'false'
+
+  const payload: any = {
+    title,
+    price,
+    currency,
+    url: url || null,
+    image_url: imageUrl || null,
+    priority,
+    is_shared,
+    is_surprise,
+  }
+
+  let { error } = await supabase
     .from('wishlist')
-    .update({
-      title,
-      price,
-      currency,
-      url: url || null,
-      image_url: imageUrl || null,
-      priority,
-      is_shared: true,
-    })
+    .update(payload)
     .eq('id', id)
+
+  if (error && error.message?.includes('is_surprise')) {
+    delete payload.is_surprise
+    const retry = await supabase.from('wishlist').update(payload).eq('id', id)
+    error = retry.error
+  }
 
   if (error) {
     return { error: error.message }

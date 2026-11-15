@@ -11,6 +11,7 @@ import type {
   WeddingGuestGroup,
   WeddingRsvpStatus,
   WeddingRundownItem,
+  WeddingSettings,
 } from '@/types'
 
 // Default template for Rp 25.000.000 wedding (180 pax scale)
@@ -64,6 +65,63 @@ const DEFAULT_25JT_TEMPLATE = [
     notes: 'Website undangan digital (Rp 100rb) + souvenir 180 pcs @ Rp 2.700',
   },
 ]
+
+// ==========================================
+// 0. WEDDING SETTINGS SERVER ACTIONS
+// ==========================================
+
+export async function getWeddingSettings(): Promise<WeddingSettings | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('wedding_settings')
+    .select('*')
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data) {
+    return {
+      id: 'a0000000-0000-0000-0000-000000000001',
+      target_budget: 25000000,
+      target_pax: 180,
+      wedding_date: null,
+      venue_name: null,
+      updated_at: new Date().toISOString(),
+    }
+  }
+
+  return data as WeddingSettings
+}
+
+export async function updateWeddingSettings(payload: {
+  target_budget?: number
+  target_pax?: number
+  wedding_date?: string | null
+  venue_name?: string | null
+  notes?: string | null
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const current = await getWeddingSettings()
+  const id = current?.id || 'a0000000-0000-0000-0000-000000000001'
+
+  const { error } = await supabase
+    .from('wedding_settings')
+    .upsert({
+      id,
+      ...payload,
+      updated_at: new Date().toISOString(),
+    })
+
+  if (error) {
+    console.error('Error updating wedding settings:', error)
+    return { error: error.message }
+  }
+
+  revalidatePath('/wedding')
+  return { success: true }
+}
 
 // ==========================================
 // 1. BUDGET & VENDOR SERVER ACTIONS
@@ -311,15 +369,17 @@ export async function payWeddingMilestone(params: {
   itemId: string
   milestone: 'dp' | 'termin2' | 'pelunasan'
   amount: number
-  accountId: string
+  accountId?: string | null
+  isSponsored?: boolean
+  fundingSource?: 'couple' | 'parent_aegg' | 'parent_peppaa' | 'sponsor'
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { itemId, milestone, amount, accountId } = params
+  const { itemId, milestone, amount, accountId, isSponsored, fundingSource } = params
 
-  if (!itemId || !milestone || !amount || amount <= 0 || !accountId) {
+  if (!itemId || !milestone || !amount || amount <= 0) {
     return { error: 'Data pembayaran termin tidak lengkap' }
   }
 
@@ -334,6 +394,53 @@ export async function payWeddingMilestone(params: {
     return { error: 'Pos anggaran pernikahan tidak ditemukan' }
   }
 
+  const milestoneLabel =
+    milestone === 'dp'
+      ? 'Uang Muka (DP)'
+      : milestone === 'termin2'
+      ? 'Termin 2'
+      : 'Pelunasan Akhir'
+
+  // CASE A: SPONSORED / PAID BY PARENT (Tanpa potong saldo kas pasangan)
+  if (isSponsored) {
+    const updatePayload: any = {
+      funding_source: fundingSource || 'sponsor',
+      is_sponsored: true,
+      updated_at: new Date().toISOString(),
+    }
+    if (milestone === 'dp') updatePayload.dp_paid = true
+    else if (milestone === 'termin2') updatePayload.termin2_paid = true
+    else if (milestone === 'pelunasan') updatePayload.pelunasan_paid = true
+
+    const newPaidAmount = (Number(item.paid_amount) || 0) + amount
+    updatePayload.paid_amount = newPaidAmount
+
+    const targetCost = item.actual_cost && item.actual_cost > 0 ? item.actual_cost : item.estimated_cost
+    if (newPaidAmount >= targetCost && targetCost > 0) {
+      updatePayload.status = 'paid_off'
+    } else if (updatePayload.dp_paid || newPaidAmount > 0) {
+      updatePayload.status = 'booked_dp'
+    }
+
+    const { error: updErr } = await supabase
+      .from('wedding_budget_items')
+      .update(updatePayload)
+      .eq('id', itemId)
+
+    if (updErr) {
+      return { error: `Gagal memperbarui status termin: ${updErr.message}` }
+    }
+
+    revalidatePath('/wedding')
+    revalidatePath('/finance')
+    return { success: true, sponsored: true }
+  }
+
+  // CASE B: PAID FROM POCKET (Potong saldo kas pasangan via RPC)
+  if (!accountId) {
+    return { error: 'Pilih rekening kantong pembayaran' }
+  }
+
   // 2. Fetch account to ensure it exists
   const { data: account, error: accError } = await supabase
     .from('savings_accounts')
@@ -344,13 +451,6 @@ export async function payWeddingMilestone(params: {
   if (accError || !account) {
     return { error: 'Rekening pembayaran tidak ditemukan' }
   }
-
-  const milestoneLabel =
-    milestone === 'dp'
-      ? 'Uang Muka (DP)'
-      : milestone === 'termin2'
-      ? 'Termin 2'
-      : 'Pelunasan Akhir'
 
   // Deterministic idempotency key based on item id and milestone
   const idempotencyKey = crypto.randomUUID()
@@ -370,6 +470,7 @@ export async function payWeddingMilestone(params: {
     is_settled: true,
     account_id: accountId,
     source: 'web' as const,
+    scope: 'joint' as const,
     idempotency_key: idempotencyKey,
   }
 

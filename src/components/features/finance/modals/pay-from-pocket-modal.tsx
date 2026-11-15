@@ -56,6 +56,8 @@ export function PayFromPocketModal({
   onSuccess,
 }: PayFromPocketModalProps) {
   const [selectedAccountId, setSelectedAccountId] = useState<string>('')
+  const [payMethod, setPayMethod] = useState<'pocket' | 'sponsor'>('pocket')
+  const [fundingSource, setFundingSource] = useState<'parent_aegg' | 'parent_peppaa' | 'sponsor'>('parent_aegg')
   const [saving, setSaving] = useState(false)
   const isSubmittingRef = useRef(false)
 
@@ -65,6 +67,7 @@ export function PayFromPocketModal({
 
     isSubmittingRef.current = false
     setSaving(false)
+    setPayMethod('pocket')
 
     if (target.type === 'wedding_milestone') {
       // Prioritize locked/wedding pocket
@@ -100,12 +103,12 @@ export function PayFromPocketModal({
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId)
   const selectedBalance = Number(selectedAccount?.balance) || 0
-  const isInsufficient = selectedBalance < target.amount
+  const isInsufficient = payMethod === 'pocket' && selectedBalance < target.amount
   const remainingBalance = selectedBalance - target.amount
 
   const handlePay = async () => {
     if (isSubmittingRef.current) return
-    if (!selectedAccountId) {
+    if (payMethod === 'pocket' && !selectedAccountId) {
       toast.error('Pilih kantong pembayaran', 'Silakan pilih rekening sumber')
       return
     }
@@ -127,21 +130,47 @@ export function PayFromPocketModal({
           onClose()
         }
       } else {
-        const res = await payWeddingMilestone({
-          itemId: target.itemId,
-          milestone: target.milestone,
-          amount: target.amount,
-          accountId: selectedAccountId,
-        })
-        if (res && 'error' in res && res.error) {
-          toast.error('Gagal mencatat pembayaran termin', res.error)
+        if (payMethod === 'sponsor') {
+          const res = await payWeddingMilestone({
+            itemId: target.itemId,
+            milestone: target.milestone,
+            amount: target.amount,
+            isSponsored: true,
+            fundingSource,
+          })
+          if (res && 'error' in res && res.error) {
+            toast.error('Gagal mencatat pembayaran sponsor', res.error)
+          } else {
+            const sponsorLabel =
+              fundingSource === 'parent_aegg'
+                ? 'Orang Tua Aegg'
+                : fundingSource === 'parent_peppaa'
+                ? 'Orang Tua Peppaa'
+                : 'Sponsor / Tamu'
+            toast.success(
+              'Termin Ditandai Dibayari Sponsor 🎉',
+              `${target.itemName} (${target.milestoneLabel}) sebesar ${formatCurrency(target.amount)} dibayari oleh ${sponsorLabel} tanpa memotong kas bersama.`
+            )
+            onSuccess()
+            onClose()
+          }
         } else {
-          toast.success(
-            'Termin Vendor Berhasil Dibayar',
-            `${target.itemName} (${target.milestoneLabel}) sebesar ${formatCurrency(target.amount)} dipotong dari ${selectedAccount?.name}`
-          )
-          onSuccess()
-          onClose()
+          const res = await payWeddingMilestone({
+            itemId: target.itemId,
+            milestone: target.milestone,
+            amount: target.amount,
+            accountId: selectedAccountId,
+          })
+          if (res && 'error' in res && res.error) {
+            toast.error('Gagal mencatat pembayaran termin', res.error)
+          } else {
+            toast.success(
+              'Termin Vendor Berhasil Dibayar',
+              `${target.itemName} (${target.milestoneLabel}) sebesar ${formatCurrency(target.amount)} dipotong dari ${selectedAccount?.name}`
+            )
+            onSuccess()
+            onClose()
+          }
         }
       }
     } catch (err: any) {
@@ -218,100 +247,166 @@ export function PayFromPocketModal({
             </div>
           </div>
 
-          {/* Pocket Selector */}
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Pilih Sumber Kantong / Rekening
-            </label>
+          {/* Wedding Milestone Source Switcher (Pasangan vs Sponsor) */}
+          {target.type === 'wedding_milestone' && (
+            <div className="grid grid-cols-2 p-1 bg-secondary/70 rounded-xl border border-border/60">
+              <button
+                type="button"
+                onClick={() => setPayMethod('pocket')}
+                className={cn(
+                  'py-1.5 text-xs font-bold rounded-lg transition-all',
+                  payMethod === 'pocket'
+                    ? 'bg-card text-foreground shadow-xs border border-border/80'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                💰 Kas Pasangan
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayMethod('sponsor')}
+                className={cn(
+                  'py-1.5 text-xs font-bold rounded-lg transition-all',
+                  payMethod === 'sponsor'
+                    ? 'bg-card text-foreground shadow-xs border border-border/80'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                🎁 Sponsor / Ortu
+              </button>
+            </div>
+          )}
 
-            {accounts.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">
-                Belum ada rekening/kantong. Tambahkan rekening di tab Lokasi Uang terlebih dahulu.
-              </p>
-            ) : (
-              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                {accounts.map((acc) => {
-                  const isSelected = acc.id === selectedAccountId
-                  const accBalance = Number(acc.balance) || 0
-                  const hasEnough = accBalance >= target.amount
+          {/* Pocket Selector (if payMethod === 'pocket') */}
+          {payMethod === 'pocket' ? (
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Pilih Sumber Kantong / Rekening
+              </label>
 
-                  return (
-                    <button
-                      key={acc.id}
-                      type="button"
-                      onClick={() => setSelectedAccountId(acc.id)}
-                      className={cn(
-                        'w-full p-2.5 rounded-xl border text-left transition-all flex items-center justify-between gap-3',
-                        isSelected
-                          ? 'border-primary bg-primary/10 ring-1 ring-primary/40'
-                          : 'border-border/60 hover:bg-secondary/40'
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <BankLogo bankCode={acc.bank_code} className="w-7 h-7 shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-foreground truncate">{acc.name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {acc.is_locked ? (
-                              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium flex items-center gap-0.5">
-                                <Lock className="w-2.5 h-2.5" /> Terkunci
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-0.5">
-                                <Wallet className="w-2.5 h-2.5" /> Bebas
-                              </span>
-                            )}
+              {accounts.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">
+                  Belum ada rekening/kantong. Tambahkan rekening di tab Lokasi Uang terlebih dahulu.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  {accounts.map((acc) => {
+                    const isSelected = acc.id === selectedAccountId
+                    const accBalance = Number(acc.balance) || 0
+                    const hasEnough = accBalance >= target.amount
+
+                    return (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onClick={() => setSelectedAccountId(acc.id)}
+                        className={cn(
+                          'w-full p-2.5 rounded-xl border text-left transition-all flex items-center justify-between gap-3',
+                          isSelected
+                            ? 'border-primary bg-primary/10 ring-1 ring-primary/40'
+                            : 'border-border/60 hover:bg-secondary/40'
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <BankLogo bankCode={acc.bank_code} className="w-7 h-7 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-foreground truncate">{acc.name}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {acc.is_locked ? (
+                                <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium flex items-center gap-0.5">
+                                  <Lock className="w-2.5 h-2.5" /> Terkunci
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-0.5">
+                                  <Wallet className="w-2.5 h-2.5" /> Bebas
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="text-right shrink-0">
-                        <span
-                          className={cn(
-                            'text-xs font-bold tabular-nums block',
-                            !hasEnough ? 'text-rose-500' : 'text-foreground'
-                          )}
-                        >
-                          {formatCurrency(accBalance)}
-                        </span>
-                        {!hasEnough && (
-                          <span className="text-[9px] text-rose-500 font-semibold block">
-                            Saldo Kurang
+                        <div className="text-right shrink-0">
+                          <span
+                            className={cn(
+                              'text-xs font-bold tabular-nums block',
+                              !hasEnough ? 'text-rose-500' : 'text-foreground'
+                            )}
+                          >
+                            {formatCurrency(accBalance)}
                           </span>
-                        )}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+                          {!hasEnough && (
+                            <span className="text-[9px] text-rose-500 font-semibold block">
+                              Saldo Kurang
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
 
-          {/* Balance Preview / Alert */}
-          {selectedAccount && (
-            <div
-              className={cn(
-                'p-3 rounded-xl border text-xs flex items-start gap-2.5',
-                isInsufficient
-                  ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
-                  : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+              {/* Balance Preview / Alert */}
+              {selectedAccount && (
+                <div
+                  className={cn(
+                    'p-3 rounded-xl border text-xs flex items-start gap-2.5',
+                    isInsufficient
+                      ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
+                      : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                  )}
+                >
+                  {isInsufficient ? (
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  )}
+                  <div className="min-w-0">
+                    <span className="font-semibold block">
+                      {isInsufficient ? 'Saldo Tidak Mencukupi' : 'Saldo Cukup Untuk Pembayaran'}
+                    </span>
+                    <span className="text-[11px] opacity-90 block mt-0.5">
+                      {isInsufficient
+                        ? `Perlu tambahan ${formatCurrency(Math.abs(remainingBalance))} di rekening ini.`
+                        : `Sisa saldo setelah bayar: ${formatCurrency(remainingBalance)}`}
+                    </span>
+                  </div>
+                </div>
               )}
-            >
-              {isInsufficient ? (
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-              )}
-              <div className="min-w-0">
-                <span className="font-semibold block">
-                  {isInsufficient ? 'Saldo Tidak Mencukupi' : 'Saldo Cukup Untuk Pembayaran'}
-                </span>
-                <span className="text-[11px] opacity-90 block mt-0.5">
-                  {isInsufficient
-                    ? `Perlu tambahan ${formatCurrency(Math.abs(remainingBalance))} di rekening ini.`
-                    : `Sisa saldo setelah bayar: ${formatCurrency(remainingBalance)}`}
-                </span>
+            </div>
+          ) : (
+            /* Sponsor / Parent Selector */
+            <div className="space-y-3 p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                Pilih Sumber Dana Sponsor
+              </label>
+
+              <div className="grid grid-cols-1 gap-2">
+                {[
+                  { id: 'parent_aegg', label: 'Orang Tua Aegg' },
+                  { id: 'parent_peppaa', label: 'Orang Tua Peppaa' },
+                  { id: 'sponsor', label: 'Hadiah / Sponsor Lain' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setFundingSource(s.id as any)}
+                    className={cn(
+                      'p-2.5 rounded-lg border text-left text-xs font-semibold flex items-center justify-between transition-all',
+                      fundingSource === s.id
+                        ? 'border-amber-500 bg-amber-500/20 text-amber-900 dark:text-amber-200 shadow-xs'
+                        : 'border-border/60 bg-background text-foreground hover:bg-secondary/40'
+                    )}
+                  >
+                    <span>{s.label}</span>
+                    {fundingSource === s.id && <CheckCircle2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+                  </button>
+                ))}
               </div>
+
+              <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed pt-1">
+                💡 Termin ini akan ditandai lunas tanpa memotong saldo kantong kas bersama dan tidak diperhitungkan dalam defisit likuiditas pasangan.
+              </p>
             </div>
           )}
 
@@ -328,10 +423,10 @@ export function PayFromPocketModal({
             <button
               type="button"
               onClick={handlePay}
-              disabled={saving || !selectedAccountId || isInsufficient}
+              disabled={saving || (payMethod === 'pocket' && (!selectedAccountId || isInsufficient))}
               className={cn(
                 'flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm',
-                saving || !selectedAccountId || isInsufficient
+                saving || (payMethod === 'pocket' && (!selectedAccountId || isInsufficient))
                   ? 'bg-muted text-muted-foreground cursor-not-allowed border border-border/60'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90'
               )}
@@ -344,7 +439,7 @@ export function PayFromPocketModal({
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Konfirmasi & Bayar</span>
+                  <span>{payMethod === 'sponsor' ? 'Tandai Dibayari Sponsor' : 'Konfirmasi & Bayar'}</span>
                 </>
               )}
             </button>

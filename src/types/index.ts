@@ -1,4 +1,6 @@
 // User & Auth Types
+export type Scope = 'aegg' | 'peppaa' | 'joint'
+
 export interface User {
   id: string
   email: string
@@ -7,6 +9,7 @@ export interface User {
   role: 'aegg' | 'peppaa'
   billing_cycle_start_day?: number
   default_account_id?: string | null
+  joint_default_account_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -21,6 +24,8 @@ export interface CalendarEvent {
   end_date: string | null
   all_day: boolean
   color: string
+  scope?: Scope
+  is_private?: boolean
   created_at: string
 }
 
@@ -40,6 +45,7 @@ export interface Goal {
   tag: string | null
   icon: string | null
   display_id: number
+  scope?: Scope
   created_at: string
   goal_tasks?: GoalTask[]
   goal_pages?: GoalPage[]
@@ -102,6 +108,7 @@ export interface WishlistItem {
   priority: Priority
   is_purchased: boolean
   is_shared: boolean
+  is_surprise?: boolean
   profiles?: ItemOwner
   created_at: string
 }
@@ -132,6 +139,8 @@ export interface Transaction {
   to_account?: { id: string; name: string; bank_code: string | null } | null
   account?: { id: string; name: string; bank_code: string | null } | null
   source?: 'web' | 'whatsapp' | 'telegram' | 'cron' | null
+  scope?: Scope
+  transfer_category?: 'internal' | 'contribution' | null
   idempotency_key?: string | null
   deleted_at?: string | null
   updated_by?: string | null
@@ -205,6 +214,7 @@ export interface SavingsAccount {
   balance: number
   icon: string | null
   is_locked?: boolean | null
+  scope?: Scope
   created_at: string
   updated_at: string
   profiles?: ItemOwner
@@ -242,6 +252,7 @@ export interface Budget {
   category: string
   amount: number
   period: BudgetPeriod
+  scope?: Scope
   created_at: string
 }
 
@@ -268,6 +279,8 @@ export interface Todo {
   category: string | null
   due_date: string | null
   completed_at: string | null
+  scope?: Scope
+  is_private?: boolean
   idempotency_key?: string | null
   created_at: string
   updated_at: string
@@ -363,9 +376,22 @@ export interface WeddingBudgetItem {
   dp_transaction_id?: string | null
   termin2_transaction_id?: string | null
   pelunasan_transaction_id?: string | null
+  funding_source?: 'couple' | 'parent_aegg' | 'parent_peppaa' | 'sponsor'
+  is_sponsored?: boolean
   created_at: string
   updated_at?: string
   profiles?: ItemOwner
+}
+
+// Wedding Dynamic Settings
+export interface WeddingSettings {
+  id: string
+  target_budget: number
+  target_pax: number
+  wedding_date: string | null
+  venue_name: string | null
+  notes?: string | null
+  updated_at: string
 }
 
 export type WeddingGuestGroup =
@@ -418,6 +444,7 @@ export interface Subscription {
   icon: string | null
   is_active: boolean
   last_paid_at: string | null
+  scope?: Scope
   created_at: string
   profiles?: ItemOwner
 }

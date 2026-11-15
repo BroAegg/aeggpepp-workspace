@@ -43,6 +43,8 @@ export async function createTodo(formData: FormData) {
     const category = formData.get('category') as string | null
     const dueDate = formData.get('due_date') as string
     const idempotencyKey = (formData.get('idempotency_key') as string | null)?.trim() || null
+    const scope = (formData.get('scope') as string) || 'joint'
+    const isPrivate = formData.get('is_private') === 'true'
 
     if (!title?.trim()) {
         return { error: 'Title is required' }
@@ -58,6 +60,8 @@ export async function createTodo(formData: FormData) {
         category: category || null,
         due_date: dueDate || null,
         completed_at: null,
+        scope,
+        is_private: isPrivate,
     }
 
     if (idempotencyKey) {
@@ -95,21 +99,28 @@ export async function updateTodo(id: string, formData: FormData) {
     const priority = (formData.get('priority') as Priority) || 'medium'
     const category = formData.get('category') as string | null
     const dueDate = formData.get('due_date') as string
+    const scope = formData.get('scope') as string | null
+    const isPrivateRaw = formData.get('is_private')
 
     if (!title?.trim()) {
         return { error: 'Title is required' }
     }
 
+    const updatePayload: any = {
+        title: title.trim(),
+        description: description?.trim() || null,
+        priority,
+        category: category || null,
+        due_date: dueDate || null,
+        updated_at: new Date().toISOString(),
+    }
+
+    if (scope) updatePayload.scope = scope
+    if (isPrivateRaw !== null) updatePayload.is_private = isPrivateRaw === 'true'
+
     const { error } = await supabase
         .from('todos')
-        .update({
-            title: title.trim(),
-            description: description?.trim() || null,
-            priority,
-            category: category || null,
-            due_date: dueDate || null,
-            updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', id)
 
     if (error) {

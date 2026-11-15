@@ -11,11 +11,17 @@ import {
   PiggyBank,
   Calendar,
   CreditCard,
+  Settings,
+  X,
+  Loader2,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PayFromPocketModal, type PayTarget } from '@/components/features/finance/modals/pay-from-pocket-modal'
 import { cn } from '@/lib/utils'
-import type { WeddingBudgetItem, SavingsAccount } from '@/types'
+import type { WeddingBudgetItem, SavingsAccount, WeddingSettings } from '@/types'
+import { updateWeddingSettings } from '@/lib/actions/wedding'
+import { toast } from '@/components/ui/toast'
 import {
   TARGET_BUDGET,
   TARGET_PAX,
@@ -28,6 +34,7 @@ import {
 interface BudgetTabProps {
   budgetItems: WeddingBudgetItem[]
   savings?: SavingsAccount[]
+  weddingSettings?: WeddingSettings | null
   onAddBudgetItem: () => void
   onEditBudgetItem: (item: WeddingBudgetItem) => void
   onDeleteBudgetItem: (id: string) => void
@@ -37,6 +44,7 @@ interface BudgetTabProps {
 export function BudgetTab({
   budgetItems,
   savings = [],
+  weddingSettings,
   onAddBudgetItem,
   onEditBudgetItem,
   onDeleteBudgetItem,
@@ -46,6 +54,11 @@ export function BudgetTab({
   const [budgetCategoryFilter, setBudgetCategoryFilter] = useState<string>('all')
   const [budgetStatusFilter, setBudgetStatusFilter] = useState<string>('all')
   const [payTarget, setPayTarget] = useState<PayTarget | null>(null)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  const targetBudget = weddingSettings?.target_budget || TARGET_BUDGET
+  const targetPax = weddingSettings?.target_pax || TARGET_PAX
 
   const weddingSavings = useMemo(() => {
     if (!savings || savings.length === 0) return null
@@ -56,8 +69,8 @@ export function BudgetTab({
     )
     if (matched.length === 0) return null
     const totalBalance = matched.reduce((sum, s) => sum + s.balance, 0)
-    const percentOfTarget = TARGET_BUDGET > 0 ? Math.min(100, Math.round((totalBalance / TARGET_BUDGET) * 100)) : 0
-    const deficit = Math.max(0, TARGET_BUDGET - totalBalance)
+    const percentOfTarget = targetBudget > 0 ? Math.min(100, Math.round((totalBalance / targetBudget) * 100)) : 0
+    const deficit = Math.max(0, targetBudget - totalBalance)
     const estimatedMonthsNeeded = totalBalance > 0 && deficit > 0 ? Math.ceil(deficit / Math.max(2000000, totalBalance / 3)) : 0
     const estDate = new Date()
     estDate.setMonth(estDate.getMonth() + estimatedMonthsNeeded)
@@ -71,7 +84,7 @@ export function BudgetTab({
       estMonthYear,
       accounts: matched,
     }
-  }, [savings])
+  }, [savings, targetBudget])
 
   const { totalEstimated, totalActual, totalPaid, totalUnpaid } = useMemo(() => {
     let est = 0
@@ -92,9 +105,9 @@ export function BudgetTab({
     }
   }, [budgetItems])
 
-  const percentUsed = Math.min(100, Math.round((totalActual / TARGET_BUDGET) * 100))
+  const percentUsed = Math.min(100, Math.round((totalActual / targetBudget) * 100))
   const percentPaid = totalActual > 0 ? Math.min(100, Math.round((totalPaid / totalActual) * 100)) : 0
-  const remainingBudget = TARGET_BUDGET - totalActual
+  const remainingBudget = targetBudget - totalActual
 
   const filteredBudgetItems = useMemo(() => {
     return budgetItems.filter((item) => {
@@ -107,16 +120,51 @@ export function BudgetTab({
     })
   }, [budgetItems, budgetSearch, budgetCategoryFilter, budgetStatusFilter])
 
+  const handleSaveSettings = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setSavingSettings(true)
+    const formData = new FormData(e.currentTarget)
+    try {
+      const res = await updateWeddingSettings({
+        target_budget: Number(formData.get('target_budget')) || targetBudget,
+        target_pax: Number(formData.get('target_pax')) || targetPax,
+        wedding_date: (formData.get('wedding_date') as string) || null,
+        venue_name: (formData.get('venue_name') as string) || null,
+        notes: (formData.get('notes') as string) || null,
+      })
+      if (res && 'error' in res && res.error) {
+        toast.error('Gagal menyimpan pengaturan wedding', res.error)
+      } else {
+        toast.success('Pengaturan target wedding berhasil disimpan')
+        setShowSettingsModal(false)
+        if (onRefresh) onRefresh()
+      }
+    } catch (err: any) {
+      toast.error('Terjadi kesalahan', err?.message)
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Budget Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-xs space-y-1 shadow-xs">
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Target Anggaran
-          </span>
-          <div className="text-2xl font-bold text-foreground">{formatCurrency(TARGET_BUDGET)}</div>
-          <div className="text-xs text-muted-foreground">Target perayaan {TARGET_PAX} pax</div>
+        <div className="p-4 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-xs space-y-1 shadow-xs relative group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+              Target Anggaran
+            </span>
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="p-1 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+              title="Atur Target Anggaran & Pax"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="text-2xl font-bold text-foreground">{formatCurrency(targetBudget)}</div>
+          <div className="text-xs text-muted-foreground">Target perayaan {targetPax} pax</div>
         </div>
 
         <div className="p-4 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-xs space-y-1 shadow-xs">
@@ -171,16 +219,16 @@ export function BudgetTab({
               Belum Dibayar: {formatCurrency(totalUnpaid)}
             </span>
           </div>
-          <span>Target: {formatCurrency(TARGET_BUDGET)}</span>
+          <span>Target: {formatCurrency(targetBudget)}</span>
         </div>
         <div className="h-3 w-full bg-secondary/60 rounded-full overflow-hidden flex">
           <div
             className="bg-emerald-500 transition-all duration-300"
-            style={{ width: `${(totalPaid / TARGET_BUDGET) * 100}%` }}
+            style={{ width: `${(totalPaid / targetBudget) * 100}%` }}
           />
           <div
             className="bg-amber-500/80 transition-all duration-300"
-            style={{ width: `${(totalUnpaid / TARGET_BUDGET) * 100}%` }}
+            style={{ width: `${(totalUnpaid / targetBudget) * 100}%` }}
           />
         </div>
       </div>
@@ -329,6 +377,11 @@ export function BudgetTab({
                             ? 'Sudah DP'
                             : 'Direncanakan'}
                         </span>
+                        {item.is_sponsored && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30">
+                            🎁 Dibayari {item.funding_source === 'parent_aegg' ? 'Ortu Aegg' : item.funding_source === 'parent_peppaa' ? 'Ortu Peppaa' : 'Sponsor'}
+                          </span>
+                        )}
                       </div>
                       <h3 className="font-semibold text-base text-foreground leading-snug">{item.title}</h3>
                     </div>
@@ -492,6 +545,105 @@ export function BudgetTab({
           })
         )}
       </div>
+
+      {/* Wedding Settings Modal */}
+      {showSettingsModal && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+          onClick={() => setShowSettingsModal(false)}
+        >
+          <div
+            className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-border/80 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-border/70">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Settings className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">Pengaturan Target Wedding</h3>
+                  <p className="text-[11px] text-muted-foreground">Plafon anggaran keseluruhan & target pax</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSettings} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Target Plafon Anggaran (Rp)
+                </label>
+                <input
+                  type="number"
+                  name="target_budget"
+                  defaultValue={targetBudget}
+                  required
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-medium tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Target Tamu (Pax)
+                </label>
+                <input
+                  type="number"
+                  name="target_pax"
+                  defaultValue={targetPax}
+                  required
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-medium tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Tanggal Pernikahan
+                </label>
+                <input
+                  type="date"
+                  name="wedding_date"
+                  defaultValue={weddingSettings?.wedding_date || ''}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Lokasi / Venue
+                </label>
+                <input
+                  type="text"
+                  name="venue_name"
+                  placeholder="Gedung / Tempat Resepsi"
+                  defaultValue={weddingSettings?.venue_name || ''}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-border/60">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 text-xs"
+                  onClick={() => setShowSettingsModal(false)}
+                >
+                  Batal
+                </Button>
+                <Button type="submit" className="flex-1 text-xs" disabled={savingSettings}>
+                  {savingSettings ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Simpan Pengaturan'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Pay From Pocket Modal */}
       <PayFromPocketModal

@@ -3,7 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import type {
   Transaction, Budget, SavingsAccount, Todo, TodoCategoryItem,
   Goal, CalendarEvent, GalleryItem, WishlistItem, PortfolioLink,
-  WeddingBudgetItem, WeddingGuest, WeddingRundownItem, WeddingRsvpStatus
+  WeddingBudgetItem, WeddingGuest, WeddingRundownItem, WeddingRsvpStatus,
+  WeddingSettings
 } from '@/types'
 
 interface WorkspaceState {
@@ -75,12 +76,15 @@ interface WorkspaceState {
   weddingBudgetItems: WeddingBudgetItem[]
   weddingGuests: WeddingGuest[]
   weddingRundown: WeddingRundownItem[]
+  weddingSettings: WeddingSettings | null
   weddingLoaded: boolean
   setWeddingData: (data: {
     budgetItems?: WeddingBudgetItem[]
     guests?: WeddingGuest[]
     rundown?: WeddingRundownItem[]
+    settings?: WeddingSettings | null
   }) => void
+  setWeddingSettingsData: (settings: WeddingSettings | null) => void
   toggleGuestRSVPOptimistic: (id: string, status: WeddingRsvpStatus) => void
   removeWeddingBudgetItemOptimistic: (id: string) => void
   removeWeddingGuestOptimistic: (id: string) => void
@@ -112,6 +116,26 @@ interface WorkspaceState {
     old?: any
   }) => boolean
   handleRealtimeWeddingGuest: (payload: {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+    new?: any
+    old?: any
+  }) => void
+  handleRealtimeSavingsAccount: (payload: {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+    new?: any
+    old?: any
+  }) => void
+  handleRealtimeBudget: (payload: {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+    new?: any
+    old?: any
+  }) => void
+  handleRealtimeWeddingBudgetItem: (payload: {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+    new?: any
+    old?: any
+  }) => void
+  handleRealtimeWeddingSettings: (payload: {
     eventType: 'INSERT' | 'UPDATE' | 'DELETE'
     new?: any
     old?: any
@@ -303,6 +327,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
   weddingBudgetItems: [],
   weddingGuests: [],
   weddingRundown: [],
+  weddingSettings: null,
   weddingLoaded: false,
 
   setWeddingData: (data) =>
@@ -310,8 +335,14 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       weddingBudgetItems: data.budgetItems !== undefined ? data.budgetItems : state.weddingBudgetItems,
       weddingGuests: data.guests !== undefined ? data.guests : state.weddingGuests,
       weddingRundown: data.rundown !== undefined ? data.rundown : state.weddingRundown,
+      weddingSettings: data.settings !== undefined ? data.settings : state.weddingSettings,
       weddingLoaded: true,
     })),
+
+  setWeddingSettingsData: (weddingSettings) =>
+    set({
+      weddingSettings,
+    }),
 
   toggleGuestRSVPOptimistic: (id, status) =>
     set((state) => ({
@@ -448,6 +479,74 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       return state
     })
   },
+
+  handleRealtimeSavingsAccount: ({ eventType, new: newRecord, old: oldRecord }) => {
+    set((state) => {
+      if (eventType === 'INSERT' && newRecord) {
+        const exists = state.savings.some((s) => s.id === newRecord.id)
+        if (exists) return state
+        return { savings: [...state.savings, newRecord] }
+      }
+      if (eventType === 'UPDATE' && newRecord) {
+        return {
+          savings: state.savings.map((s) => (s.id === newRecord.id ? { ...s, ...newRecord } : s)),
+        }
+      }
+      if (eventType === 'DELETE' && oldRecord) {
+        return { savings: state.savings.filter((s) => s.id !== oldRecord.id) }
+      }
+      return state
+    })
+  },
+
+  handleRealtimeBudget: ({ eventType, new: newRecord, old: oldRecord }) => {
+    set((state) => {
+      if (eventType === 'INSERT' && newRecord) {
+        const exists = state.budgets.some((b) => b.id === newRecord.id)
+        if (exists) return state
+        return { budgets: [newRecord, ...state.budgets] }
+      }
+      if (eventType === 'UPDATE' && newRecord) {
+        return {
+          budgets: state.budgets.map((b) => (b.id === newRecord.id ? { ...b, ...newRecord } : b)),
+        }
+      }
+      if (eventType === 'DELETE' && oldRecord) {
+        return { budgets: state.budgets.filter((b) => b.id !== oldRecord.id) }
+      }
+      return state
+    })
+  },
+
+  handleRealtimeWeddingBudgetItem: ({ eventType, new: newRecord, old: oldRecord }) => {
+    set((state) => {
+      if (eventType === 'INSERT' && newRecord) {
+        const exists = state.weddingBudgetItems.some((w) => w.id === newRecord.id)
+        if (exists) return state
+        return { weddingBudgetItems: [newRecord, ...state.weddingBudgetItems] }
+      }
+      if (eventType === 'UPDATE' && newRecord) {
+        return {
+          weddingBudgetItems: state.weddingBudgetItems.map((w) =>
+            w.id === newRecord.id ? { ...w, ...newRecord } : w
+          ),
+        }
+      }
+      if (eventType === 'DELETE' && oldRecord) {
+        return { weddingBudgetItems: state.weddingBudgetItems.filter((w) => w.id !== oldRecord.id) }
+      }
+      return state
+    })
+  },
+
+  handleRealtimeWeddingSettings: ({ eventType, new: newRecord }) => {
+    set((state) => {
+      if ((eventType === 'INSERT' || eventType === 'UPDATE') && newRecord) {
+        return { weddingSettings: { ...state.weddingSettings, ...newRecord } }
+      }
+      return state
+    })
+  },
   }),
   {
     name: 'aeggpepp-workspace-offline-cache',
@@ -475,6 +574,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         weddingBudgetItems: state.weddingBudgetItems,
         weddingGuests: state.weddingGuests,
         weddingRundown: state.weddingRundown,
+        weddingSettings: state.weddingSettings,
         weddingLoaded: state.weddingLoaded,
         dashboardLoaded: state.dashboardLoaded,
         dashboardLastFetched: state.dashboardLastFetched,

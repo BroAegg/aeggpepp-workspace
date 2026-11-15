@@ -16,6 +16,13 @@ export function getNanangName(role: 'aegg' | 'peppaa'): string {
   }
 }
 
+export function formatScopeLabel(scope?: 'aegg' | 'peppaa' | 'joint'): string {
+  if (scope === 'joint') return '💍 Kas Bersama';
+  if (scope === 'peppaa') return '👩 Peppaa (Pribadi)';
+  if (scope === 'aegg') return '👨 Aegg (Pribadi)';
+  return '';
+}
+
 export function formatNanangReceipt(params: {
   merchant: string;
   date: string;
@@ -24,10 +31,12 @@ export function formatNanangReceipt(params: {
   items: Array<{ item_name: string; quantity: number; unit_price?: number; total_price: number }>;
   paidByRole: 'aegg' | 'peppaa';
   isSplit?: boolean;
+  scope?: 'aegg' | 'peppaa' | 'joint';
 }): string {
   const buyer = getNanangName(params.paidByRole);
   const merchantName = params.merchant || 'Struk Belanja';
   const splitText = params.isSplit ? ' (Split 50:50)' : '';
+  const scopeText = params.scope ? `\n🏢 Ruang: *${formatScopeLabel(params.scope)}*` : '';
 
   const lines: string[] = [
     `🧾 *Struk Berhasil Dicatat!*`,
@@ -36,7 +45,7 @@ export function formatNanangReceipt(params: {
     `💰 Total: *${formatRupiah(params.totalAmount)}*${splitText}`,
     `📅 Tanggal: ${params.date}`,
     `🏷️ Kategori: ${params.category}`,
-    `👤 Pembayar: ${buyer}`,
+    `👤 Pembayar: ${buyer}${scopeText}`,
   ];
 
   if (params.items && params.items.length > 0 && params.items.length <= 10) {
@@ -62,14 +71,16 @@ export function formatNanangFinance(params: {
   merchant?: string;
   paidByRole: 'aegg' | 'peppaa';
   isSplit?: boolean;
+  scope?: 'aegg' | 'peppaa' | 'joint';
 }): string {
   const userGreeting = getNanangName(params.paidByRole);
+  const scopeBadge = params.scope ? ` [${formatScopeLabel(params.scope)}]` : '';
 
   if (params.type === 'income') {
     const sourceText = params.merchant ? ` dari ${params.merchant}` : '';
     return [
       `💰 *Pemasukan Dicatat!*`,
-      `Mantap ${userGreeting}! Pemasukan *${formatRupiah(params.amount)}* (${params.description}${sourceText}) berhasil dicatat ke dashboard web.`,
+      `Mantap ${userGreeting}! Pemasukan *${formatRupiah(params.amount)}* (${params.description}${sourceText})${scopeBadge} berhasil dicatat ke dashboard web.`,
       ``,
       `💡 *Reply pesan ini dengan "batal" jika ada kesalahan.*`,
     ].join('\n');
@@ -78,7 +89,7 @@ export function formatNanangFinance(params: {
     const merchantText = params.merchant ? ` di ${params.merchant}` : '';
     return [
       `💸 *Pengeluaran Dicatat!*`,
-      `Siap ${userGreeting}, pengeluaran *${formatRupiah(params.amount)}* (${params.description}${merchantText})${splitText} udah masuk ke dashboard.`,
+      `Siap ${userGreeting}, pengeluaran *${formatRupiah(params.amount)}* (${params.description}${merchantText})${splitText}${scopeBadge} udah masuk ke dashboard.`,
       ``,
       `💡 *Reply pesan ini dengan "batal" jika ada kesalahan.*`,
     ].join('\n');

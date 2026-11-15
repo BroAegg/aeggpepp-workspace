@@ -99,6 +99,67 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
           }
         }
       )
+      // 4. Savings Accounts Listener (Balances & Pockets)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'savings_accounts' },
+        (payload: any) => {
+          const { handleRealtimeSavingsAccount } = useWorkspaceStore.getState()
+          handleRealtimeSavingsAccount({
+            eventType: payload.eventType,
+            new: payload.new,
+            old: payload.old,
+          })
+        }
+      )
+      // 5. Budgets Listener
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'budgets' },
+        (payload: any) => {
+          const { handleRealtimeBudget } = useWorkspaceStore.getState()
+          handleRealtimeBudget({
+            eventType: payload.eventType,
+            new: payload.new,
+            old: payload.old,
+          })
+        }
+      )
+      // 6. Wedding Budget Items Listener
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wedding_budget_items' },
+        (payload: any) => {
+          const { handleRealtimeWeddingBudgetItem } = useWorkspaceStore.getState()
+          handleRealtimeWeddingBudgetItem({
+            eventType: payload.eventType,
+            new: payload.new,
+            old: payload.old,
+          })
+        }
+      )
+      // 7. Wedding Settings Listener
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wedding_settings' },
+        (payload: any) => {
+          const { handleRealtimeWeddingSettings } = useWorkspaceStore.getState()
+          handleRealtimeWeddingSettings({
+            eventType: payload.eventType,
+            new: payload.new,
+            old: payload.old,
+          })
+        }
+      )
+      // 8. Subscriptions Listener
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'subscriptions' },
+        () => {
+          const { invalidateFinance } = useWorkspaceStore.getState()
+          invalidateFinance()
+        }
+      )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('[Realtime] Subscribed to global workspace changes')

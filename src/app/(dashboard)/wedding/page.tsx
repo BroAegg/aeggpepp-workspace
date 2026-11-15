@@ -12,6 +12,7 @@ import type {
   WeddingGuest,
   WeddingRsvpStatus,
   WeddingRundownItem,
+  WeddingSettings,
 } from '@/types'
 import {
   getWeddingBudgetItems,
@@ -27,6 +28,7 @@ import {
   createWeddingRundownItem,
   updateWeddingRundownItem,
   deleteWeddingRundownItem,
+  getWeddingSettings,
 } from '@/lib/actions/wedding'
 import { WeddingSkeleton } from '@/components/features/wedding/wedding-skeleton'
 import {
@@ -66,6 +68,7 @@ export default function WeddingPage() {
     weddingBudgetItems: cachedBudget,
     weddingGuests: cachedGuests,
     weddingRundown: cachedRundown,
+    weddingSettings: cachedWeddingSettings,
     savings: cachedSavings,
     weddingLoaded,
     setWeddingData,
@@ -80,6 +83,7 @@ export default function WeddingPage() {
   const [budgetItems, setBudgetItems] = useState<WeddingBudgetItem[]>(cachedBudget)
   const [guests, setGuests] = useState<WeddingGuest[]>(cachedGuests)
   const [rundown, setRundown] = useState<WeddingRundownItem[]>(cachedRundown)
+  const [weddingSettings, setWeddingSettings] = useState<WeddingSettings | null>(cachedWeddingSettings)
   const hasCachedData = cachedBudget.length > 0 || cachedGuests.length > 0 || cachedRundown.length > 0
   const [loading, setLoading] = useState(!weddingLoaded && !hasCachedData)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -118,6 +122,12 @@ export default function WeddingPage() {
     }
   }, [cachedRundown])
 
+  useEffect(() => {
+    if (cachedWeddingSettings) {
+      setWeddingSettings(cachedWeddingSettings)
+    }
+  }, [cachedWeddingSettings])
+
   // Fetch fresh data
   const fetchData = async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -126,20 +136,23 @@ export default function WeddingPage() {
     }
 
     try {
-      const [budgetRes, guestsRes, rundownRes] = await Promise.all([
+      const [budgetRes, guestsRes, rundownRes, settingsRes] = await Promise.all([
         getWeddingBudgetItems(),
         getWeddingGuests(),
         getWeddingRundown(),
+        getWeddingSettings(),
       ])
 
       setBudgetItems(budgetRes)
       setGuests(guestsRes)
       setRundown(rundownRes)
+      setWeddingSettings(settingsRes)
 
       setWeddingData({
         budgetItems: budgetRes,
         guests: guestsRes,
         rundown: rundownRes,
+        settings: settingsRes,
       })
     } catch (err) {
       console.error('Failed to load wedding data:', err)
@@ -445,6 +458,7 @@ export default function WeddingPage() {
           <BudgetTab
             budgetItems={budgetItems}
             savings={cachedSavings}
+            weddingSettings={weddingSettings}
             onAddBudgetItem={() => {
               setEditingBudgetItem(null)
               setShowBudgetModal(true)
@@ -455,9 +469,13 @@ export default function WeddingPage() {
             }}
             onDeleteBudgetItem={handleDeleteBudget}
             onRefresh={async () => {
-              const fresh = await getWeddingBudgetItems()
+              const [fresh, freshSettings] = await Promise.all([
+                getWeddingBudgetItems(),
+                getWeddingSettings(),
+              ])
               setBudgetItems(fresh)
-              setWeddingData({ budgetItems: fresh })
+              setWeddingSettings(freshSettings)
+              setWeddingData({ budgetItems: fresh, settings: freshSettings })
             }}
           />
         )}
