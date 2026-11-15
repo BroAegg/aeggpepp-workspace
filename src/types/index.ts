@@ -5,6 +5,8 @@ export interface User {
   display_name: string
   avatar_url: string | null
   role: 'aegg' | 'peppaa'
+  billing_cycle_start_day?: number
+  default_account_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -105,7 +107,7 @@ export interface WishlistItem {
 }
 
 // Finance Types
-export type TransactionType = 'income' | 'expense' | 'transfer'
+export type TransactionType = 'income' | 'expense' | 'transfer' | 'adjustment'
 export type BudgetPeriod = 'weekly' | 'monthly' | 'yearly'
 
 export interface Transaction {
@@ -129,7 +131,7 @@ export interface Transaction {
   from_account?: { id: string; name: string; bank_code: string | null } | null
   to_account?: { id: string; name: string; bank_code: string | null } | null
   account?: { id: string; name: string; bank_code: string | null } | null
-  source?: 'web' | 'telegram' | null
+  source?: 'web' | 'whatsapp' | 'telegram' | 'cron' | null
   idempotency_key?: string | null
   deleted_at?: string | null
   updated_by?: string | null
@@ -216,6 +218,21 @@ export interface SavingsTransaction {
   type: 'deposit' | 'withdraw'
   description: string | null
   date: string
+  created_at: string
+}
+
+// Unified Account Mutation Type (for Account Ledger Drill-Down)
+export type MutationType = 'credit' | 'debit' | 'transfer_in' | 'transfer_out' | 'adjustment'
+
+export interface AccountMutationItem {
+  id: string
+  date: string
+  type: MutationType
+  amount: number
+  description: string
+  category: string
+  source?: string | null
+  counterpart_account?: { id: string; name: string; bank_code: string | null } | null
   created_at: string
 }
 
@@ -343,6 +360,9 @@ export interface WeddingBudgetItem {
   pelunasan_amount?: number | null
   pelunasan_due_date?: string | null
   pelunasan_paid?: boolean | null
+  dp_transaction_id?: string | null
+  termin2_transaction_id?: string | null
+  pelunasan_transaction_id?: string | null
   created_at: string
   updated_at?: string
   profiles?: ItemOwner

@@ -77,10 +77,36 @@ export async function deleteSubscription(id: string) {
   return { success: true }
 }
 
-export async function paySubscriptionNow(sub: Subscription) {
+export async function paySubscriptionNow(sub: Subscription, accountId?: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+
+  let targetAccountId = accountId
+
+  // Fallback to user's default_account_id if not specified
+  if (!targetAccountId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('default_account_id')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.default_account_id) {
+      targetAccountId = profile.default_account_id
+    } else {
+      // Fallback to first operational (unlocked) pocket
+      const { data: opAcc } = await supabase
+        .from('savings_accounts')
+        .select('id')
+        .eq('is_locked', false)
+        .limit(1)
+        .single()
+      if (opAcc?.id) {
+        targetAccountId = opAcc.id
+      }
+    }
+  }
 
   // 1. Record an expense transaction with idempotency key
   const txFormData = new FormData()
@@ -91,6 +117,10 @@ export async function paySubscriptionNow(sub: Subscription) {
   txFormData.set('description', `Tagihan Rutin: ${sub.name}`)
   txFormData.set('date', new Date().toISOString().split('T')[0])
   txFormData.set('idempotency_key', crypto.randomUUID())
+  txFormData.set('source', 'web')
+  if (targetAccountId) {
+    txFormData.set('account_id', targetAccountId)
+  }
 
   const txRes = await createTransaction(txFormData)
   if (txRes && 'error' in txRes && txRes.error) {

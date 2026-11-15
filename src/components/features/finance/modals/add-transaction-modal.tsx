@@ -254,7 +254,7 @@ export function AddTransactionModal({
                   defaultValue={editingTransaction?.category || (selectedType === 'income' ? 'salary' : 'food')}
                   className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 >
-                  {TRANSACTION_CATEGORIES[selectedType].map((cat) => (
+                  {TRANSACTION_CATEGORIES[selectedType === 'income' ? 'income' : 'expense'].map((cat: any) => (
                     <option key={cat.value} value={cat.value}>
                       {cat.icon} {cat.label}
                     </option>

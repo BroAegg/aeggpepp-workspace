@@ -20,6 +20,7 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
     add_wishlist: 'Tambah wishlist',
     purchase_wishlist: 'Beli wishlist item',
     update_profile: 'Update profil',
+    reconcile_balance: 'Sesuaikan saldo rekening',
 }
 
 export const ACTION_ICONS: Record<ActivityAction, string> = {
@@ -42,6 +43,7 @@ export const ACTION_ICONS: Record<ActivityAction, string> = {
     add_wishlist: '🎁',
     purchase_wishlist: '🛍️',
     update_profile: '⚙️',
+    reconcile_balance: '⚖️',
 }
 
 export function getActionLabel(action: ActivityAction): string {

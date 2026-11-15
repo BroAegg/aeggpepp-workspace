@@ -11,6 +11,7 @@ import {
   Tag,
   Download,
   ArrowLeftRight,
+  Settings,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { OwnerBadge } from '@/components/ui/owner-badge'
@@ -20,7 +21,7 @@ import { exportTransactionsToCsv } from '@/lib/export-utils'
 import { cn } from '@/lib/utils'
 import type { Transaction } from '@/types'
 
-type TransactionTypeFilter = 'all' | 'income' | 'expense' | 'transfer'
+type TransactionTypeFilter = 'all' | 'income' | 'expense' | 'transfer' | 'adjustment'
 
 interface TransactionsTabProps {
   transactions: Transaction[]
@@ -74,6 +75,7 @@ export function TransactionsTab({
               { id: 'expense' as const, label: 'Pengeluaran' },
               { id: 'income' as const, label: 'Pemasukan' },
               { id: 'transfer' as const, label: 'Transfer' },
+              { id: 'adjustment' as const, label: 'Koreksi' },
             ].map((type) => (
               <button
                 key={type.id}
@@ -124,7 +126,9 @@ export function TransactionsTab({
           ) : (
             filteredTransactions.map((transaction, index) => {
               const isTransfer = transaction.type === 'transfer'
-              const iconText = isTransfer
+              const isAdjustment = transaction.type === 'adjustment'
+              const isAdjustmentPos = isAdjustment && (transaction.sub_title?.includes('(+)') || transaction.description?.includes('(+)'))
+              const iconText = isTransfer || isAdjustment
                 ? null
                 : categoryIcons[transaction.category] || '🧾'
 
@@ -142,11 +146,15 @@ export function TransactionsTab({
                         'w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0',
                         isTransfer
                           ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                          : isAdjustment
+                          ? 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400'
                           : 'bg-secondary'
                       )}
                     >
                       {isTransfer ? (
                         <ArrowLeftRight className="w-4 h-4" />
+                      ) : isAdjustment ? (
+                        <Settings className="w-4 h-4" />
                       ) : (
                         iconText
                       )}
@@ -165,6 +173,8 @@ export function TransactionsTab({
                                 {transaction.to_account?.name || 'Rekening Tujuan'}
                               </span>
                             </>
+                          ) : isAdjustment ? (
+                            transaction.description || 'Penyesuaian Saldo'
                           ) : (
                             transaction.description || transaction.category
                           )}
@@ -178,6 +188,19 @@ export function TransactionsTab({
                               <>
                                 <span>·</span>
                                 <span>{transaction.description}</span>
+                              </>
+                            )}
+                          </>
+                        ) : isAdjustment ? (
+                          <>
+                            <span className="text-zinc-600 dark:text-zinc-400 font-medium">Penyesuaian Saldo</span>
+                            {transaction.account && (
+                              <>
+                                <span>·</span>
+                                <span className="font-medium text-foreground/80 flex items-center gap-1">
+                                  <BankLogo bankCode={transaction.account.bank_code} className="w-3.5 h-3.5 inline-block" />
+                                  {transaction.account.name}
+                                </span>
                               </>
                             )}
                           </>
@@ -228,12 +251,20 @@ export function TransactionsTab({
                         'font-bold text-sm md:text-base tabular-nums',
                         isTransfer
                           ? 'text-blue-600 dark:text-blue-400'
+                          : isAdjustment
+                          ? 'text-zinc-600 dark:text-zinc-400'
                           : transaction.type === 'income'
                           ? 'text-emerald-600 dark:text-emerald-400'
                           : 'text-red-600 dark:text-red-400'
                       )}
                     >
-                      {isTransfer ? '⇄ ' : transaction.type === 'income' ? '+ ' : '- '}
+                      {isTransfer
+                        ? '⇄ '
+                        : isAdjustment
+                        ? (isAdjustmentPos ? '+ ' : '- ')
+                        : transaction.type === 'income'
+                        ? '+ '
+                        : '- '}
                       {formatCurrency(transaction.amount)}
                     </p>
                     <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">

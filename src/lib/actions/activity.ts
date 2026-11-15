@@ -22,6 +22,7 @@ export type ActivityAction =
     | 'add_wishlist'
     | 'purchase_wishlist'
     | 'update_profile'
+    | 'reconcile_balance'
 
 export interface ActivityLog {
     id: string

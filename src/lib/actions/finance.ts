@@ -3,9 +3,47 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { logActivity } from '@/lib/actions/activity'
-import type { Transaction, Budget, TransactionType, BudgetPeriod, SavingsAccount, SavingsTransaction } from '@/types'
+import type { Transaction, Budget, TransactionType, BudgetPeriod, SavingsAccount, SavingsTransaction, AccountMutationItem, MutationType } from '@/types'
 
-// ============== UTILS ==============
+// ============== UTILS & RPC BALANCE HELPER ==============
+export async function adjustAccountBalanceInternal(
+  supabase: any,
+  accountId: string,
+  delta: number
+): Promise<number | null> {
+  if (!accountId || delta === 0) return null
+
+  // 1. Try atomic PostgreSQL RPC first
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('adjust_account_balance', {
+      p_account_id: accountId,
+      p_delta: delta,
+    })
+    if (!rpcError && rpcData !== null) {
+      return Number(rpcData)
+    }
+  } catch (err) {
+    // Fallback if RPC is not yet created in DB
+  }
+
+  // 2. Direct fallback if RPC is not yet active
+  const { data: acc } = await supabase
+    .from('savings_accounts')
+    .select('balance')
+    .eq('id', accountId)
+    .single()
+
+  if (acc) {
+    const newBalance = Number(acc.balance) + delta
+    await supabase
+      .from('savings_accounts')
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq('id', accountId)
+    return newBalance
+  }
+
+  return null
+}
 export async function getFinanceProfile() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -109,6 +147,7 @@ export async function createTransaction(formData: FormData) {
   const accountId = (formData.get('account_id') as string | null)?.trim() || null
   const fromAccountId = (formData.get('from_account_id') as string | null)?.trim() || null
   const toAccountId = (formData.get('to_account_id') as string | null)?.trim() || null
+  const source = ((formData.get('source') as string) || 'web') as 'web' | 'whatsapp' | 'telegram' | 'cron'
 
   let receiptUrl = null
 
@@ -123,7 +162,7 @@ export async function createTransaction(formData: FormData) {
     if (fromAccountId === toAccountId) {
       return { error: 'Rekening asal dan tujuan tidak boleh sama' }
     }
-  } else if (!category) {
+  } else if (!category && type !== 'adjustment') {
     return { error: 'Kategori transaksi wajib dipilih' }
   }
 
@@ -150,7 +189,7 @@ export async function createTransaction(formData: FormData) {
   const insertPayload: any = {
     user_id: user.id,
     type,
-    category: type === 'transfer' ? 'Transfer' : category,
+    category: type === 'transfer' ? 'Transfer' : type === 'adjustment' ? 'adjustment' : category,
     sub_title: sub_title?.trim() || null,
     amount,
     description: description || null,
@@ -163,6 +202,7 @@ export async function createTransaction(formData: FormData) {
     account_id: accountId,
     from_account_id: fromAccountId,
     to_account_id: toAccountId,
+    source,
   }
 
   if (idempotencyKey) {
@@ -175,11 +215,12 @@ export async function createTransaction(formData: FormData) {
     .select('id')
     .single()
 
-  // Graceful fallback if account columns don't exist yet in DB schema
-  if (error && (error.message?.includes('from_account_id') || error.message?.includes('to_account_id') || error.message?.includes('account_id'))) {
+  // Graceful fallback if account columns or source don't exist yet in DB schema
+  if (error && (error.message?.includes('from_account_id') || error.message?.includes('to_account_id') || error.message?.includes('account_id') || error.message?.includes('source'))) {
     delete insertPayload.account_id
     delete insertPayload.from_account_id
     delete insertPayload.to_account_id
+    delete insertPayload.source
     const retry = await supabase.from('transactions').insert(insertPayload).select('id').single()
     insertedData = retry.data
     error = retry.error
@@ -194,21 +235,18 @@ export async function createTransaction(formData: FormData) {
     return { error: error.message }
   }
 
-  // Dynamic balance synchronization to prevent balance drift
+  // Dynamic balance synchronization via atomic RPC helper to prevent balance drift
   if (type === 'transfer' && fromAccountId && toAccountId) {
-    const { data: fromAcc } = await supabase.from('savings_accounts').select('balance').eq('id', fromAccountId).single()
-    if (fromAcc) {
-      await supabase.from('savings_accounts').update({ balance: Number(fromAcc.balance) - amount, updated_at: new Date().toISOString() }).eq('id', fromAccountId)
-    }
-    const { data: toAcc } = await supabase.from('savings_accounts').select('balance').eq('id', toAccountId).single()
-    if (toAcc) {
-      await supabase.from('savings_accounts').update({ balance: Number(toAcc.balance) + amount, updated_at: new Date().toISOString() }).eq('id', toAccountId)
-    }
+    await adjustAccountBalanceInternal(supabase, fromAccountId, -amount)
+    await adjustAccountBalanceInternal(supabase, toAccountId, amount)
   } else if (accountId) {
-    const { data: acc } = await supabase.from('savings_accounts').select('balance').eq('id', accountId).single()
-    if (acc) {
-      const delta = type === 'income' ? amount : -amount
-      await supabase.from('savings_accounts').update({ balance: Number(acc.balance) + delta, updated_at: new Date().toISOString() }).eq('id', accountId)
+    if (type === 'income') {
+      await adjustAccountBalanceInternal(supabase, accountId, amount)
+    } else if (type === 'expense') {
+      await adjustAccountBalanceInternal(supabase, accountId, -amount)
+    } else if (type === 'adjustment') {
+      const isPositive = (sub_title || description || '').includes('(+)')
+      await adjustAccountBalanceInternal(supabase, accountId, isPositive ? amount : -amount)
     }
   }
 
@@ -292,7 +330,7 @@ export async function deleteTransaction(id: string) {
   // Fetch transaction details before deletion to revert balances
   const { data: tx } = await supabase
     .from('transactions')
-    .select('id, type, amount, account_id, from_account_id, to_account_id')
+    .select('id, type, amount, sub_title, description, account_id, from_account_id, to_account_id')
     .eq('id', id)
     .single()
 
@@ -313,24 +351,67 @@ export async function deleteTransaction(id: string) {
   if (tx) {
     const amount = Number(tx.amount) || 0
     if (tx.type === 'transfer' && tx.from_account_id && tx.to_account_id) {
-      const { data: fromAcc } = await supabase.from('savings_accounts').select('balance').eq('id', tx.from_account_id).single()
-      if (fromAcc) {
-        await supabase.from('savings_accounts').update({ balance: Number(fromAcc.balance) + amount }).eq('id', tx.from_account_id)
-      }
-      const { data: toAcc } = await supabase.from('savings_accounts').select('balance').eq('id', tx.to_account_id).single()
-      if (toAcc) {
-        await supabase.from('savings_accounts').update({ balance: Number(toAcc.balance) - amount }).eq('id', tx.to_account_id)
-      }
+      await adjustAccountBalanceInternal(supabase, tx.from_account_id, amount)
+      await adjustAccountBalanceInternal(supabase, tx.to_account_id, -amount)
     } else if (tx.account_id) {
-      const { data: acc } = await supabase.from('savings_accounts').select('balance').eq('id', tx.account_id).single()
-      if (acc) {
-        const revertDelta = tx.type === 'income' ? -amount : amount
-        await supabase.from('savings_accounts').update({ balance: Number(acc.balance) + revertDelta }).eq('id', tx.account_id)
+      if (tx.type === 'income') {
+        await adjustAccountBalanceInternal(supabase, tx.account_id, -amount)
+      } else if (tx.type === 'expense') {
+        await adjustAccountBalanceInternal(supabase, tx.account_id, amount)
+      } else if (tx.type === 'adjustment') {
+        const wasPositive = (tx.sub_title || tx.description || '').includes('(+)')
+        await adjustAccountBalanceInternal(supabase, tx.account_id, wasPositive ? -amount : amount)
       }
+    }
+
+    // Revert any associated wedding milestone (DP, Termin 2, Pelunasan)
+    try {
+      const { data: weddingItems } = await supabase
+        .from('wedding_budget_items')
+        .select('id, dp_transaction_id, termin2_transaction_id, pelunasan_transaction_id, dp_amount, termin2_amount, pelunasan_amount, paid_amount, actual_cost, estimated_cost')
+        .or(`dp_transaction_id.eq.${id},termin2_transaction_id.eq.${id},pelunasan_transaction_id.eq.${id}`)
+
+      if (weddingItems && weddingItems.length > 0) {
+        for (const wItem of weddingItems) {
+          const updatePayload: any = {}
+          let deductedPaid = 0
+          if (wItem.dp_transaction_id === id) {
+            updatePayload.dp_paid = false
+            updatePayload.dp_transaction_id = null
+            deductedPaid += Number(wItem.dp_amount) || 0
+          }
+          if (wItem.termin2_transaction_id === id) {
+            updatePayload.termin2_paid = false
+            updatePayload.termin2_transaction_id = null
+            deductedPaid += Number(wItem.termin2_amount) || 0
+          }
+          if (wItem.pelunasan_transaction_id === id) {
+            updatePayload.pelunasan_paid = false
+            updatePayload.pelunasan_transaction_id = null
+            deductedPaid += Number(wItem.pelunasan_amount) || 0
+          }
+          const currentPaid = Number(wItem.paid_amount) || 0
+          const newPaid = Math.max(0, currentPaid - deductedPaid)
+          updatePayload.paid_amount = newPaid
+          const targetCost = wItem.actual_cost && wItem.actual_cost > 0 ? wItem.actual_cost : wItem.estimated_cost
+          if (newPaid >= targetCost && targetCost > 0) {
+            updatePayload.status = 'paid_off'
+          } else if (newPaid > 0 || updatePayload.dp_paid) {
+            updatePayload.status = 'booked_dp'
+          } else {
+            updatePayload.status = 'planned'
+          }
+
+          await supabase.from('wedding_budget_items').update(updatePayload).eq('id', wItem.id)
+        }
+      }
+    } catch (wErr) {
+      console.warn('[Finance] Warning reverting wedding milestone for deleted tx:', wErr)
     }
   }
 
   revalidatePath('/finance')
+  revalidatePath('/wedding')
   return { success: true }
 }
 
@@ -700,4 +781,215 @@ export async function getSubTitles(): Promise<string[]> {
     return acc
   }, []).sort()
   return unique
+}
+
+// ============== RECONCILE SALDO RIIL & ACCOUNT LEDGER MUTATIONS ==============
+
+export async function reconcileAccountBalance(
+  accountId: string,
+  actualBalance: number,
+  reason?: string
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // 1. Fetch current account details
+  const { data: acc, error: accError } = await supabase
+    .from('savings_accounts')
+    .select('id, name, balance')
+    .eq('id', accountId)
+    .single()
+
+  if (accError || !acc) {
+    return { error: 'Rekening tidak ditemukan' }
+  }
+
+  const currentBalance = Number(acc.balance) || 0
+  const delta = actualBalance - currentBalance
+
+  // 2. Edge-case Guard: Jika selisih 0, kembalikan status sukses tanpa membuat baris transaksi kosong
+  if (delta === 0) {
+    return { success: true, delta: 0, newBalance: actualBalance, message: 'Saldo sudah sesuai dengan data riil' }
+  }
+
+  // 3. Atomically update balance via RPC helper
+  await adjustAccountBalanceInternal(supabase, accountId, delta)
+
+  // 4. Record adjustment transaction
+  const isPositive = delta > 0
+  const subTitle = isPositive ? 'Koreksi Saldo (+)' : 'Koreksi Saldo (-)'
+  const defaultDesc = isPositive
+    ? `Penyesuaian saldo riil m-banking (Bunga/Topup +Rp ${Math.abs(delta).toLocaleString('id-ID')})`
+    : `Penyesuaian saldo riil m-banking (Biaya admin/Koreksi -Rp ${Math.abs(delta).toLocaleString('id-ID')})`
+
+  const insertPayload = {
+    user_id: user.id,
+    type: 'adjustment' as TransactionType,
+    category: 'adjustment',
+    sub_title: subTitle,
+    amount: Math.abs(delta),
+    description: reason?.trim() || defaultDesc,
+    date: new Date().toISOString().split('T')[0],
+    is_split: false,
+    split_with: null,
+    paid_by: user.id,
+    is_settled: true,
+    account_id: accountId,
+    source: 'web' as const,
+    idempotency_key: crypto.randomUUID(),
+  }
+
+  const { error: txError } = await supabase.from('transactions').insert(insertPayload)
+  if (txError) {
+    console.warn('[Finance] Warning saving adjustment transaction:', txError.message)
+  }
+
+  logActivity('reconcile_balance', 'Finance', {
+    account: acc.name,
+    delta,
+    actualBalance,
+  }).catch(() => {})
+
+  revalidatePath('/finance')
+  return { success: true, delta, newBalance: actualBalance }
+}
+
+export async function getAccountMutations(accountId: string): Promise<AccountMutationItem[]> {
+  const supabase = await createClient()
+
+  // 1. Fetch transactions involving this account
+  const { data: txList, error: txError } = await supabase
+    .from('transactions')
+    .select('id, date, type, amount, description, category, sub_title, source, account_id, from_account_id, to_account_id, created_at')
+    .or(`account_id.eq.${accountId},from_account_id.eq.${accountId},to_account_id.eq.${accountId}`)
+    .is('deleted_at', null)
+    .order('date', { ascending: false })
+
+  if (txError) {
+    console.error('Error fetching account transactions for mutations:', txError)
+  }
+
+  // 2. Fetch legacy savings transactions if any exist
+  const { data: stList } = await supabase
+    .from('savings_transactions')
+    .select('id, date, type, amount, description, created_at')
+    .eq('account_id', accountId)
+    .order('date', { ascending: false })
+
+  // 3. Collect counterpart account IDs for transfers
+  const counterpartIds = new Set<string>()
+  ;(txList || []).forEach((t) => {
+    if (t.type === 'transfer') {
+      if (t.from_account_id === accountId && t.to_account_id) counterpartIds.add(t.to_account_id)
+      if (t.to_account_id === accountId && t.from_account_id) counterpartIds.add(t.from_account_id)
+    }
+  })
+
+  const counterpartMap = new Map<string, { id: string; name: string; bank_code: string | null }>()
+  if (counterpartIds.size > 0) {
+    const { data: accData } = await supabase
+      .from('savings_accounts')
+      .select('id, name, bank_code')
+      .in('id', Array.from(counterpartIds))
+    if (accData) {
+      accData.forEach((a) => counterpartMap.set(a.id, a))
+    }
+  }
+
+  const mutations: AccountMutationItem[] = []
+
+  // Map transactions
+  ;(txList || []).forEach((t) => {
+    const amount = Number(t.amount) || 0
+    let mType: MutationType = 'debit'
+    let counterpart: { id: string; name: string; bank_code: string | null } | null = null
+    let desc = t.description || t.sub_title || t.category
+
+    if (t.type === 'transfer') {
+      if (t.from_account_id === accountId) {
+        mType = 'transfer_out'
+        counterpart = t.to_account_id ? counterpartMap.get(t.to_account_id) || null : null
+        desc = desc || `Transfer ke ${counterpart?.name || 'Rekening Tujuan'}`
+      } else {
+        mType = 'transfer_in'
+        counterpart = t.from_account_id ? counterpartMap.get(t.from_account_id) || null : null
+        desc = desc || `Transfer masuk dari ${counterpart?.name || 'Rekening Asal'}`
+      }
+    } else if (t.type === 'income') {
+      mType = 'credit'
+    } else if (t.type === 'expense') {
+      mType = 'debit'
+    } else if (t.type === 'adjustment') {
+      mType = 'adjustment'
+    }
+
+    mutations.push({
+      id: t.id,
+      date: t.date,
+      type: mType,
+      amount,
+      description: desc,
+      category: t.category || (t.type === 'transfer' ? 'Transfer' : 'Umum'),
+      source: t.source || 'web',
+      counterpart_account: counterpart,
+      created_at: t.created_at,
+    })
+  })
+
+  // Map legacy savings_transactions (avoid duplicate if ID overlaps)
+  const existingIds = new Set(mutations.map((m) => m.id))
+  ;(stList || []).forEach((st) => {
+    if (existingIds.has(st.id)) return
+    const amount = Number(st.amount) || 0
+    mutations.push({
+      id: st.id,
+      date: st.date,
+      type: st.type === 'deposit' ? 'credit' : 'debit',
+      amount,
+      description: st.description || (st.type === 'deposit' ? 'Setoran Tabungan' : 'Penarikan Tabungan'),
+      category: 'savings',
+      source: 'web',
+      counterpart_account: null,
+      created_at: st.created_at,
+    })
+  })
+
+  // Sort newest first by date then created_at
+  mutations.sort((a, b) => {
+    const dComp = new Date(b.date).getTime() - new Date(a.date).getTime()
+    if (dComp !== 0) return dComp
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  return mutations
+}
+
+export async function updateProfileFinanceSettings(data: {
+  billingCycleStartDay?: number
+  defaultAccountId?: string | null
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const payload: any = {}
+  if (data.billingCycleStartDay !== undefined) {
+    payload.billing_cycle_start_day = data.billingCycleStartDay
+  }
+  if (data.defaultAccountId !== undefined) {
+    payload.default_account_id = data.defaultAccountId
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update(payload)
+    .eq('id', user.id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/finance')
+  return { success: true }
 }

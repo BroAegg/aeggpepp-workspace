@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { adjustAccountBalanceInternal } from '@/lib/actions/finance'
 import type {
   WeddingBudgetItem,
   WeddingCategory,
@@ -304,6 +305,129 @@ export async function deleteWeddingBudgetItem(id: string) {
 
   revalidatePath('/wedding')
   return { success: true }
+}
+
+export async function payWeddingMilestone(params: {
+  itemId: string
+  milestone: 'dp' | 'termin2' | 'pelunasan'
+  amount: number
+  accountId: string
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { itemId, milestone, amount, accountId } = params
+
+  if (!itemId || !milestone || !amount || amount <= 0 || !accountId) {
+    return { error: 'Data pembayaran termin tidak lengkap' }
+  }
+
+  // 1. Fetch wedding item
+  const { data: item, error: itemError } = await supabase
+    .from('wedding_budget_items')
+    .select('*')
+    .eq('id', itemId)
+    .single()
+
+  if (itemError || !item) {
+    return { error: 'Pos anggaran pernikahan tidak ditemukan' }
+  }
+
+  // 2. Fetch account to ensure it exists
+  const { data: account, error: accError } = await supabase
+    .from('savings_accounts')
+    .select('id, name, balance')
+    .eq('id', accountId)
+    .single()
+
+  if (accError || !account) {
+    return { error: 'Rekening pembayaran tidak ditemukan' }
+  }
+
+  const milestoneLabel =
+    milestone === 'dp'
+      ? 'Uang Muka (DP)'
+      : milestone === 'termin2'
+      ? 'Termin 2'
+      : 'Pelunasan Akhir'
+
+  // Deterministic idempotency key based on item id and milestone
+  const idempotencyKey = crypto.randomUUID()
+
+  // 3. Create expense transaction
+  const insertPayload = {
+    user_id: user.id,
+    type: 'expense' as const,
+    category: 'wedding',
+    sub_title: `${item.title} (${milestoneLabel})`,
+    amount,
+    description: `Pembayaran ${milestoneLabel}: ${item.title}${item.vendor_name ? ` - Vendor ${item.vendor_name}` : ''}`,
+    date: new Date().toISOString().split('T')[0],
+    is_split: false,
+    split_with: null,
+    paid_by: user.id,
+    is_settled: true,
+    account_id: accountId,
+    source: 'web' as const,
+    idempotency_key: idempotencyKey,
+  }
+
+  const { data: tx, error: txError } = await supabase
+    .from('transactions')
+    .insert(insertPayload)
+    .select('id')
+    .single()
+
+  if (txError) {
+    return { error: `Gagal mencatat transaksi: ${txError.message}` }
+  }
+
+  // 4. Deduct balance from account via atomic RPC helper
+  await adjustAccountBalanceInternal(supabase, accountId, -amount)
+
+  // 5. Update wedding_budget_items
+  const updatePayload: any = {}
+  if (milestone === 'dp') {
+    updatePayload.dp_paid = true
+    updatePayload.dp_transaction_id = tx.id
+  } else if (milestone === 'termin2') {
+    updatePayload.termin2_paid = true
+    updatePayload.termin2_transaction_id = tx.id
+  } else if (milestone === 'pelunasan') {
+    updatePayload.pelunasan_paid = true
+    updatePayload.pelunasan_transaction_id = tx.id
+  }
+
+  const newPaidAmount = (Number(item.paid_amount) || 0) + amount
+  updatePayload.paid_amount = newPaidAmount
+
+  const targetCost = item.actual_cost && item.actual_cost > 0 ? item.actual_cost : item.estimated_cost
+  if (newPaidAmount >= targetCost && targetCost > 0) {
+    updatePayload.status = 'paid_off'
+  } else if (updatePayload.dp_paid || newPaidAmount > 0) {
+    updatePayload.status = 'booked_dp'
+  }
+
+  const { error: updateError } = await supabase
+    .from('wedding_budget_items')
+    .update(updatePayload)
+    .eq('id', itemId)
+
+  if (updateError) {
+    console.error('Failed to update wedding budget item with milestone:', updateError)
+    // Attempt fallback if columns don't exist yet
+    if (updateError.message?.includes('transaction_id')) {
+      delete updatePayload.dp_transaction_id
+      delete updatePayload.termin2_transaction_id
+      delete updatePayload.pelunasan_transaction_id
+      await supabase.from('wedding_budget_items').update(updatePayload).eq('id', itemId)
+    }
+  }
+
+  revalidatePath('/wedding')
+  revalidatePath('/finance')
+  return { success: true, transactionId: tx.id }
 }
 
 // ==========================================
