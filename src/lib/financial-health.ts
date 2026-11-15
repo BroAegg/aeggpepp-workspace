@@ -15,7 +15,8 @@ export function calculateFinancialHealth(
   currentMonthTransactions: Transaction[],
   budgets: Budget[],
   savingsAccounts: SavingsAccount[],
-  currentDate: Date = new Date()
+  currentDate: Date = new Date(),
+  cycle?: { daysElapsed: number; daysInCycle: number; label?: string }
 ): FinancialHealthReport {
   // 1. Calculate Monthly Cashflow
   let monthlyIncome = 0
@@ -48,14 +49,14 @@ export function calculateFinancialHealth(
   })
 
   const netSavings = monthlyIncome - monthlyExpense
-  const savingsRate = monthlyIncome > 0 ? Math.max(0, (netSavings / monthlyIncome) * 100) : 0
-  const expenseRatio = monthlyIncome > 0 ? (monthlyExpense / monthlyIncome) * 100 : monthlyExpense > 0 ? 100 : 0
+  const savingsRate = monthlyIncome > 0 ? Math.max(0, Math.round((netSavings / monthlyIncome) * 100)) : 0
+  const expenseRatio = monthlyIncome > 0 ? Math.round((monthlyExpense / monthlyIncome) * 100) : monthlyExpense > 0 ? 100 : 0
 
   // 2. Burn-Rate Velocity Calculation
-  const dayOfMonth = currentDate.getDate()
-  const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
-  const dailyAverage = dayOfMonth > 0 ? monthlyExpense / dayOfMonth : 0
-  const projectedMonthEnd = dailyAverage * daysInMonth
+  const daysElapsed = cycle?.daysElapsed ?? (currentDate.getDate() > 0 ? currentDate.getDate() : 1)
+  const daysInCycle = cycle?.daysInCycle ?? new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
+  const dailyAverage = daysElapsed > 0 ? Math.round(monthlyExpense / daysElapsed) : 0
+  const projectedMonthEnd = Math.round(dailyAverage * daysInCycle)
   const isOnTrack = monthlyIncome > 0 ? projectedMonthEnd <= monthlyIncome : true
 
   // 3. Liquid Assets & Cushion
@@ -175,12 +176,12 @@ export function calculateFinancialHealth(
   }
 
   // Burn Rate Velocity Alert
-  if (monthlyIncome > 0 && !isOnTrack && dayOfMonth <= 20) {
+  if (monthlyIncome > 0 && !isOnTrack && daysElapsed <= Math.round(daysInCycle * 0.7)) {
     alerts.push({
       id: 'burn-rate-alert',
       type: 'warning',
       title: 'Laju Pengeluaran Melebihi Rata-rata',
-      message: `Dengan rata-rata belanja Rp ${Math.round(dailyAverage).toLocaleString('id-ID')}/hari, proyeksi pengeluaran akhir bulan mencapai Rp ${Math.round(projectedMonthEnd).toLocaleString('id-ID')}.`,
+      message: `Dengan rata-rata belanja Rp ${Math.round(dailyAverage).toLocaleString('id-ID')}/hari, proyeksi pengeluaran akhir siklus mencapai Rp ${Math.round(projectedMonthEnd).toLocaleString('id-ID')}.`,
       metric: `Proyeksi: Rp ${Math.round(projectedMonthEnd).toLocaleString('id-ID')}`,
     })
   }
@@ -245,8 +246,8 @@ export function calculateFinancialHealth(
     savingsRate: Number(savingsRate.toFixed(1)),
     expenseRatio: Number(expenseRatio.toFixed(1)),
     burnRateVelocity: {
-      daysElapsed: dayOfMonth,
-      daysInMonth,
+      daysElapsed,
+      daysInMonth: daysInCycle,
       dailyAverage: Math.round(dailyAverage),
       projectedMonthEnd: Math.round(projectedMonthEnd),
       budgetRunwayDays,

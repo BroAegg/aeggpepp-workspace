@@ -20,9 +20,17 @@ import type { FinancialHealthReport } from '@/types'
 
 interface FinancialHealthCardProps {
   report: FinancialHealthReport
+  title?: string
+  cycleLabel?: string
+  showCoupleSplit?: boolean
 }
 
-export function FinancialHealthCard({ report }: FinancialHealthCardProps) {
+export function FinancialHealthCard({
+  report,
+  title,
+  cycleLabel,
+  showCoupleSplit = true,
+}: FinancialHealthCardProps) {
   const [showDetails, setShowDetails] = useState(false)
 
   // Status configuration
@@ -95,15 +103,17 @@ export function FinancialHealthCard({ report }: FinancialHealthCardProps) {
                 <StatusIcon className="h-3.5 w-3.5" />
                 {report.statusLabel}
               </span>
-              <span className="hidden sm:inline-block text-xs text-muted-foreground">Kesehatan Finansial Aegg & Peppaa</span>
+              <span className="hidden sm:inline-block text-xs text-muted-foreground">
+                {cycleLabel ? `Siklus ${cycleLabel}` : 'Kesehatan Finansial Aegg & Peppaa'}
+              </span>
             </div>
             <h2 className="mt-1 text-lg sm:text-xl font-bold text-foreground">
-              Evaluasi Keuangan Bersama
+              {title || 'Evaluasi Keuangan Bersama'}
             </h2>
             <p className="text-xs text-muted-foreground">
               {report.monthlyIncome > 0
                 ? `Pemasukan Rp ${report.monthlyIncome.toLocaleString('id-ID')} · Pengeluaran Rp ${report.monthlyExpense.toLocaleString('id-ID')} (${report.expenseRatio}% terpakai)`
-                : `Pengeluaran bulan ini Rp ${report.monthlyExpense.toLocaleString('id-ID')}`}
+                : `Pengeluaran siklus ini Rp ${report.monthlyExpense.toLocaleString('id-ID')}`}
             </p>
           </div>
         </div>
@@ -119,7 +129,7 @@ export function FinancialHealthCard({ report }: FinancialHealthCardProps) {
       </div>
 
       {/* 4 Pillars Quick Overview Cards */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className={`mt-6 grid gap-3 ${showCoupleSplit ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
         {/* Pillar 1: Savings Rate */}
         <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-3.5">
           <div className="flex items-center justify-between text-muted-foreground">
@@ -153,25 +163,27 @@ export function FinancialHealthCard({ report }: FinancialHealthCardProps) {
             <span className="text-[11px] text-muted-foreground">/hari</span>
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground truncate">
-            Proyeksi: Rp {Math.round(report.burnRateVelocity.projectedMonthEnd / 1000000).toFixed(1)}jt di akhir bln
+            Proyeksi: Rp {Math.round(report.burnRateVelocity.projectedMonthEnd / 1000000).toFixed(1)}jt di akhir siklus
           </p>
         </div>
 
-        {/* Pillar 3: Couple Spending Fairness */}
-        <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-3.5">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium">Proporsi Pasangan</span>
-            <HeartHandshake className="h-4 w-4 text-indigo-500" />
+        {/* Pillar 3: Couple Spending Fairness (Only shown when showCoupleSplit is true) */}
+        {showCoupleSplit && (
+          <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-3.5">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-medium">Proporsi Pasangan</span>
+              <HeartHandshake className="h-4 w-4 text-indigo-500" />
+            </div>
+            <div className="mt-1.5 flex items-baseline justify-between text-xs font-bold text-foreground">
+              <span className="text-blue-500">👨‍💻 {report.coupleSplit.aeggPercent}%</span>
+              <span className="text-pink-500">👩‍💼 {report.coupleSplit.peppaaPercent}%</span>
+            </div>
+            <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
+              <div className="bg-blue-500 transition-all duration-500" style={{ width: `${report.coupleSplit.aeggPercent}%` }} />
+              <div className="bg-pink-500 transition-all duration-500" style={{ width: `${report.coupleSplit.peppaaPercent}%` }} />
+            </div>
           </div>
-          <div className="mt-1.5 flex items-baseline justify-between text-xs font-bold text-foreground">
-            <span className="text-blue-500">👨‍💻 {report.coupleSplit.aeggPercent}%</span>
-            <span className="text-pink-500">👩‍💼 {report.coupleSplit.peppaaPercent}%</span>
-          </div>
-          <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
-            <div className="bg-blue-500 transition-all duration-500" style={{ width: `${report.coupleSplit.aeggPercent}%` }} />
-            <div className="bg-pink-500 transition-all duration-500" style={{ width: `${report.coupleSplit.peppaaPercent}%` }} />
-          </div>
-        </div>
+        )}
 
         {/* Pillar 4: Liquid Cushion */}
         <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-3.5">

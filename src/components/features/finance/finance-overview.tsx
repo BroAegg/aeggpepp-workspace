@@ -112,10 +112,12 @@ export function FinanceOverview({
   const startDay = userProfile?.billing_cycle_start_day ?? 25
   const cycle = useMemo(() => getBillingCycle(startDay), [startDay])
 
-  const stats = useMemo(() => {
-    // Filter transactions falling strictly within active salary billing cycle
-    const cycleTx = transactions.filter((t) => isDateInBillingCycle(t.date, cycle))
+  // Filter transactions strictly within active salary billing cycle and current POV
+  const cycleTx = useMemo(() => {
+    return transactions.filter((t) => isDateInBillingCycle(t.date, cycle))
+  }, [transactions, cycle])
 
+  const stats = useMemo(() => {
     const expense = cycleTx
       .filter((t) => t.type === 'expense')
       .reduce((s, t) => s + t.amount, 0)
@@ -349,13 +351,40 @@ export function FinanceOverview({
   }, [stats.budgetPercent])
 
   const healthReport = useMemo(() => {
-    return calculateFinancialHealth(transactions, budgets, savings)
-  }, [transactions, budgets, savings])
+    let txToScore = cycleTx
+    if (activeScope === 'joint' && !cycleTx.some((t) => t.type === 'income') && incomingContributions.total > 0) {
+      txToScore = [
+        ...cycleTx,
+        {
+          id: 'joint-contributions-income',
+          user_id: userProfile?.id || '',
+          amount: incomingContributions.total,
+          type: 'income',
+          category: 'contribution',
+          date: cycle.startStr,
+          created_at: new Date().toISOString(),
+        } as Transaction,
+      ]
+    }
+    return calculateFinancialHealth(txToScore, budgets, savings, new Date(), cycle)
+  }, [cycleTx, budgets, savings, cycle, activeScope, incomingContributions.total, userProfile?.id])
+
+  const healthCardTitle = useMemo(() => {
+    if (activeScope === 'aegg') return 'Evaluasi Keuangan Aegg'
+    if (activeScope === 'peppaa') return 'Evaluasi Keuangan Peppaa'
+    if (activeScope === 'joint') return 'Evaluasi Kas Bersama'
+    return 'Evaluasi Keuangan Bersama'
+  }, [activeScope])
 
   return (
     <div className="space-y-6">
       {/* 0. Intelligent Financial Health Score & Alerts */}
-      <FinancialHealthCard report={healthReport} />
+      <FinancialHealthCard
+        report={healthReport}
+        title={healthCardTitle}
+        cycleLabel={cycle.label}
+        showCoupleSplit={activeScope === 'joint' || activeScope === 'all'}
+      />
 
       {/* 1. Dynamic Salary Cycle Header & Safe-to-Spend KPI Card */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -480,7 +509,14 @@ export function FinanceOverview({
       </div>
 
       {/* 2. Main Pockets & Wedding Liquidity Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div
+        className={cn(
+          'grid gap-4',
+          activeScope === 'aegg' || activeScope === 'peppaa'
+            ? 'grid-cols-1 md:grid-cols-2'
+            : 'grid-cols-1 md:grid-cols-3'
+        )}
+      >
         {/* Pocket A: Dana Bebas Operasional */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -510,49 +546,51 @@ export function FinanceOverview({
           </div>
         </motion.div>
 
-        {/* Pocket B: Dana Terkunci & Likuiditas Vendor Wedding */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className={cn(
-            'bg-card border rounded-2xl p-5 shadow-xs space-y-3',
-            stats.weddingLiquidityDelta >= 0 ? 'border-amber-500/30' : 'border-rose-500/30'
-          )}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-              <Heart className="w-3.5 h-3.5 text-amber-500" />
-              Dana Terkunci (Nikah & Impian)
-            </span>
-            <span
-              className={cn(
-                'text-[10px] font-bold px-2 py-0.5 rounded-md border',
-                stats.weddingLiquidityDelta >= 0
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/20'
-              )}
-            >
-              {stats.weddingLiquidityDelta >= 0 ? '🟢 Likuiditas Aman' : '🔴 Defisit Vendor'}
-            </span>
-          </div>
-          <div>
-            <h4 className="text-2xl font-black text-amber-700 dark:text-amber-400 tracking-tight tabular-nums">
-              {formatRupiah(stats.lockedSavings)}
-            </h4>
-            <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
-              <span>Sisa Vendor:</span>
-              <span className="font-semibold text-foreground tabular-nums">
-                {formatRupiah(stats.totalUnpaidVendor)}
+        {/* Pocket B: Dana Terkunci & Likuiditas Vendor Wedding (Hanya di Kas Bersama & Semua) */}
+        {activeScope !== 'aegg' && activeScope !== 'peppaa' && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className={cn(
+              'bg-card border rounded-2xl p-5 shadow-xs space-y-3',
+              stats.weddingLiquidityDelta >= 0 ? 'border-amber-500/30' : 'border-rose-500/30'
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5 text-amber-500" />
+                Dana Terkunci (Nikah & Impian)
+              </span>
+              <span
+                className={cn(
+                  'text-[10px] font-bold px-2 py-0.5 rounded-md border',
+                  stats.weddingLiquidityDelta >= 0
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/20'
+                )}
+              >
+                {stats.weddingLiquidityDelta >= 0 ? '🟢 Likuiditas Aman' : '🔴 Defisit Vendor'}
               </span>
             </div>
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {stats.weddingLiquidityDelta >= 0
-              ? `Surplus likuiditas: +${formatRupiah(stats.weddingLiquidityDelta)} dari komitmen vendor.`
-              : `Perlu top-up ${formatRupiah(Math.abs(stats.weddingLiquidityDelta))} untuk melunasi vendor.`}
-          </div>
-        </motion.div>
+            <div>
+              <h4 className="text-2xl font-black text-amber-700 dark:text-amber-400 tracking-tight tabular-nums">
+                {formatRupiah(stats.lockedSavings)}
+              </h4>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                <span>Sisa Vendor:</span>
+                <span className="font-semibold text-foreground tabular-nums">
+                  {formatRupiah(stats.totalUnpaidVendor)}
+                </span>
+              </div>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {stats.weddingLiquidityDelta >= 0
+                ? `Surplus likuiditas: +${formatRupiah(stats.weddingLiquidityDelta)} dari komitmen vendor.`
+                : `Perlu top-up ${formatRupiah(Math.abs(stats.weddingLiquidityDelta))} untuk melunasi vendor.`}
+            </div>
+          </motion.div>
+        )}
 
         {/* Pocket C: POV-Tailored Contribution / Consolidated Card */}
         {activeScope === 'aegg' || activeScope === 'peppaa' ? (
@@ -847,8 +885,23 @@ export function FinanceOverview({
                       <p className="text-xs font-bold text-foreground">
                         {tx.description || tx.category}
                       </p>
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground flex-wrap">
                         <span>{tx.date}</span>
+                        {tx.source === 'whatsapp' ? (
+                          <span
+                            className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase tracking-wider inline-flex items-center"
+                            title="Dicatat otomatis lewat WhatsApp Nanang"
+                          >
+                            WA
+                          </span>
+                        ) : (
+                          <span
+                            className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border/50 uppercase tracking-wider"
+                            title="Dicatat lewat Web Dashboard"
+                          >
+                            Web
+                          </span>
+                        )}
                         <span>•</span>
                         <OwnerBadge role={role} compact />
                       </div>
