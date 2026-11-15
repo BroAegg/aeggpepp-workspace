@@ -65,6 +65,7 @@ export function AddTodoModal({ open, categories, onClose, onCreated }: AddTodoMo
       formData.set('priority', formPriority)
       formData.set('category', formCategory)
       formData.set('due_date', formDueDate)
+      formData.set('idempotency_key', crypto.randomUUID())
 
       const result = await createTodo(formData)
       if (result && 'error' in result && result.error) {

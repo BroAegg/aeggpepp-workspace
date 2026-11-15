@@ -123,6 +123,9 @@ export interface Transaction {
   is_settled: boolean
   receipt_url?: string | null
   source?: 'web' | 'telegram' | null
+  idempotency_key?: string | null
+  deleted_at?: string | null
+  updated_by?: string | null
   created_at: string
   profiles?: ItemOwner
 }
@@ -240,6 +243,7 @@ export interface Todo {
   category: string | null
   due_date: string | null
   completed_at: string | null
+  idempotency_key?: string | null
   created_at: string
   updated_at: string
   profiles?: ItemOwner

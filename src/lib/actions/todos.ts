@@ -42,12 +42,13 @@ export async function createTodo(formData: FormData) {
     const priority = (formData.get('priority') as Priority) || 'medium'
     const category = formData.get('category') as string | null
     const dueDate = formData.get('due_date') as string
+    const idempotencyKey = (formData.get('idempotency_key') as string | null)?.trim() || null
 
     if (!title?.trim()) {
         return { error: 'Title is required' }
     }
 
-    const { data, error } = await supabase.from('todos').insert({
+    const insertPayload: any = {
         user_id: user.id,
         title: title.trim(),
         description: description?.trim() || null,
@@ -57,9 +58,23 @@ export async function createTodo(formData: FormData) {
         category: category || null,
         due_date: dueDate || null,
         completed_at: null,
-    }).select('id').single()
+    }
+
+    if (idempotencyKey) {
+        insertPayload.idempotency_key = idempotencyKey
+    }
+
+    const { data, error } = await supabase
+        .from('todos')
+        .insert(insertPayload)
+        .select('id')
+        .single()
 
     if (error) {
+        if (error.code === '23505' && idempotencyKey) {
+            console.warn(`[Todos] Idempotent retry detected for key: ${idempotencyKey}`)
+            return { success: true, idempotent: true }
+        }
         return { error: error.message }
     }
 

@@ -99,6 +99,23 @@ interface WorkspaceState {
 
   // Global Invalidation
   invalidateAll: () => void
+
+  // Realtime Mutators
+  handleRealtimeTransaction: (payload: {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+    new?: any
+    old?: any
+  }) => boolean
+  handleRealtimeTodo: (payload: {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+    new?: any
+    old?: any
+  }) => boolean
+  handleRealtimeWeddingGuest: (payload: {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+    new?: any
+    old?: any
+  }) => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -359,7 +376,78 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       weddingLoaded: false,
       dashboardLoaded: false,
       dashboardLastFetched: null,
+    }),
+
+  // Realtime Mutators
+  handleRealtimeTransaction: ({ eventType, new: newRecord, old: oldRecord }) => {
+    let wasNew = false
+    set((state) => {
+      if (eventType === 'INSERT' && newRecord) {
+        const exists = state.transactions.some(
+          (t) => t.id === newRecord.id || (newRecord.idempotency_key && t.idempotency_key === newRecord.idempotency_key)
+        )
+        if (exists) return state
+        wasNew = true
+        return { transactions: [newRecord, ...state.transactions] }
+      }
+      if (eventType === 'UPDATE' && newRecord) {
+        if (newRecord.deleted_at) {
+          return { transactions: state.transactions.filter((t) => t.id !== newRecord.id) }
+        }
+        return {
+          transactions: state.transactions.map((t) => (t.id === newRecord.id ? { ...t, ...newRecord } : t)),
+        }
+      }
+      if (eventType === 'DELETE' && oldRecord) {
+        return { transactions: state.transactions.filter((t) => t.id !== oldRecord.id) }
+      }
+      return state
     })
+    return wasNew
+  },
+
+  handleRealtimeTodo: ({ eventType, new: newRecord, old: oldRecord }) => {
+    let wasNew = false
+    set((state) => {
+      if (eventType === 'INSERT' && newRecord) {
+        const exists = state.todos.some(
+          (t) => t.id === newRecord.id || (newRecord.idempotency_key && t.idempotency_key === newRecord.idempotency_key)
+        )
+        if (exists) return state
+        wasNew = true
+        return { todos: [newRecord, ...state.todos] }
+      }
+      if (eventType === 'UPDATE' && newRecord) {
+        return {
+          todos: state.todos.map((t) => (t.id === newRecord.id ? { ...t, ...newRecord } : t)),
+        }
+      }
+      if (eventType === 'DELETE' && oldRecord) {
+        return { todos: state.todos.filter((t) => t.id !== oldRecord.id) }
+      }
+      return state
+    })
+    return wasNew
+  },
+
+  handleRealtimeWeddingGuest: ({ eventType, new: newRecord, old: oldRecord }) => {
+    set((state) => {
+      if (eventType === 'INSERT' && newRecord) {
+        const exists = state.weddingGuests.some((g) => g.id === newRecord.id)
+        if (exists) return state
+        return { weddingGuests: [newRecord, ...state.weddingGuests] }
+      }
+      if (eventType === 'UPDATE' && newRecord) {
+        return {
+          weddingGuests: state.weddingGuests.map((g) => (g.id === newRecord.id ? { ...g, ...newRecord } : g)),
+        }
+      }
+      if (eventType === 'DELETE' && oldRecord) {
+        return { weddingGuests: state.weddingGuests.filter((g) => g.id !== oldRecord.id) }
+      }
+      return state
+    })
+  },
   }),
   {
     name: 'aeggpepp-workspace-offline-cache',

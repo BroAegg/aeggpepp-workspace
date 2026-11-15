@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { X, TrendingUp, TrendingDown, Tag, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,14 @@ export function AddTransactionModal({
   saving,
   formRef,
 }: AddTransactionModalProps) {
+  const [idempotencyKey, setIdempotencyKey] = useState('')
+
+  useEffect(() => {
+    if (isOpen) {
+      setIdempotencyKey(crypto.randomUUID())
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
   return (
@@ -59,6 +68,7 @@ export function AddTransactionModal({
         </div>
 
         <form ref={formRef} action={onSubmit} className="space-y-4" encType="multipart/form-data">
+          <input type="hidden" name="idempotency_key" value={idempotencyKey} />
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Jenis Transaksi

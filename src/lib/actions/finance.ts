@@ -32,6 +32,7 @@ export async function getTransactions(userId?: string | 'all'): Promise<Transact
   let query = supabase
     .from('transactions')
     .select('*, profiles:user_id(display_name, role)')
+    .is('deleted_at', null)
     .order('date', { ascending: false })
 
   // If userId is specific string (not 'all' and not undefined), filter by it
@@ -77,6 +78,7 @@ export async function createTransaction(formData: FormData) {
   const paidBy = formData.get('paid_by') as string | null
   const isSettled = formData.get('is_settled') === 'true'
   const receiptFile = formData.get('receipt_file') as File
+  const idempotencyKey = (formData.get('idempotency_key') as string | null)?.trim() || null
 
   let receiptUrl = null
 
@@ -98,8 +100,6 @@ export async function createTransaction(formData: FormData) {
 
     if (uploadError) {
       console.error('Error uploading receipt:', uploadError)
-      // Continue without receipt if upload fails? Or return error?
-      // Better to return error
       return { error: 'Failed to upload receipt: ' + uploadError.message }
     }
 
@@ -110,7 +110,7 @@ export async function createTransaction(formData: FormData) {
     receiptUrl = urlData.publicUrl
   }
 
-  const { error } = await supabase.from('transactions').insert({
+  const insertPayload: any = {
     user_id: user.id,
     type,
     category,
@@ -123,16 +123,31 @@ export async function createTransaction(formData: FormData) {
     paid_by: paidBy || user.id,
     is_settled: isSettled,
     receipt_url: receiptUrl,
-  })
+  }
+
+  if (idempotencyKey) {
+    insertPayload.idempotency_key = idempotencyKey
+  }
+
+  const { data: insertedData, error } = await supabase
+    .from('transactions')
+    .insert(insertPayload)
+    .select('id')
+    .single()
 
   if (error) {
+    // If error is unique constraint violation on idempotency_key (code 23505), treat as idempotent success
+    if (error.code === '23505' && idempotencyKey) {
+      console.warn(`[Finance] Idempotent retry detected for key: ${idempotencyKey}`)
+      return { success: true, idempotent: true }
+    }
     return { error: error.message }
   }
 
   logActivity('add_transaction', 'Finance', { type, category, amount }).catch(() => {})
 
   revalidatePath('/finance')
-  return { success: true }
+  return { success: true, id: insertedData?.id }
 }
 
 export async function updateTransaction(id: string, formData: FormData) {
@@ -189,6 +204,8 @@ export async function updateTransaction(id: string, formData: FormData) {
     updateData.receipt_url = urlData.publicUrl
   }
 
+  updateData.updated_by = user.id
+
   const { error } = await supabase
     .from('transactions')
     .update(updateData)
@@ -208,9 +225,13 @@ export async function deleteTransaction(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  // Soft delete pattern
   const { error } = await supabase
     .from('transactions')
-    .delete()
+    .update({
+      deleted_at: new Date().toISOString(),
+      updated_by: user.id,
+    })
     .eq('id', id)
 
   if (error) {

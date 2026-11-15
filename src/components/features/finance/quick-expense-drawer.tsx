@@ -55,6 +55,7 @@ export function QuickExpenseDrawer({ isOpen, onClose, onSuccess }: QuickExpenseD
       formData.append('description', description || 'Pengeluaran')
       formData.append('date', new Date().toISOString().split('T')[0])
       formData.append('is_shared', isShared ? 'true' : 'false')
+      formData.append('idempotency_key', crypto.randomUUID())
 
       const res = await createTransaction(formData)
       if (res && 'error' in res && res.error) {
