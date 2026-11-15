@@ -1,7 +1,6 @@
 -- ==============================================================================
 -- FIX RLS: IZINKAN WHATSAPP BOT NANANG MENYIMPAN & MENGUBAH TRANSAKSI
--- Jalankan script ini di Supabase SQL Editor untuk menyelesaikan error:
--- "new row violates row-level security policy for table 'transactions'"
+-- Aman dijalankan berulang kali (Idempotent & auto-create receipt_items)
 -- ==============================================================================
 
 -- 1. Buka akses INSERT untuk transaksi:
@@ -52,8 +51,23 @@ CREATE POLICY "Allow bot and couple select transactions"
   ON public.transactions FOR SELECT
   USING (true);
 
--- 4. Buka akses untuk receipt_items (rincian item belanja hasil OCR struk)
-ALTER TABLE IF EXISTS public.receipt_items ENABLE ROW LEVEL SECURITY;
+-- 4. Buat tabel receipt_items terlebih dahulu jika belum ada di database
+CREATE TABLE IF NOT EXISTS public.receipt_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  transaction_id UUID REFERENCES public.transactions(id) ON DELETE CASCADE NOT NULL,
+  item_name TEXT NOT NULL,
+  quantity INTEGER DEFAULT 1,
+  unit_price DECIMAL(12,2),
+  total_price DECIMAL(12,2) NOT NULL,
+  category TEXT DEFAULT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipt_items_transaction_id 
+  ON public.receipt_items(transaction_id);
+
+ALTER TABLE public.receipt_items ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS "Allow all receipt items insert" ON public.receipt_items;
 CREATE POLICY "Allow all receipt items insert"
   ON public.receipt_items FOR INSERT
@@ -64,7 +78,7 @@ CREATE POLICY "Allow all receipt items select"
   ON public.receipt_items FOR SELECT
   USING (true);
 
--- Verifikasi status RLS
-SELECT tablename, policyname, permissive, roles, cmd, qual, with_check 
+-- Verifikasi status RLS yang aktif
+SELECT tablename, policyname, cmd 
 FROM pg_policies 
 WHERE tablename IN ('transactions', 'receipt_items');
