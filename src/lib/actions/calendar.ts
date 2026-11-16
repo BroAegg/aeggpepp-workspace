@@ -53,8 +53,9 @@ export async function getCalendarBundle(): Promise<{ items: CalendarItem[]; even
   const items: CalendarItem[] = []
   const rawEvents: CalendarEvent[] = (eventsRes.data || []) as CalendarEvent[]
 
-  // Map events
-  for (const e of rawEvents) {
+  // Map events (with privacy filter: do not leak partner's private events)
+  const allowedEvents = rawEvents.filter((e) => !e.is_private || e.user_id === user.id)
+  for (const e of allowedEvents) {
     const startDate = new Date(e.start_date)
     const endDate = e.end_date ? new Date(e.end_date) : null
     items.push({
@@ -72,6 +73,8 @@ export async function getCalendarBundle(): Promise<{ items: CalendarItem[]; even
       completed: false,
       priority: null,
       owner: (e as any).profiles || { display_name: 'Unknown', role: null },
+      scope: e.scope,
+      isPrivate: e.is_private,
     })
   }
 
@@ -91,13 +94,16 @@ export async function getCalendarBundle(): Promise<{ items: CalendarItem[]; even
         completed: g.status === 'completed',
         priority: g.priority,
         owner: (g as any).profiles || { display_name: 'Unknown', role: null },
+        scope: g.scope,
+        isPrivate: false,
       })
     }
   }
 
-  // Map todos with due_date (only 'todo' status - not completed)
+  // Map todos with due_date (only 'todo' status - not completed, filter partner's private todos)
   if (todosRes.data) {
-    for (const t of todosRes.data) {
+    const allowedTodos = todosRes.data.filter((t) => !t.is_private || t.user_id === user.id)
+    for (const t of allowedTodos) {
       items.push({
         id: t.id,
         type: 'todo',
@@ -111,11 +117,13 @@ export async function getCalendarBundle(): Promise<{ items: CalendarItem[]; even
         completed: t.completed || t.status === 'completed',
         priority: t.priority,
         owner: (t as any).profiles || { display_name: 'Unknown', role: null },
+        scope: t.scope,
+        isPrivate: t.is_private,
       })
     }
   }
 
-  return { items, events: rawEvents }
+  return { items, events: allowedEvents }
 }
 
 export async function getCalendarItems(): Promise<CalendarItem[]> {
@@ -137,6 +145,8 @@ export async function createEvent(formData: FormData) {
   const endDate = formData.get('end_date') as string
   const allDay = formData.get('all_day') === 'true'
   const color = (formData.get('color') as string) || '#0F766E'
+  const scope = (formData.get('scope') as string) || 'joint'
+  const isPrivate = formData.get('is_private') === 'true'
 
   if (!title || !startDate) {
     return { error: 'Title and start date are required' }
@@ -150,6 +160,8 @@ export async function createEvent(formData: FormData) {
     end_date: endDate || null,
     all_day: allDay,
     color,
+    scope,
+    is_private: isPrivate,
   })
 
   if (error) {
@@ -174,6 +186,8 @@ export async function updateEvent(id: string, formData: FormData) {
   const endDate = formData.get('end_date') as string
   const allDay = formData.get('all_day') === 'true'
   const color = (formData.get('color') as string) || '#0F766E'
+  const scope = (formData.get('scope') as string) || 'joint'
+  const isPrivate = formData.get('is_private') === 'true'
 
   const { error } = await supabase
     .from('events')
@@ -184,6 +198,8 @@ export async function updateEvent(id: string, formData: FormData) {
       end_date: endDate || null,
       all_day: allDay,
       color,
+      scope,
+      is_private: isPrivate,
     })
     .eq('id', id)
 

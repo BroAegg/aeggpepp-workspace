@@ -320,6 +320,8 @@ export interface CalendarItem {
   completed: boolean
   priority: Priority | null
   owner: ItemOwner
+  scope?: Scope
+  isPrivate?: boolean
 }
 
 // API Response Types

@@ -788,72 +788,7 @@ export function FinanceOverview({
         )}
       </div>
 
-      {/* 4. Quick Entry Presets */}
-      <div className="bg-secondary/40 border border-border/80 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-foreground">
-            Kategori Pencatatan Cepat:
-          </span>
-          <span className="text-[11px] text-muted-foreground">
-            Pilih kategori untuk input instan
-          </span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <button
-            onClick={onOpenQuickExpense}
-            className="flex items-center gap-2.5 p-2.5 rounded-xl bg-card border border-border/70 hover:border-primary/40 text-left transition-all"
-          >
-            <span className="p-2 rounded-lg bg-secondary text-foreground">
-              <Coffee className="w-3.5 h-3.5" />
-            </span>
-            <div>
-              <p className="text-xs font-bold text-foreground">Konsumsi</p>
-              <p className="text-[10px] text-muted-foreground">Makan & Minum</p>
-            </div>
-          </button>
-
-          <button
-            onClick={onOpenQuickExpense}
-            className="flex items-center gap-2.5 p-2.5 rounded-xl bg-card border border-border/70 hover:border-primary/40 text-left transition-all"
-          >
-            <span className="p-2 rounded-lg bg-secondary text-foreground">
-              <Car className="w-3.5 h-3.5" />
-            </span>
-            <div>
-              <p className="text-xs font-bold text-foreground">Transportasi</p>
-              <p className="text-[10px] text-muted-foreground">Bensin & Ojek</p>
-            </div>
-          </button>
-
-          <button
-            onClick={onOpenQuickExpense}
-            className="flex items-center gap-2.5 p-2.5 rounded-xl bg-card border border-border/70 hover:border-primary/40 text-left transition-all"
-          >
-            <span className="p-2 rounded-lg bg-secondary text-foreground">
-              <ShoppingBag className="w-3.5 h-3.5" />
-            </span>
-            <div>
-              <p className="text-xs font-bold text-foreground">Belanja</p>
-              <p className="text-[10px] text-muted-foreground">Kebutuhan Harian</p>
-            </div>
-          </button>
-
-          <button
-            onClick={onOpenQuickExpense}
-            className="flex items-center gap-2.5 p-2.5 rounded-xl bg-card border border-border/70 hover:border-primary/40 text-left transition-all"
-          >
-            <span className="p-2 rounded-lg bg-secondary text-foreground">
-              <Heart className="w-3.5 h-3.5 text-primary" />
-            </span>
-            <div>
-              <p className="text-xs font-bold text-foreground">Agenda Bersama</p>
-              <p className="text-[10px] text-muted-foreground">Kencan & Acara</p>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* 5. Recent Transactions List */}
+      {/* 4. Recent Transactions List */}
       <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div>

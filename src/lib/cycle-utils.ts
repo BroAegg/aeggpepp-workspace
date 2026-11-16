@@ -17,9 +17,25 @@ export interface BillingCycle {
 }
 
 /**
+ * Returns today's date in Asia/Jakarta timezone formatted as YYYY-MM-DD
+ * Prevents timezone offset shifts (e.g. 00:00 - 06:59 WIB rolling back to yesterday)
+ */
+export function getTodayWIB(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
+}
+
+/**
+ * Returns a Date object representing midnight in Jakarta on the current Jakarta date
+ */
+export function getNowWIBDate(): Date {
+  const [year, month, day] = getTodayWIB().split('-').map(Number)
+  return new Date(year, month - 1, day, 0, 0, 0, 0)
+}
+
+/**
  * Computes the active billing cycle based on start day (1 - 28, default: 25)
  */
-export function getBillingCycle(startDay: number = 25, referenceDate: Date = new Date()): BillingCycle {
+export function getBillingCycle(startDay: number = 25, referenceDate: Date = getNowWIBDate()): BillingCycle {
   // Clamp startDay to 1 - 28 to avoid end-of-month quirks (February etc.)
   const day = Math.min(Math.max(startDay, 1), 28)
   
@@ -64,7 +80,7 @@ export function getBillingCycle(startDay: number = 25, referenceDate: Date = new
 
   // Total days in cycle
   const diffTime = endDate.getTime() - startDate.getTime()
-  const daysInCycle = Math.round(diffTime / (1000 * 60 * 60 * 24))
+  const daysInCycle = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)))
 
   // Days elapsed (including today)
   const todayZero = new Date(refYear, refMonth, refDay, 0, 0, 0, 0)
@@ -109,13 +125,22 @@ export function isDateInBillingCycle(dateStr: string, cycle: BillingCycle): bool
 /**
  * Calculates the Daily Safe-to-Spend metric:
  * (Remaining Budget) / (Days Remaining)
+ * Protected against division by zero, negative days, and NaN/Infinity
  */
 export function calculateDailySafeToSpend(remainingBudget: number, daysRemaining: number): {
   dailyAmount: number
   status: 'safe' | 'warning' | 'critical'
 } {
-  const safeRemaining = Math.max(0, remainingBudget)
-  const safeDays = Math.max(1, daysRemaining)
+  const safeRemaining = Math.max(0, isNaN(remainingBudget) ? 0 : remainingBudget)
+  const safeDays = Math.max(1, isNaN(daysRemaining) ? 1 : daysRemaining)
+
+  if (safeRemaining <= 0 || safeDays <= 0) {
+    return {
+      dailyAmount: 0,
+      status: 'critical',
+    }
+  }
+
   const dailyAmount = Math.round(safeRemaining / safeDays)
 
   let status: 'safe' | 'warning' | 'critical' = 'safe'
@@ -130,3 +155,4 @@ export function calculateDailySafeToSpend(remainingBudget: number, daysRemaining
     status,
   }
 }
+

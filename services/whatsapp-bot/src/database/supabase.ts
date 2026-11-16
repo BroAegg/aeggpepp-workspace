@@ -158,11 +158,19 @@ export interface SaveReceiptPayload {
 }
 
 /**
+ * Returns today's date in Asia/Jakarta timezone formatted as YYYY-MM-DD
+ * Prevents UTC offset shifts (e.g. 00:00 - 06:59 WIB rolling back to yesterday)
+ */
+export function getTodayWIB(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+}
+
+/**
  * Validates date string to avoid year hallucinations from OCR (e.g. 2018 or 2029)
- * Fallback to today if outside reasonable range
+ * Fallback to today WIB if outside reasonable range
  */
 export function validateTransactionDate(rawDate?: string): string {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayWIB();
   if (!rawDate || !/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
     return todayStr;
   }
@@ -225,10 +233,11 @@ export async function getTargetAccountForUser(
       }
 
       // 2. Fallback to user's first personal operational pocket
+      const targetScope = scope || 'aegg';
       const { data: accounts } = await supabase
         .from('savings_accounts')
         .select('id, is_locked, scope')
-        .eq('user_id', userId)
+        .or(`scope.eq.${targetScope},user_id.eq.${userId}`)
         .order('created_at', { ascending: true });
 
       const operational = accounts?.find((a: any) => !a.is_locked && a.scope !== 'joint');
@@ -415,7 +424,7 @@ export async function saveQuickTransaction(params: {
   scope?: 'aegg' | 'peppaa' | 'joint';
 }): Promise<{ transactionId: string }> {
   const supabase = getSupabase();
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = getTodayWIB();
   const targetScope = params.scope || (params.user.role === 'peppaa' ? 'peppaa' : 'aegg');
   const targetAccountId = await getTargetAccountForUser(params.user.id, targetScope);
 

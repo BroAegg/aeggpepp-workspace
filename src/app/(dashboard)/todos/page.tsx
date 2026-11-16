@@ -42,6 +42,7 @@ export default function TodosPage() {
         todos: cachedTodos,
         todoCategories: cachedCategories,
         todosLoaded,
+        profile,
         setTodosData,
         setTodoCategoriesData,
     } = useWorkspaceStore()
@@ -171,7 +172,14 @@ export default function TodosPage() {
         let result = [...todos]
 
         if (personFilter !== 'all') {
-            result = result.filter((t) => t.profiles?.role === personFilter)
+            if (personFilter === 'me') {
+                const myRole = profile?.role || 'aegg'
+                result = result.filter((t) => t.scope === myRole || t.profiles?.role === myRole || t.user_id === profile?.id)
+            } else if (personFilter === 'joint') {
+                result = result.filter((t) => t.scope === 'joint' || (!t.scope && !t.is_private))
+            } else {
+                result = result.filter((t) => t.profiles?.role === personFilter)
+            }
         }
         if (priorityFilter !== 'all') {
             result = result.filter((t) => t.priority === priorityFilter)
@@ -439,9 +447,9 @@ export default function TodosPage() {
                         onChange={(e) => setPersonFilter(e.target.value)}
                         className="px-2.5 py-1 rounded-md border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
-                        <option value="all">All People</option>
-                        <option value="aegg">Aegg</option>
-                        <option value="peppaa">Peppaa</option>
+                        <option value="all">Semua Ruang</option>
+                        <option value="me">Tugas Saya</option>
+                        <option value="joint">💍 Tugas Bersama</option>
                     </select>
 
                     <select

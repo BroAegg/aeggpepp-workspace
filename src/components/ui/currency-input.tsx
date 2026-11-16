@@ -12,13 +12,31 @@ interface CurrencyInputProps {
     required?: boolean
 }
 
+function sanitizeCurrencyInput(inputStr: string): string {
+    if (!inputStr) return ''
+    let cleaned = inputStr.trim()
+    // Strip currency symbols and whitespace
+    cleaned = cleaned.replace(/^(?:Rp|IDR)\.?\s*/i, '')
+    // Strip trailing cents (,00 or .00)
+    cleaned = cleaned.replace(/[,.]00$/, '')
+    // If Indonesian decimal comma followed by 1-2 digits, drop the decimal part
+    if (cleaned.includes(',')) {
+        const parts = cleaned.split(',')
+        if (parts.length === 2 && parts[1].length <= 2) {
+            cleaned = parts[0]
+        }
+    }
+    // Remove non-digit characters
+    return cleaned.replace(/\D/g, '')
+}
+
 export function CurrencyInput({
     name,
     value,
     onChange,
     defaultValue,
     placeholder = "0",
-    className,
+    className = '',
     required
 }: CurrencyInputProps) {
     const [displayValue, setDisplayValue] = useState('')
@@ -31,26 +49,32 @@ export function CurrencyInput({
             setDisplayValue(value === 0 ? '' : formatNumber(value.toString()))
         } else if (defaultValue !== undefined) {
             setRawValue(defaultValue.toString())
-            setDisplayValue(formatNumber(defaultValue.toString()))
+            setDisplayValue(defaultValue === 0 ? '' : formatNumber(defaultValue.toString()))
         }
     }, [value, defaultValue])
 
     const formatNumber = (numStr: string) => {
         if (!numStr) return ''
-        return new Intl.NumberFormat('id-ID').format(Number(numStr))
+        const n = Number(numStr)
+        if (isNaN(n)) return ''
+        return new Intl.NumberFormat('id-ID').format(n)
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Remove non-digits (keep only numbers)
-        const val = e.target.value.replace(/\D/g, '')
-
-        // Update raw value
+        const val = sanitizeCurrencyInput(e.target.value)
         setRawValue(val)
-
-        // Update display value with formatting
         setDisplayValue(formatNumber(val))
+        if (onChange) {
+            onChange(val === '' ? 0 : Number(val))
+        }
+    }
 
-        // Trigger onChange if provided
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        e.preventDefault()
+        const text = e.clipboardData.getData('text')
+        const val = sanitizeCurrencyInput(text)
+        setRawValue(val)
+        setDisplayValue(formatNumber(val))
         if (onChange) {
             onChange(val === '' ? 0 : Number(val))
         }
@@ -62,6 +86,7 @@ export function CurrencyInput({
                 type="text"
                 value={displayValue}
                 onChange={handleChange}
+                onPaste={handlePaste}
                 placeholder={placeholder}
                 className={className}
                 required={required}

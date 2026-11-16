@@ -18,6 +18,7 @@ import {
   recordBotTransaction,
   findTransactionByReplyId,
   findLatestTransactionBySender,
+  findAnyLatestTransactionBySender,
   deleteBotTransactionRecord,
 } from '../database/sqliteStore.js';
 import { parseReceiptWithVision, formatRupiah } from '../ai/receiptVision.js';
@@ -161,13 +162,24 @@ export async function handleIncomingMessage(sock: WASocket, msg: WAMessage): Pro
           return;
         }
       } else {
-        await sock.sendMessage(
-          from,
-          {
-            text: `Tidak ada transaksi baru yang bisa dibatalkan dalam 15 menit terakhir nih ${user.displayName}. Pastikan me-reply pesan struk yang ingin dihapus ya.`,
-          },
-          { quoted: msg }
-        );
+        const anyRecord = findAnyLatestTransactionBySender(from);
+        if (anyRecord) {
+          await sock.sendMessage(
+            from,
+            {
+              text: `Transaksi terakhir (*${anyRecord.merchant}* - ${formatRupiah(anyRecord.amount)}) sudah dicatat lebih dari 15 menit yang lalu nih ${user.displayName}. Demi keamanan saldo kantong, transaksi lama hanya bisa diubah atau dibatalkan langsung lewat Dashboard Web ya: https://aeggpepp.vercel.app/finance`,
+            },
+            { quoted: msg }
+          );
+        } else {
+          await sock.sendMessage(
+            from,
+            {
+              text: `Tidak ada transaksi yang bisa dibatalkan nih ${user.displayName}. Pastikan me-reply pesan balasan struk Nanang yang ingin dihapus ya.`,
+            },
+            { quoted: msg }
+          );
+        }
         return;
       }
     }

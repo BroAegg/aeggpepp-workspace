@@ -22,6 +22,7 @@ import {
 } from '@/lib/actions/subscriptions'
 import { getSavingsAccounts } from '@/lib/actions/finance'
 import { PayFromPocketModal, type PayTarget } from './modals/pay-from-pocket-modal'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { toast } from '@/components/ui/toast'
 import type { Subscription, SavingsAccount } from '@/types'
 
@@ -57,7 +58,7 @@ export function SubscriptionsTab({
 
   // Form states
   const [name, setName] = useState('')
-  const [amount, setAmount] = useState('')
+  const [amount, setAmount] = useState<number>(0)
   const [dueDay, setDueDay] = useState('5')
   const [category, setCategory] = useState('bills')
   const [selectedIcon, setSelectedIcon] = useState('⚡')
@@ -128,13 +129,13 @@ export function SubscriptionsTab({
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !amount) return
+    if (!name.trim() || !amount || amount <= 0) return
 
     setAdding(true)
     try {
       const formData = new FormData()
       formData.set('name', name.trim())
-      formData.set('amount', amount)
+      formData.set('amount', amount.toString())
       formData.set('due_day', dueDay)
       formData.set('category', category)
       formData.set('icon', selectedIcon)
@@ -146,7 +147,7 @@ export function SubscriptionsTab({
         toast.success('Langganan rutin berhasil ditambahkan!')
         setShowAddModal(false)
         setName('')
-        setAmount('')
+        setAmount(0)
         await fetchSubs()
       }
     } catch (err: any) {
@@ -332,7 +333,7 @@ export function SubscriptionsTab({
                     placeholder="e.g. WiFi MyRepublic, Netflix, Listrik PLN"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-base md:text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   />
                 </div>
 
@@ -340,14 +341,18 @@ export function SubscriptionsTab({
                   <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                     Nominal Tagihan per Bulan (Rp)
                   </label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="e.g. 350000"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                      Rp
+                    </span>
+                    <CurrencyInput
+                      required
+                      value={amount}
+                      onChange={(val) => setAmount(val)}
+                      placeholder="e.g. 350.000"
+                      className="w-full pl-11 pr-3 py-2 rounded-xl border border-border bg-background text-foreground text-base md:text-sm tabular-nums focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -362,7 +367,7 @@ export function SubscriptionsTab({
                       required
                       value={dueDay}
                       onChange={(e) => setDueDay(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-base md:text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     />
                   </div>
 
@@ -373,7 +378,7 @@ export function SubscriptionsTab({
                     <select
                       value={selectedIcon}
                       onChange={(e) => setSelectedIcon(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-base md:text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     >
                       {PRESET_ICONS.map((p) => (
                         <option key={p.label} value={p.icon}>

@@ -97,6 +97,7 @@ export function parseIndonesianCurrency(val: any): number {
 function sanitizeReceiptJson(jsonString: string): ParsedReceipt | null {
   try {
     let cleaned = jsonString.trim();
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) {
       cleaned = match[0];

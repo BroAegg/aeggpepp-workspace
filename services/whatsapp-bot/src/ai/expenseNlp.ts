@@ -106,6 +106,20 @@ Jika BUKAN transaksi keuangan:
 Output HANYA JSON tanpa markdown.
 `;
 
+function cleanAndParseJson<T>(rawContent: string): T | null {
+  try {
+    let cleaned = rawContent.trim();
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      cleaned = match[0];
+    }
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+}
+
 async function parseWithGroqNlp(text: string): Promise<ParsedFinanceText | null> {
   if (!config.groqApiKey) return null;
   const model = config.groqModel || 'llama-3.3-70b-versatile';
@@ -129,7 +143,7 @@ async function parseWithGroqNlp(text: string): Promise<ParsedFinanceText | null>
     const content = data?.choices?.[0]?.message?.content;
     if (!content) return null;
 
-    return JSON.parse(content.replace(/```json/g, '').replace(/```/g, '').trim());
+    return cleanAndParseJson<ParsedFinanceText>(content);
   } catch {
     return null;
   }
@@ -158,7 +172,8 @@ async function parseWithGeminiNlp(text: string): Promise<ParsedFinanceText | nul
       const candidate = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!candidate) continue;
 
-      return JSON.parse(candidate.replace(/```json/g, '').replace(/```/g, '').trim());
+      const parsed = cleanAndParseJson<ParsedFinanceText>(candidate);
+      if (parsed) return parsed;
     } catch {}
   }
 

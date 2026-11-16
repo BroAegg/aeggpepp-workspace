@@ -115,6 +115,11 @@ interface WorkspaceState {
     new?: any
     old?: any
   }) => boolean
+  handleRealtimeWishlist: (payload: {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+    new?: any
+    old?: any
+  }) => boolean
   handleRealtimeWeddingGuest: (payload: {
     eventType: 'INSERT' | 'UPDATE' | 'DELETE'
     new?: any
@@ -440,6 +445,10 @@ export const useWorkspaceStore = create<WorkspaceState>()(
   handleRealtimeTodo: ({ eventType, new: newRecord, old: oldRecord }) => {
     let wasNew = false
     set((state) => {
+      // Privacy Guard: If item is private and belongs to partner, do not merge into client store
+      if (newRecord?.is_private && state.profile?.id && newRecord.user_id !== state.profile.id) {
+        return state
+      }
       if (eventType === 'INSERT' && newRecord) {
         const exists = state.todos.some(
           (t) => t.id === newRecord.id || (newRecord.idempotency_key && t.idempotency_key === newRecord.idempotency_key)
@@ -455,6 +464,32 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       }
       if (eventType === 'DELETE' && oldRecord) {
         return { todos: state.todos.filter((t) => t.id !== oldRecord.id) }
+      }
+      return state
+    })
+    return wasNew
+  },
+
+  handleRealtimeWishlist: ({ eventType, new: newRecord, old: oldRecord }) => {
+    let wasNew = false
+    set((state) => {
+      // Privacy Guard: If item is surprise gift (unpurchased) and belongs to partner, hide from recipient's store
+      if (newRecord?.is_surprise && !newRecord?.is_purchased && state.profile?.id && newRecord.user_id !== state.profile.id) {
+        return state
+      }
+      if (eventType === 'INSERT' && newRecord) {
+        const exists = state.wishlist.some((w) => w.id === newRecord.id)
+        if (exists) return state
+        wasNew = true
+        return { wishlist: [newRecord, ...state.wishlist] }
+      }
+      if (eventType === 'UPDATE' && newRecord) {
+        return {
+          wishlist: state.wishlist.map((w) => (w.id === newRecord.id ? { ...w, ...newRecord } : w)),
+        }
+      }
+      if (eventType === 'DELETE' && oldRecord) {
+        return { wishlist: state.wishlist.filter((w) => w.id !== oldRecord.id) }
       }
       return state
     })

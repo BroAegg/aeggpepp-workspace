@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Circle, Clock, CheckCircle2, Calendar,
-  CheckSquare, ArrowUpDown,
+  CheckSquare, ArrowUpDown, Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TODO_STATUSES, PRIORITIES } from '@/lib/constants'
@@ -150,7 +150,12 @@ export function TableView({ todos, categories, onOpenTodo, onOpenAdd }: TableVie
                 )}
               >
                 {/* Title */}
-                <div className="min-w-0">
+                <div className="min-w-0 flex items-center gap-1.5">
+                  {todo.is_private && (
+                    <span title="Tugas Pribadi (Terkunci)">
+                      <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    </span>
+                  )}
                   <p
                     className={cn(
                       'text-sm font-medium truncate',

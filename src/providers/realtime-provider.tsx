@@ -50,8 +50,14 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'todos' },
         (payload: any) => {
-          const { handleRealtimeTodo } = useWorkspaceStore.getState()
           const isFromPartner = payload.new?.user_id && payload.new.user_id !== profile.id
+
+          // Privacy Guard: Never notify or add partner's private todos
+          if (isFromPartner && payload.new?.is_private) {
+            return
+          }
+
+          const { handleRealtimeTodo } = useWorkspaceStore.getState()
           const wasNew = handleRealtimeTodo({
             eventType: payload.eventType,
             new: payload.new,
@@ -67,6 +73,38 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
             toast.success(
               `${partnerName} menyelesaikan tugas! ✨`,
               payload.new.title
+            )
+          }
+        }
+      )
+      // 2.5. Wishlist Listener (with Surprise Gift Privacy Guard)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wishlist' },
+        (payload: any) => {
+          const isFromPartner = payload.new?.user_id && payload.new.user_id !== profile.id
+
+          // Privacy Guard: If partner created a surprise gift and it's unpurchased, do NOT notify or merge
+          if (isFromPartner && payload.new?.is_surprise && !payload.new?.is_purchased) {
+            return
+          }
+
+          const { handleRealtimeWishlist } = useWorkspaceStore.getState()
+          const wasNew = handleRealtimeWishlist({
+            eventType: payload.eventType,
+            new: payload.new,
+            old: payload.old,
+          })
+
+          if (isFromPartner && payload.eventType === 'INSERT' && wasNew) {
+            toast.info(
+              `${partnerName} menambahkan wishlist baru 🎁`,
+              payload.new.title
+            )
+          } else if (isFromPartner && payload.eventType === 'UPDATE' && payload.new?.is_purchased && !payload.old?.is_purchased) {
+            toast.success(
+              `Kado Impian Terbeli! 🎉`,
+              `${payload.new.title} telah dibeli oleh ${partnerName}`
             )
           }
         }

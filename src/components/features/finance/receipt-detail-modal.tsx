@@ -16,6 +16,7 @@ import {
   Tag,
   DollarSign,
   Maximize2,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
@@ -48,6 +49,7 @@ export function ReceiptDetailModal({
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
   const [signedUrl, setSignedUrl] = useState<string | null>(null)
   const [loadingSignedUrl, setLoadingSignedUrl] = useState(false)
+  const [imageError, setImageError] = useState(false)
 
   // Quick Add Item Form
   const [showAddForm, setShowAddForm] = useState(false)
@@ -59,12 +61,27 @@ export function ReceiptDetailModal({
   // Fullscreen Preview
   const [fullscreenImage, setFullscreenImage] = useState(false)
 
+  const handleReloadImage = async () => {
+    if (!transaction?.receipt_url) return
+    setImageError(false)
+    setLoadingSignedUrl(true)
+    try {
+      const fresh = await getReceiptSignedUrl(transaction.receipt_url)
+      setSignedUrl(fresh)
+    } catch {
+      setSignedUrl(transaction.receipt_url)
+    } finally {
+      setLoadingSignedUrl(false)
+    }
+  }
+
   useEffect(() => {
     let isCurrent = true
     if (isOpen && transaction) {
       const rawUrl = transaction.receipt_url || null
       setReceiptUrl(rawUrl)
       setUploadError(null)
+      setImageError(false)
       setShowAddForm(false)
       loadItems(transaction.id)
 
@@ -278,11 +295,28 @@ export function ReceiptDetailModal({
                   <Loader2 className="w-5 h-5 animate-spin text-primary" />
                   <span>Memuat foto struk privat...</span>
                 </div>
+              ) : imageError ? (
+                <div className="rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 p-6 text-center space-y-2.5">
+                  <AlertCircle className="w-6 h-6 mx-auto text-amber-500" />
+                  <p className="text-xs text-foreground font-semibold">Tautan foto struk kedaluwarsa atau gagal dimuat</p>
+                  <p className="text-[11px] text-muted-foreground">Tautan privat Supabase Storage diperbarui setiap sesi untuk privasi.</p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleReloadImage}
+                    className="text-xs h-8 gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Muat Ulang Foto Struk
+                  </Button>
+                </div>
               ) : signedUrl || receiptUrl ? (
                 <div className="relative group rounded-xl overflow-hidden border border-border/80 bg-black/5 dark:bg-black/30 aspect-video max-h-48 flex items-center justify-center">
                   <img
                     src={(signedUrl || receiptUrl)!}
                     alt="Foto Struk"
+                    onError={() => setImageError(true)}
                     className="max-h-48 w-auto object-contain cursor-pointer transition-transform group-hover:scale-102"
                     onClick={() => setFullscreenImage(true)}
                   />

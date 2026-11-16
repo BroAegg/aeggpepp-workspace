@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/core'
 import {
   Circle, Clock, CheckCircle2, Calendar,
-  GripVertical, ArrowRight, CheckSquare, SquareCheck,
+  GripVertical, ArrowRight, CheckSquare, SquareCheck, Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OwnerBadge } from '@/components/ui/owner-badge'
@@ -345,6 +345,16 @@ function KanbanCard({
 
             {/* Metadata */}
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              {todo.is_private && (
+                <span
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] md:text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                  title="Tugas Pribadi (Terkunci)"
+                >
+                  <Lock className="w-2.5 h-2.5" />
+                  <span>Pribadi</span>
+                </span>
+              )}
+
               <span
                 className={cn(
                   'px-2 py-0.5 rounded-full text-[11px] md:text-[10px] font-bold',

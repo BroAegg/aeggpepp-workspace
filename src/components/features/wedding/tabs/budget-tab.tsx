@@ -21,6 +21,7 @@ import { PayFromPocketModal, type PayTarget } from '@/components/features/financ
 import { cn } from '@/lib/utils'
 import type { WeddingBudgetItem, SavingsAccount, WeddingSettings } from '@/types'
 import { updateWeddingSettings } from '@/lib/actions/wedding'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { toast } from '@/components/ui/toast'
 import {
   TARGET_BUDGET,
@@ -580,13 +581,17 @@ export function BudgetTab({
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                   Target Plafon Anggaran (Rp)
                 </label>
-                <input
-                  type="number"
-                  name="target_budget"
-                  defaultValue={targetBudget}
-                  required
-                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-medium tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                    Rp
+                  </span>
+                  <CurrencyInput
+                    name="target_budget"
+                    defaultValue={targetBudget}
+                    required
+                    className="w-full pl-11 pr-3 py-2 bg-background border border-border rounded-xl text-base md:text-sm font-medium tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
               </div>
 
               <div>
@@ -598,7 +603,7 @@ export function BudgetTab({
                   name="target_pax"
                   defaultValue={targetPax}
                   required
-                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-medium tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-base md:text-sm font-medium tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
 
@@ -610,7 +615,7 @@ export function BudgetTab({
                   type="date"
                   name="wedding_date"
                   defaultValue={weddingSettings?.wedding_date || ''}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-base md:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
 
@@ -623,7 +628,7 @@ export function BudgetTab({
                   name="venue_name"
                   placeholder="Gedung / Tempat Resepsi"
                   defaultValue={weddingSettings?.venue_name || ''}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-xl text-base md:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
 

@@ -40,6 +40,7 @@ import {
   RefreshCw,
   Download,
   Upload,
+  Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TimePicker } from '@/components/ui/time-picker'
@@ -54,7 +55,7 @@ import {
 } from '@/lib/actions/calendar'
 import { useWorkspaceStore } from '@/stores/workspace-store'
 import { OwnerBadge } from '@/components/ui/owner-badge'
-import type { CalendarEvent, CalendarItem } from '@/types'
+import type { CalendarEvent, CalendarItem, Scope } from '@/types'
 
 function mapEventsToCalendarItems(evs: CalendarEvent[]): CalendarItem[] {
   return (evs || []).map((e) => {
@@ -75,6 +76,8 @@ function mapEventsToCalendarItems(evs: CalendarEvent[]): CalendarItem[] {
       completed: false,
       priority: null,
       owner: (e as any).profiles || { display_name: 'Unknown', role: null },
+      scope: e.scope,
+      isPrivate: e.is_private,
     }
   })
 }
@@ -82,7 +85,8 @@ function mapEventsToCalendarItems(evs: CalendarEvent[]): CalendarItem[] {
 // ============== MAIN PAGE ==============
 
 export default function CalendarPage() {
-  const { events: cachedEvents, eventsLoaded, setEventsData } = useWorkspaceStore()
+  const { events: cachedEvents, eventsLoaded, setEventsData, profile } = useWorkspaceStore()
+  const [calendarScopeFilter, setCalendarScopeFilter] = useState<'all' | 'me' | 'joint'>('all')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>(cachedEvents)
@@ -110,6 +114,8 @@ export default function CalendarPage() {
   const [formEndTime, setFormEndTime] = useState('10:00')
   const [formAllDay, setFormAllDay] = useState(false)
   const [formColor, setFormColor] = useState('#2563EB')
+  const [formScope, setFormScope] = useState<Scope>('joint')
+  const [formIsPrivate, setFormIsPrivate] = useState(false)
 
   // Hydration sync
   useEffect(() => {
@@ -232,16 +238,34 @@ export default function CalendarPage() {
   const calendarDays = eachDayOfInterval({ start: calStart, end: calEnd })
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+  // Filtered calendar items based on scope and privacy
+  const filteredCalendarItems = useMemo(() => {
+    return calendarItems.filter((item) => {
+      // Drop partner's private items if any leaked
+      if (item.isPrivate && item.owner?.role && profile?.role && item.owner.role !== profile.role) {
+        return false
+      }
+      if (calendarScopeFilter === 'me') {
+        const myRole = profile?.role || 'aegg'
+        return item.scope === myRole || item.owner?.role === myRole
+      }
+      if (calendarScopeFilter === 'joint') {
+        return item.scope === 'joint' || (!item.scope && !item.isPrivate)
+      }
+      return true
+    })
+  }, [calendarItems, calendarScopeFilter, profile?.role])
+
   // Get calendar items for a specific day
   const getItemsForDay = (day: Date): CalendarItem[] => {
     const dayStr = format(day, 'yyyy-MM-dd')
-    return calendarItems.filter((item) => item.date === dayStr)
+    return filteredCalendarItems.filter((item) => item.date === dayStr)
   }
 
   // Items for selected date
   const selectedDateItems = useMemo(() => {
     const dayStr = format(selectedDate, 'yyyy-MM-dd')
-    const items = calendarItems.filter((item) => item.date === dayStr)
+    const items = filteredCalendarItems.filter((item) => item.date === dayStr)
     // Sort: timed events first (by time), then all-day items
     return items.sort((a, b) => {
       if (a.time && !b.time) return -1
@@ -251,7 +275,7 @@ export default function CalendarPage() {
       const typeOrder: Record<string, number> = { event: 0, goal: 1 }
       return typeOrder[a.type] - typeOrder[b.type]
     })
-  }, [calendarItems, selectedDate])
+  }, [filteredCalendarItems, selectedDate])
 
   // Upcoming items (next 7 days from today, excludes today)
   const upcomingItems = useMemo(() => {
@@ -260,10 +284,10 @@ export default function CalendarPage() {
     const nextWeek = addDays(today, 7)
     const nextWeekStr = format(nextWeek, 'yyyy-MM-dd')
 
-    return calendarItems
+    return filteredCalendarItems
       .filter((item) => item.date >= todayStr && item.date <= nextWeekStr && !item.completed)
       .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
-  }, [calendarItems])
+  }, [filteredCalendarItems])
 
   // Group upcoming by date
   const upcomingByDate = useMemo(() => {
@@ -286,6 +310,8 @@ export default function CalendarPage() {
     setFormEndTime('10:00')
     setFormAllDay(false)
     setFormColor('#ff7dda')
+    setFormScope('joint')
+    setFormIsPrivate(false)
     setShowModal(true)
   }
 
@@ -298,6 +324,8 @@ export default function CalendarPage() {
     setFormEndTime(event.end_date ? format(new Date(event.end_date), 'HH:mm') : '10:00')
     setFormAllDay(event.all_day)
     setFormColor(event.color)
+    setFormScope(event.scope || 'joint')
+    setFormIsPrivate(Boolean(event.is_private))
     setShowModal(true)
   }
 
@@ -320,6 +348,8 @@ export default function CalendarPage() {
     formData.set('end_date', endDatetime)
     formData.set('all_day', String(formAllDay))
     formData.set('color', formColor)
+    formData.set('scope', formScope)
+    formData.set('is_private', String(formIsPrivate))
     formData.set('idempotency_key', crypto.randomUUID())
 
     try {
@@ -389,16 +419,25 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={calendarScopeFilter}
+              onChange={(e) => setCalendarScopeFilter(e.target.value as any)}
+              className="px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="all">Semua Ruang</option>
+              <option value="me">Acara Saya</option>
+              <option value="joint">💍 Acara Bersama</option>
+            </select>
             <Button
               variant="outline"
               onClick={() => setShowSyncModal(true)}
-              className="flex items-center gap-2 border-primary/20 text-primary hover:bg-primary/5"
+              className="flex items-center gap-2 border-primary/20 text-primary hover:bg-primary/5 text-xs"
             >
               <Globe className="w-4 h-4" />
               <span className="hidden sm:inline">Koneksi</span> Google Calendar
             </Button>
-            <Button onClick={() => openAddModal()}>
+            <Button onClick={() => openAddModal()} className="text-xs">
               <Plus className="w-4 h-4 mr-2" /> New Event
             </Button>
           </div>
@@ -713,38 +752,68 @@ export default function CalendarPage() {
               <div className="space-y-4">
                 {/* Title */}
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Title</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Title</label>
                   <input
                     type="text"
                     placeholder="Event name..."
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                    className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     autoFocus
                   />
                 </div>
 
+                {/* Scope & Privacy */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">Ruang Lingkup</label>
+                    <select
+                      value={formScope}
+                      onChange={(e) => setFormScope(e.target.value as Scope)}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-base md:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="joint">💍 Bersama (Aegg & Peppaa)</option>
+                      <option value="aegg">Pribadi Aegg</option>
+                      <option value="peppaa">Pribadi Peppaa</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 p-2 rounded-lg border border-border bg-secondary/30 w-full cursor-pointer h-[38px]">
+                      <input
+                        type="checkbox"
+                        checked={formIsPrivate}
+                        onChange={(e) => setFormIsPrivate(e.target.checked)}
+                        className="w-4 h-4 rounded border-border"
+                      />
+                      <span className="text-xs font-medium text-foreground flex items-center gap-1">
+                        <Lock className="w-3.5 h-3.5 text-amber-500" />
+                        Privasi / Terkunci
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Description</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Description</label>
                   <textarea
                     placeholder="Add details..."
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
                     rows={2}
-                    className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
                   />
                 </div>
 
                 {/* Date */}
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Date</label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Date</label>
                   <input
                     type="date"
                     value={formStartDate}
                     onChange={(e) => setFormStartDate(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-base md:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   />
                 </div>
 
@@ -1155,6 +1224,11 @@ function ScheduleItem({
             </div>
 
             {typeIcon}
+            {item.isPrivate && (
+              <span className="inline-flex items-center text-amber-500" title="Acara Pribadi">
+                <Lock className="w-3.5 h-3.5" />
+              </span>
+            )}
             <p
               className={cn(
                 'text-sm font-medium leading-tight', // Wrapped text

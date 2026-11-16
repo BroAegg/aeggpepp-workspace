@@ -201,44 +201,46 @@ export function FinancialHealthCard({
         </div>
       </div>
 
-      {/* Smart Alerts Notification Strip */}
-      {report.alerts.length > 0 && (
-        <div className="mt-4 space-y-2">
-          {report.alerts.map((alert) => {
-            const isDanger = alert.type === 'danger'
-            const isSuccess = alert.type === 'success'
-            const isWarning = alert.type === 'warning'
+      {/* Primary Smart Alert Insight Banner (at most 1 primary insight) */}
+      {(() => {
+        if (!report.alerts || report.alerts.length === 0) return null
+        const primaryAlert =
+          report.alerts.find((a) => a.type === 'danger') ||
+          report.alerts.find((a) => a.type === 'warning') ||
+          report.alerts[0]
 
-            return (
-              <div
-                key={alert.id}
-                className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs ${
-                  isDanger
-                    ? 'border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300'
-                    : isSuccess
-                    ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                    : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                }`}
-              >
-                {isDanger && <AlertCircle className="h-4 w-4 shrink-0 text-rose-500 mt-0.5" />}
-                {isSuccess && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 mt-0.5" />}
-                {isWarning && <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />}
-                <div className="flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold">{alert.title}</span>
-                    {alert.metric && (
-                      <span className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-[10px] font-bold">
-                        {alert.metric}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 opacity-90">{alert.message}</p>
+        const isDanger = primaryAlert.type === 'danger'
+        const isSuccess = primaryAlert.type === 'success'
+
+        return (
+          <div className="mt-4">
+            <div
+              className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs ${
+                isDanger
+                  ? 'border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                  : isSuccess
+                  ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                  : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+              }`}
+            >
+              {isDanger && <AlertCircle className="h-4 w-4 shrink-0 text-rose-500 mt-0.5" />}
+              {isSuccess && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 mt-0.5" />}
+              {!isDanger && !isSuccess && <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />}
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">{primaryAlert.title}</span>
+                  {primaryAlert.metric && (
+                    <span className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-[10px] font-bold">
+                      {primaryAlert.metric}
+                    </span>
+                  )}
                 </div>
+                <p className="mt-0.5 opacity-90">{primaryAlert.message}</p>
               </div>
-            )
-          })}
-        </div>
-      )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Expandable Deep Analysis & Recommendations */}
       <AnimatePresence>

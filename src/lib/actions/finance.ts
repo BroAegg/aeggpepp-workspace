@@ -92,6 +92,14 @@ export async function getTransactions(
     if (scope === 'joint') {
       query = query.or('scope.eq.joint,transfer_category.eq.contribution')
     } else {
+      // Server-side guard: restrict personal scope query to caller's own profile role
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+        if (profile?.role && (profile.role === 'aegg' || profile.role === 'peppaa')) {
+          scope = profile.role as Scope
+        }
+      }
       query = query.eq('scope', scope)
     }
   } else if (userId && userId !== 'all') {
@@ -304,31 +312,46 @@ export async function updateTransaction(id: string, formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const type = formData.get('type') as TransactionType
-  const category = formData.get('category') as string
-  const sub_title = formData.get('sub_title') as string | null
-  const amount = parseFloat(formData.get('amount') as string)
-  const description = formData.get('description') as string
-  const date = formData.get('date') as string
-  const isSplit = formData.get('is_split') === 'true'
-  const splitWith = formData.get('split_with') as string | null
-  const paidBy = formData.get('paid_by') as string | null
-  const isSettled = formData.get('is_settled') === 'true'
-  const receiptFile = formData.get('receipt_file') as File
+  // 1. Fetch old transaction to safely revert previous balance changes (zero drift)
+  const { data: oldTx, error: fetchErr } = await supabase
+    .from('transactions')
+    .select('id, type, amount, account_id, from_account_id, to_account_id, sub_title, description')
+    .eq('id', id)
+    .single()
 
-  const updateData: any = {
-    type,
-    category,
-    sub_title: sub_title?.trim() || null,
-    amount,
-    description: description || null,
-    date,
-    is_split: false,
-    split_with: null,
-    paid_by: paidBy || user.id,
-    is_settled: false,
+  if (fetchErr || !oldTx) {
+    return { error: 'Transaksi tidak ditemukan untuk diperbarui' }
   }
 
+  const type = (formData.get('type') as TransactionType) || oldTx.type
+  const category = (formData.get('category') as string) || (type === 'transfer' ? 'Transfer' : '')
+  const sub_title = formData.get('sub_title') as string | null
+  const amount = parseFloat(formData.get('amount') as string) || oldTx.amount
+  const description = formData.get('description') as string
+  const date = formData.get('date') as string
+  const paidBy = formData.get('paid_by') as string | null
+  const receiptFile = formData.get('receipt_file') as File
+  const accountId = (formData.get('account_id') as string | null)?.trim() || null
+  const fromAccountId = (formData.get('from_account_id') as string | null)?.trim() || null
+  const toAccountId = (formData.get('to_account_id') as string | null)?.trim() || null
+
+  const rawScope = formData.get('scope') as string | null
+  let scope: Scope = (rawScope as Scope) || 'aegg'
+  let transferCategory: 'internal' | 'contribution' = ((formData.get('transfer_category') as string) || 'internal') as any
+
+  if (type === 'transfer' && fromAccountId && toAccountId) {
+    const { data: toAcc } = await supabase
+      .from('savings_accounts')
+      .select('scope, is_locked')
+      .eq('id', toAccountId)
+      .maybeSingle()
+    if (toAcc && (toAcc.scope === 'joint' || toAcc.is_locked)) {
+      transferCategory = 'contribution'
+      scope = 'joint'
+    }
+  }
+
+  let receiptUrl = undefined
   // Handle receipt upload
   if (receiptFile && receiptFile.size > 0) {
     if (receiptFile.size > 5 * 1024 * 1024) {
@@ -345,10 +368,60 @@ export async function updateTransaction(id: string, formData: FormData) {
       return { error: 'Failed to upload receipt: ' + uploadError.message }
     }
 
-    updateData.receipt_url = fileName
+    receiptUrl = fileName
   }
 
-  updateData.updated_by = user.id
+  // 2. Revert old transaction balances
+  const oldAmount = Number(oldTx.amount) || 0
+  if (oldTx.type === 'transfer' && oldTx.from_account_id && oldTx.to_account_id) {
+    await adjustAccountBalanceInternal(supabase, oldTx.from_account_id, oldAmount)
+    await adjustAccountBalanceInternal(supabase, oldTx.to_account_id, -oldAmount)
+  } else if (oldTx.account_id) {
+    if (oldTx.type === 'income') {
+      await adjustAccountBalanceInternal(supabase, oldTx.account_id, -oldAmount)
+    } else if (oldTx.type === 'expense') {
+      await adjustAccountBalanceInternal(supabase, oldTx.account_id, oldAmount)
+    } else if (oldTx.type === 'adjustment') {
+      const wasPositive = (oldTx.sub_title || oldTx.description || '').includes('(+)')
+      await adjustAccountBalanceInternal(supabase, oldTx.account_id, wasPositive ? -oldAmount : oldAmount)
+    }
+  }
+
+  // 3. Apply new transaction balances
+  if (type === 'transfer' && fromAccountId && toAccountId) {
+    await adjustAccountBalanceInternal(supabase, fromAccountId, -amount)
+    await adjustAccountBalanceInternal(supabase, toAccountId, amount)
+  } else if (accountId) {
+    if (type === 'income') {
+      await adjustAccountBalanceInternal(supabase, accountId, amount)
+    } else if (type === 'expense') {
+      await adjustAccountBalanceInternal(supabase, accountId, -amount)
+    } else if (type === 'adjustment') {
+      const isPositive = (sub_title || description || '').includes('(+)')
+      await adjustAccountBalanceInternal(supabase, accountId, isPositive ? amount : -amount)
+    }
+  }
+
+  const updateData: any = {
+    type,
+    category: type === 'transfer' ? 'Transfer' : type === 'adjustment' ? 'adjustment' : category,
+    sub_title: sub_title?.trim() || null,
+    amount,
+    description: description || null,
+    date,
+    paid_by: paidBy || user.id,
+    account_id: accountId,
+    from_account_id: fromAccountId,
+    to_account_id: toAccountId,
+    scope,
+    transfer_category: transferCategory,
+    updated_by: user.id,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (receiptUrl) {
+    updateData.receipt_url = receiptUrl
+  }
 
   const { error } = await supabase
     .from('transactions')
@@ -543,6 +616,15 @@ export async function getBudgets(
     .order('category', { ascending: true })
 
   if (scope && scope !== 'all') {
+    if (scope === 'aegg' || scope === 'peppaa') {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+        if (profile?.role && (profile.role === 'aegg' || profile.role === 'peppaa')) {
+          scope = profile.role as Scope
+        }
+      }
+    }
     query = query.eq('scope', scope)
   } else if (userId && userId !== 'all') {
     query = query.eq('user_id', userId)
@@ -682,6 +764,14 @@ export async function getSavingsAccounts(
     if (scope === 'joint') {
       query = query.or('scope.eq.joint,is_locked.eq.true')
     } else {
+      // Server-side guard: restrict personal scope query to caller's own profile role
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+        if (profile?.role && (profile.role === 'aegg' || profile.role === 'peppaa')) {
+          scope = profile.role as Scope
+        }
+      }
       query = query.eq('scope', scope)
     }
   } else if (userId && userId !== 'all') {

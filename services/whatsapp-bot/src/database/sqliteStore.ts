@@ -205,6 +205,26 @@ export function findLatestTransactionBySender(
   }
 }
 
+export function findAnyLatestTransactionBySender(
+  senderJid: string
+): BotTransactionRecord | null {
+  try {
+    const db = getSqliteDb();
+    const cleanJid = senderJid.replace(/@.+$/, '');
+    const stmt = db.prepare(`
+      SELECT * FROM bot_transactions 
+      WHERE sender_jid LIKE ? 
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    const row = stmt.get(`%${cleanJid}%`) as BotTransactionRecord | undefined;
+    return row || null;
+  } catch (err: any) {
+    logger.error({ err: err.message }, '[SQLite] Failed to find any latest transaction by sender');
+    return null;
+  }
+}
+
 export function deleteBotTransactionRecord(transactionId: string): void {
   try {
     const db = getSqliteDb();
