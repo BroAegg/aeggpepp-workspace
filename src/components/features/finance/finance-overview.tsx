@@ -188,9 +188,11 @@ export function FinanceOverview({
       totalSavingsAmount,
       totalUnpaidVendor,
       weddingLiquidityDelta,
-      recentExpenses: cycleTx
-        .filter((t) => t.type === 'expense')
-        .slice(0, 5),
+      recentExpenses: (
+        cycleTx.filter((t) => t.type === 'expense').length > 0
+          ? cycleTx.filter((t) => t.type === 'expense')
+          : (allTransactions || transactions).filter((t) => t.type === 'expense')
+      ).slice(0, 5),
     }
   }, [transactions, budgets, savings, cycle, weddingItems])
 

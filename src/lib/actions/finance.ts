@@ -76,7 +76,7 @@ export async function getFinanceProfile() {
 // ============== TRANSACTIONS ==============
 
 export async function getTransactions(
-  userId?: string | 'all',
+  userId: string | 'all' = 'all',
   scope?: Scope | 'all'
 ): Promise<Transaction[]> {
   const supabase = await createClient()
@@ -88,28 +88,8 @@ export async function getTransactions(
     .not('is_settlement', 'is', true)
     .order('date', { ascending: false })
 
-  if (scope && scope !== 'all') {
-    if (scope === 'joint') {
-      query = query.or('scope.eq.joint,transfer_category.eq.contribution')
-    } else {
-      // Server-side guard: restrict personal scope query to caller's own profile role
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (profile?.role && (profile.role === 'aegg' || profile.role === 'peppaa')) {
-          scope = profile.role as Scope
-        }
-      }
-      query = query.eq('scope', scope)
-    }
-  } else if (userId && userId !== 'all') {
+  if (userId && userId !== 'all') {
     query = query.eq('user_id', userId)
-  } else if (!userId) {
-    // Default: View own transactions if no arg provided
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      query = query.eq('user_id', user.id)
-    }
   }
 
   const { data, error } = await query
@@ -605,7 +585,7 @@ export async function deleteTransaction(id: string) {
 // ============== BUDGETS ==============
 
 export async function getBudgets(
-  userId?: string | 'all',
+  userId: string | 'all' = 'all',
   scope?: Scope | 'all'
 ): Promise<Budget[]> {
   const supabase = await createClient()
@@ -615,24 +595,8 @@ export async function getBudgets(
     .select('*')
     .order('category', { ascending: true })
 
-  if (scope && scope !== 'all') {
-    if (scope === 'aegg' || scope === 'peppaa') {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (profile?.role && (profile.role === 'aegg' || profile.role === 'peppaa')) {
-          scope = profile.role as Scope
-        }
-      }
-    }
-    query = query.eq('scope', scope)
-  } else if (userId && userId !== 'all') {
+  if (userId && userId !== 'all') {
     query = query.eq('user_id', userId)
-  } else if (!userId) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      query = query.eq('user_id', user.id)
-    }
   }
 
   const { data, error } = await query
@@ -750,7 +714,7 @@ export async function deleteBudget(id: string) {
 // ============== SAVINGS ACCOUNTS ==============
 
 export async function getSavingsAccounts(
-  userId?: string | 'all',
+  userId: string | 'all' = 'all',
   scope?: Scope | 'all'
 ): Promise<SavingsAccount[]> {
   const supabase = await createClient()
@@ -760,27 +724,8 @@ export async function getSavingsAccounts(
     .select('*, profiles:user_id(display_name, role)')
     .order('created_at', { ascending: true })
 
-  if (scope && scope !== 'all') {
-    if (scope === 'joint') {
-      query = query.or('scope.eq.joint,is_locked.eq.true')
-    } else {
-      // Server-side guard: restrict personal scope query to caller's own profile role
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        if (profile?.role && (profile.role === 'aegg' || profile.role === 'peppaa')) {
-          scope = profile.role as Scope
-        }
-      }
-      query = query.eq('scope', scope)
-    }
-  } else if (userId && userId !== 'all') {
+  if (userId && userId !== 'all') {
     query = query.eq('user_id', userId)
-  } else if (!userId) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      query = query.eq('user_id', user.id)
-    }
   }
 
   const { data, error } = await query

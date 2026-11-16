@@ -143,9 +143,6 @@ export default function FinancePage() {
       .then(([profile, txData, budgetsData, savingsData]) => {
         if (!isMounted) return
         setUserProfile(profile)
-        if (profile?.role === 'peppaa' || profile?.role === 'aegg') {
-          setSelectedScope(profile.role as Scope)
-        }
         setTransactions(txData)
         setBudgets(budgetsData)
         setSavings(savingsData)
@@ -202,6 +199,7 @@ export default function FinancePage() {
 
   // Multi-POV in-memory filtered datasets (instant 0ms switching)
   const filteredTransactions = useMemo(() => {
+    if (selectedScope === 'all') return transactions
     if (selectedScope === 'joint') {
       return transactions.filter(
         (t) => t.scope === 'joint' || (!t.scope && (t.category === 'wedding' || t.category === 'joint'))
@@ -209,22 +207,24 @@ export default function FinancePage() {
     }
     const myRole = (userProfile?.role as Scope) || 'aegg'
     return transactions.filter((t) => {
-      if (t.scope) return t.scope === myRole
+      if (t.scope) return t.scope === selectedScope
+      const txRole = (t as any).profiles?.role
+      if (txRole) return txRole === selectedScope
       return t.user_id === userProfile?.id
     })
   }, [transactions, selectedScope, userProfile])
 
   const filteredBudgets = useMemo(() => {
+    if (selectedScope === 'all') return budgets
     if (selectedScope === 'joint') return budgets.filter((b) => b.scope === 'joint')
-    const myRole = (userProfile?.role as Scope) || 'aegg'
-    return budgets.filter((b) => b.scope === myRole)
-  }, [budgets, selectedScope, userProfile])
+    return budgets.filter((b) => b.scope === selectedScope)
+  }, [budgets, selectedScope])
 
   const filteredSavings = useMemo(() => {
+    if (selectedScope === 'all') return savings
     if (selectedScope === 'joint') return savings.filter((s) => s.scope === 'joint' || s.is_locked)
-    const myRole = (userProfile?.role as Scope) || 'aegg'
-    return savings.filter((s) => s.scope === myRole && !s.is_locked)
-  }, [savings, selectedScope, userProfile])
+    return savings.filter((s) => s.scope === selectedScope && !s.is_locked)
+  }, [savings, selectedScope])
 
   // Transaction Handlers
   const handleSubmitTransaction = async (formData: FormData) => {
@@ -409,26 +409,38 @@ export default function FinancePage() {
               </div>
             </div>
 
-            {/* 2-Way Multi-POV Segmented Switcher (Keuangan Saya vs Kas Bersama) */}
+            {/* Multi-POV Segmented Switcher (Semua Ruang, Keuangan Saya, Kas Bersama) */}
             <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-border/50">
               <div className="inline-flex p-1 bg-secondary/80 rounded-xl border border-border/60">
                 <button
                   type="button"
-                  onClick={() => setSelectedScope((userProfile?.role as Scope) || 'aegg')}
+                  onClick={() => setSelectedScope('all')}
                   className={cn(
-                    'px-4 py-1.5 text-xs font-semibold rounded-lg transition-all',
-                    selectedScope !== 'joint'
+                    'px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                    selectedScope === 'all'
                       ? 'bg-card text-foreground shadow-xs border border-border/80'
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  Keuangan Saya
+                  Semua Ruang
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedScope((userProfile?.role as Scope) || 'aegg')}
+                  className={cn(
+                    'px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                    selectedScope !== 'all' && selectedScope !== 'joint'
+                      ? 'bg-card text-foreground shadow-xs border border-border/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Keuangan Saya ({userProfile?.role === 'peppaa' ? 'Peppaa' : 'Aegg'})
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedScope('joint')}
                   className={cn(
-                    'px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5',
+                    'px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5',
                     selectedScope === 'joint'
                       ? 'bg-card text-foreground shadow-xs border border-border/80'
                       : 'text-muted-foreground hover:text-foreground'
@@ -441,7 +453,9 @@ export default function FinancePage() {
               <span className="text-[11px] text-muted-foreground">
                 Ruang:{' '}
                 <strong className="text-foreground">
-                  {selectedScope === 'joint'
+                  {selectedScope === 'all'
+                    ? 'Semua Ruang (Aegg & Peppaa)'
+                    : selectedScope === 'joint'
                     ? 'Kas & Tabungan Bersama'
                     : `Pribadi Saya (${userProfile?.role === 'peppaa' ? 'Peppaa' : 'Aegg'})`}
                 </strong>
@@ -476,8 +490,8 @@ export default function FinancePage() {
             {/* TAB: TRANSACTIONS */}
             {activeTab === 'transactions' && (
               <TransactionsTab
-                transactions={filteredTransactions}
-                accounts={filteredSavings}
+                transactions={transactions}
+                accounts={savings}
                 formatCurrency={formatCurrency}
                 onAddTransaction={() => {
                   setEditingTransaction(null)
