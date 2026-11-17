@@ -35,8 +35,6 @@ import { OwnerBadge } from '@/components/ui/owner-badge'
 import { BankLogo, getBankPreset } from '@/lib/bank-registry'
 import { toast } from '@/components/ui/toast'
 import { quickUpdateTransaction } from '@/lib/actions/finance'
-import { calculateFinancialHealth } from '@/lib/financial-health'
-import { FinancialHealthCard } from '@/components/features/finance/financial-health-card'
 import { FinanceCharts } from '@/components/features/finance/finance-charts'
 import { NevBankDonutChart } from '@/components/features/finance/nevbank-donut-chart'
 import { getBillingCycle, isDateInBillingCycle, calculateDailySafeToSpend } from '@/lib/cycle-utils'
@@ -367,18 +365,6 @@ export function FinanceOverview({
     return list
   }, [subscriptions, weddingItems])
 
-  // Financial health report
-  const healthReport = useMemo(() => {
-    return calculateFinancialHealth(cycleTx, budgets, savings, new Date(), cycle)
-  }, [cycleTx, budgets, savings, cycle])
-
-  const healthCardTitle = useMemo(() => {
-    if (activeScope === 'aegg') return 'Evaluasi Keuangan Aegg'
-    if (activeScope === 'peppaa') return 'Evaluasi Keuangan Peppaa'
-    if (activeScope === 'joint') return 'Evaluasi Kas Bersama'
-    return 'Evaluasi Keuangan Bersama'
-  }, [activeScope])
-
   // Quick updates
   const handleQuickUpdateCategory = async (txId: string, newCategory: string) => {
     setIsUpdating(true)
@@ -428,14 +414,6 @@ export function FinanceOverview({
 
   return (
     <div className="space-y-6">
-      {/* 0. Intelligent Financial Health Score & Cycle Header */}
-      <FinancialHealthCard
-        report={healthReport}
-        title={healthCardTitle}
-        cycleLabel={cycle.label}
-        showCoupleSplit={activeScope === 'joint' || activeScope === 'all'}
-      />
-
       {/* ========================================================= */}
       {/* BARIS 1: ASYMMETRIC HERO GRID (lg:col-span-8 / lg:col-span-4) */}
       {/* ========================================================= */}
