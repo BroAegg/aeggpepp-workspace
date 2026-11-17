@@ -479,7 +479,19 @@ export default function FinancePage() {
                   userRole={userProfile?.role}
                   userProfile={userProfile as any}
                   onOpenQuickExpense={() => setQuickExpenseOpen(true)}
+                  onOpenAddTransaction={(type = 'expense') => {
+                    setEditingTransaction(null)
+                    setSelectedType(type)
+                    setShowTransactionModal(true)
+                  }}
+                  onOpenTransfer={() => {
+                    setEditingTransaction(null)
+                    setSelectedType('transfer')
+                    setShowTransactionModal(true)
+                  }}
                   onSwitchToAdvanced={() => setActiveTab('transactions')}
+                  onSwitchToBudgets={() => setActiveTab('budgets')}
+                  onSwitchToSavings={() => setActiveTab('savings')}
                   onRefresh={() => {
                     fetchData()
                   }}

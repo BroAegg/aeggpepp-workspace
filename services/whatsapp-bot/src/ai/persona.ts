@@ -137,3 +137,35 @@ export function formatNanangTodoConfirmation(params: {
 }): string {
   return `Sip ${params.createdByName}, to-do *${params.title}* udah masuk ke Kanban board ya. Gas selesaikan!`;
 }
+
+export function formatNanangTaskAndListConfirmation(params: {
+  title: string;
+  items?: string[];
+  category?: string;
+  scope: 'aegg' | 'peppaa' | 'joint';
+  userName: string;
+}): string {
+  const scopeLabel = formatScopeLabel(params.scope);
+  const lines: string[] = [
+    `📝 *Catatan / List Berhasil Masuk!*`,
+    `Siap ${params.userName}, catatan *"${params.title}"* sudah Nanang simpan ke halaman *Task & Payment* workspace.`,
+    `🏢 Ruang: *${scopeLabel}*`,
+  ];
+
+  if (params.category) {
+    lines.push(`🏷️ Kategori: *${params.category}*`);
+  }
+
+  if (params.items && params.items.length > 0) {
+    lines.push('');
+    lines.push(`📋 *Daftar Checklist (${params.items.length} item):*`);
+    params.items.forEach((item, idx) => {
+      lines.push(`${idx + 1}. ▢ ${item}`);
+    });
+    lines.push('');
+    lines.push('💡 _Tiap item sudah dibuatkan checklist rapi di web dan siap dicentang saat selesai!_');
+  }
+
+  return lines.join('\n');
+}
+

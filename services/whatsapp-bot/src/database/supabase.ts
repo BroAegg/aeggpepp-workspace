@@ -475,3 +475,85 @@ export async function saveQuickTransaction(params: {
 
   return { transactionId: data.id };
 }
+
+export interface SaveTaskOrListParams {
+  user: ResolvedUser;
+  title: string;
+  description?: string | null;
+  items?: string[];
+  category?: string | null;
+  scope: 'aegg' | 'peppaa' | 'joint';
+  isPrivate?: boolean;
+  idempotencyKey?: string | null;
+}
+
+export async function saveTaskOrList(
+  params: SaveTaskOrListParams
+): Promise<{ todoId: string; itemCount: number }> {
+  const supabase = getSupabase();
+  const {
+    user,
+    title,
+    description,
+    items = [],
+    category = 'Tugas',
+    scope,
+    isPrivate = false,
+    idempotencyKey,
+  } = params;
+
+  const insertData: any = {
+    user_id: user.id,
+    title: title.trim(),
+    description: description?.trim() || null,
+    status: 'todo',
+    completed: false,
+    priority: 'medium',
+    category: category,
+    scope: scope,
+    is_private: isPrivate,
+  };
+
+  if (idempotencyKey) {
+    insertData.idempotency_key = idempotencyKey;
+  }
+
+  const { data, error } = await supabase
+    .from('todos')
+    .insert(insertData)
+    .select('id')
+    .single();
+
+  if (error) {
+    if (error.code === '23505' && idempotencyKey) {
+      const { data: existing } = await supabase
+        .from('todos')
+        .select('id')
+        .eq('idempotency_key', idempotencyKey)
+        .single();
+      if (existing?.id) return { todoId: existing.id, itemCount: items.length };
+    }
+    throw new Error(`Failed to save task/list: ${error.message}`);
+  }
+
+  const todoId = data.id;
+
+  // Insert items to todo_tasks
+  if (items && items.length > 0) {
+    const taskRows = items.map((itemTitle, idx) => ({
+      todo_id: todoId,
+      title: itemTitle.trim(),
+      completed: false,
+      position: idx,
+    }));
+
+    const { error: taskErr } = await supabase.from('todo_tasks').insert(taskRows);
+    if (taskErr) {
+      logger.warn({ err: taskErr.message, todoId }, '[Supabase] Error inserting sub-tasks');
+    }
+  }
+
+  logger.info({ todoId, itemCount: items.length, scope }, '[Supabase] Successfully saved task/list to todos');
+  return { todoId, itemCount: items.length };
+}
+

@@ -12,6 +12,7 @@ import {
   uploadReceiptImage,
   saveReceiptTransaction,
   saveQuickTransaction,
+  saveTaskOrList,
   softDeleteTransaction,
 } from '../database/supabase.js';
 import {
@@ -23,12 +24,18 @@ import {
 } from '../database/sqliteStore.js';
 import { parseReceiptWithVision, formatRupiah } from '../ai/receiptVision.js';
 import { parseFinanceText } from '../ai/expenseNlp.js';
+import {
+  parseTaskOrListText,
+  isTaskOrListTrigger,
+  resolveTaskScope,
+} from '../ai/taskNlp.js';
 import { compressReceiptImage } from '../services/imageService.js';
 import { multiModalDebouncer } from '../ai/debouncer.js';
 import {
   getNanangName,
   formatNanangReceipt,
   formatNanangFinance,
+  formatNanangTaskAndListConfirmation,
   formatNanangUndoSuccess,
   isNanangTrigger,
   NANANG_TRIGGER_REGEX,
@@ -392,12 +399,71 @@ async function processFlushedPayload(
   }
 
   // ========================================================
-  // CASE B: TEXT-BASED EXPENSE / INCOME INTENT
+  // CASE B: TEXT-BASED INTENTS (TASKS/LISTS & FINANCE)
   // ========================================================
   if (combinedText) {
     const isTriggered = !isGroup || isNanangTrigger(combinedText) || combinedText.startsWith('!');
     if (!isTriggered) return;
 
+    const lowerText = combinedText.toLowerCase();
+
+    // 1. Check for Task / List / Notes Intent
+    const isExplicitTask =
+      lowerText.startsWith('list') ||
+      lowerText.includes('list ') ||
+      lowerText.includes('catatan:') ||
+      lowerText.includes('catat:') ||
+      lowerText.includes('todo:') ||
+      lowerText.includes('to-do:') ||
+      lowerText.includes('tugas:') ||
+      lowerText.includes('daftar ') ||
+      lowerText.includes('checklist') ||
+      lowerText.includes('belanjaan') ||
+      combinedText.includes('\n-') ||
+      combinedText.includes('\n*') ||
+      (isTaskOrListTrigger(combinedText) && !combinedText.match(/\d+\s*(k|rb|ribu|jt|juta)/i));
+
+    if (isExplicitTask) {
+      try {
+        const taskResult = await parseTaskOrListText(combinedText);
+        if (taskResult && taskResult.isTaskIntent && taskResult.title) {
+          const stopTyping = startTypingHeartbeat();
+          await sock.sendMessage(from, { react: { text: '⏳', key: lastMsg.key } }).catch(() => {});
+
+          const rawMsgId = lastMsg.key.id || `${Date.now()}_${user.id}`;
+          const idempotencyKey = uuidv5(rawMsgId, IDEMPOTENCY_NAMESPACE);
+          const { scope: taskScope, isPrivate } = resolveTaskScope(isGroup, combinedText, user.role);
+
+          await saveTaskOrList({
+            user,
+            title: taskResult.title,
+            description: taskResult.description,
+            items: taskResult.items,
+            category: taskResult.category || 'Tugas',
+            scope: taskScope,
+            isPrivate,
+            idempotencyKey,
+          });
+
+          const reply = formatNanangTaskAndListConfirmation({
+            title: taskResult.title,
+            items: taskResult.items,
+            category: taskResult.category || 'Tugas',
+            scope: taskScope,
+            userName,
+          });
+
+          stopTyping();
+          await sock.sendMessage(from, { text: reply }, { quoted: lastMsg });
+          await sock.sendMessage(from, { react: { text: '📝', key: lastMsg.key } }).catch(() => {});
+          return;
+        }
+      } catch (err: any) {
+        logger.error({ err: err.message }, '[MessageHandler] Error processing task/list intent');
+      }
+    }
+
+    // 2. Check for Finance Intent (Expense / Income)
     try {
       const financeResult = await parseFinanceText(combinedText);
       if (financeResult.isFinanceIntent && financeResult.amount && financeResult.amount > 0) {
@@ -450,6 +516,47 @@ async function processFlushedPayload(
       }
     } catch (err: any) {
       logger.error({ err: err.message }, '[MessageHandler] Error processing finance text');
+    }
+
+    // 3. Fallback: If not recognized as finance but triggered with task keywords
+    if (isTaskOrListTrigger(combinedText)) {
+      try {
+        const taskResult = await parseTaskOrListText(combinedText);
+        if (taskResult && taskResult.isTaskIntent && taskResult.title) {
+          const stopTyping = startTypingHeartbeat();
+          await sock.sendMessage(from, { react: { text: '⏳', key: lastMsg.key } }).catch(() => {});
+
+          const rawMsgId = lastMsg.key.id || `${Date.now()}_${user.id}`;
+          const idempotencyKey = uuidv5(rawMsgId, IDEMPOTENCY_NAMESPACE);
+          const { scope: taskScope, isPrivate } = resolveTaskScope(isGroup, combinedText, user.role);
+
+          await saveTaskOrList({
+            user,
+            title: taskResult.title,
+            description: taskResult.description,
+            items: taskResult.items,
+            category: taskResult.category || 'Tugas',
+            scope: taskScope,
+            isPrivate,
+            idempotencyKey,
+          });
+
+          const reply = formatNanangTaskAndListConfirmation({
+            title: taskResult.title,
+            items: taskResult.items,
+            category: taskResult.category || 'Tugas',
+            scope: taskScope,
+            userName,
+          });
+
+          stopTyping();
+          await sock.sendMessage(from, { text: reply }, { quoted: lastMsg });
+          await sock.sendMessage(from, { react: { text: '📝', key: lastMsg.key } }).catch(() => {});
+          return;
+        }
+      } catch (err: any) {
+        logger.error({ err: err.message }, '[MessageHandler] Fallback task/list error');
+      }
     }
   }
 }

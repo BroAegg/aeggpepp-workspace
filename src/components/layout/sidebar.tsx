@@ -131,7 +131,7 @@ export function Sidebar() {
           {!isCollapsed && (
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-lg overflow-hidden border border-primary/25 flex items-center justify-center shrink-0 shadow-xs bg-card">
-                <img src="/logo.png" alt="AeggPepp" className="w-full h-full object-cover" />
+                <img src="/logoaeggpepp.jpg" alt="AeggPepp" className="w-full h-full object-cover" />
               </div>
               <div className="min-w-0 leading-tight">
                 <h2 className="text-xs font-bold text-foreground truncate tracking-tight">
@@ -147,7 +147,7 @@ export function Sidebar() {
           {isCollapsed && (
             <div className="w-full flex justify-center">
               <div className="w-8 h-8 rounded-lg overflow-hidden border border-primary/25 flex items-center justify-center shadow-xs bg-card">
-                <img src="/logo.png" alt="AeggPepp" className="w-full h-full object-cover" />
+                <img src="/logoaeggpepp.jpg" alt="AeggPepp" className="w-full h-full object-cover" />
               </div>
             </div>
           )}

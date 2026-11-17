@@ -138,6 +138,7 @@ export interface Transaction {
   from_account?: { id: string; name: string; bank_code: string | null } | null
   to_account?: { id: string; name: string; bank_code: string | null } | null
   account?: { id: string; name: string; bank_code: string | null } | null
+  merchant?: string | null
   source?: 'web' | 'whatsapp' | 'telegram' | 'cron' | null
   scope?: Scope
   transfer_category?: 'internal' | 'contribution' | null
@@ -211,6 +212,7 @@ export interface SavingsAccount {
   name: string
   type: SavingsAccountType
   bank_code: string | null
+  account_number?: string | null
   balance: number
   icon: string | null
   is_locked?: boolean | null

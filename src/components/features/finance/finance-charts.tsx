@@ -32,6 +32,7 @@ interface FinanceChartsProps {
   cycle: BillingCycle
   startDay?: number
   scope?: Scope | 'all'
+  mode?: 'both' | 'trend-only' | 'category-only'
 }
 
 const DONUT_COLORS = [
@@ -74,6 +75,7 @@ export function FinanceCharts({
   cycle,
   startDay = 25,
   scope = 'all',
+  mode = 'both',
 }: FinanceChartsProps) {
   const [isMounted, setIsMounted] = useState(false)
 
@@ -187,6 +189,139 @@ export function FinanceCharts({
       hasData,
     }
   }, [transactions, cycle, startDay])
+
+  const renderTrendCard = () => (
+    <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 shrink-0">
+            <BarChart3 className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-foreground">
+              Tren Arus Kas 6 Siklus
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Pemasukan vs Pengeluaran murni
+            </p>
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-3 text-xs font-medium">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className="text-muted-foreground">Masuk</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+            <span className="text-muted-foreground">Keluar</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      {!isMounted || !trend6CyclesData.hasData ? (
+        <div className="h-[260px] flex flex-col items-center justify-center text-center p-6 bg-secondary/15 rounded-xl border border-dashed border-border/70">
+          <BarChart3 className="w-8 h-8 text-muted-foreground/40 mb-2" />
+          <p className="text-xs font-semibold text-foreground">
+            Belum cukup data tren siklus
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 max-w-[240px]">
+            Grafik 6 siklus akan terbentuk seiring berjalannya transaksi dari bulan ke bulan.
+          </p>
+        </div>
+      ) : (
+        <div className="h-[260px] w-full pt-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={trend6CyclesData.cyclesData}
+              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="hsl(var(--border) / 0.5)"
+              />
+              <XAxis
+                dataKey="shortLabel"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickFormatter={(val) => formatShort(val)}
+              />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload || !payload.length) return null
+                  const data = payload[0].payload
+                  const isSurplus = data.net >= 0
+                  return (
+                    <div className="bg-popover border border-border/80 rounded-xl px-3 py-2 shadow-lg text-xs space-y-1.5">
+                      <p className="font-bold text-foreground">
+                        Siklus {data.fullLabel}
+                      </p>
+                      <div className="space-y-0.5 text-[11px]">
+                        <div className="flex items-center justify-between gap-3 text-emerald-600 dark:text-emerald-400">
+                          <span>Pemasukan:</span>
+                          <span className="font-bold tabular-nums">
+                            +{formatRupiah(data.income)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-rose-600 dark:text-rose-400">
+                          <span>Pengeluaran:</span>
+                          <span className="font-bold tabular-nums">
+                            -{formatRupiah(data.expense)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/50 text-foreground">
+                          <span className="font-semibold">Net Arus Kas:</span>
+                          <span
+                            className={cn(
+                              'font-black tabular-nums',
+                              isSurplus
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-rose-600 dark:text-rose-400'
+                            )}
+                          >
+                            {isSurplus ? '+' : ''}
+                            {formatRupiah(data.net)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }}
+              />
+              <Bar
+                dataKey="income"
+                name="Pemasukan"
+                fill="#10b981"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={28}
+              />
+              <Bar
+                dataKey="expense"
+                name="Pengeluaran"
+                fill="#f43f5e"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={28}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  )
+
+  if (mode === 'trend-only') {
+    return renderTrendCard()
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -322,136 +457,9 @@ export function FinanceCharts({
         )}
       </div>
 
-      {/* ========================================================= */}
       {/* GRAFIK 2: TREN ARUS KAS 6 SIKLUS TERAKHIR */}
-      {/* ========================================================= */}
-      <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-4">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 shrink-0">
-              <BarChart3 className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-foreground">
-                Tren Arus Kas 6 Siklus
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                Pemasukan vs Pengeluaran murni
-              </p>
-            </div>
-          </div>
-
-          {/* Legend Chips */}
-          <div className="flex items-center gap-2 text-[11px] font-semibold">
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-              <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
-              Masuk
-            </span>
-            <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
-              <span className="w-2.5 h-2.5 rounded-sm bg-rose-500" />
-              Keluar
-            </span>
-          </div>
-        </div>
-
-        {/* Content */}
-        {!isMounted || !trend6CyclesData.hasData ? (
-          <div className="h-[260px] flex flex-col items-center justify-center text-center p-6 bg-secondary/15 rounded-xl border border-dashed border-border/70">
-            <Calendar className="w-8 h-8 text-muted-foreground/40 mb-2" />
-            <p className="text-xs font-semibold text-foreground">
-              Belum ada riwayat arus kas 6 siklus
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 max-w-[240px]">
-              Data historis akan otomatis terkumpul seiring berjalannya siklus gajian.
-            </p>
-          </div>
-        ) : (
-          <div className="h-[210px] w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={trend6CyclesData.cyclesData}
-                margin={{ top: 8, right: 8, left: -20, bottom: 0 }}
-                barGap={3}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="rgba(150, 150, 150, 0.15)"
-                />
-                <XAxis
-                  dataKey="shortLabel"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 10, fill: 'currentColor' }}
-                  className="text-muted-foreground font-medium"
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={formatShort}
-                  tick={{ fontSize: 10, fill: 'currentColor' }}
-                  className="text-muted-foreground font-medium"
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload || !payload.length) return null
-                    const data = payload[0].payload
-                    const isSurplus = data.net >= 0
-                    return (
-                      <div className="bg-popover border border-border/80 rounded-xl p-3 shadow-lg text-xs space-y-1.5 min-w-[170px]">
-                        <p className="font-bold text-foreground border-b border-border/40 pb-1">
-                          Siklus {data.fullLabel}
-                        </p>
-                        <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-                          <span>Pemasukan:</span>
-                          <span className="font-bold tabular-nums">
-                            {formatRupiah(data.income)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
-                          <span>Pengeluaran:</span>
-                          <span className="font-bold tabular-nums">
-                            {formatRupiah(data.expense)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[11px]">
-                          <span className="text-muted-foreground">Net Tabungan:</span>
-                          <span
-                            className={cn(
-                              'font-extrabold tabular-nums',
-                              isSurplus
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-rose-600 dark:text-rose-400'
-                            )}
-                          >
-                            {isSurplus ? '+' : ''}
-                            {formatRupiah(data.net)}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  }}
-                />
-                <Bar
-                  dataKey="income"
-                  name="Pemasukan"
-                  fill="#10b981"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={28}
-                />
-                <Bar
-                  dataKey="expense"
-                  name="Pengeluaran"
-                  fill="#f43f5e"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={28}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
+      {renderTrendCard()}
     </div>
   )
 }
+
