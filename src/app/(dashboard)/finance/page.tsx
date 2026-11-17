@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
-import { Plus, Zap } from 'lucide-react'
+import { Plus, Zap, Calendar, ChevronDown } from 'lucide-react'
+import { getBillingCycle } from '@/lib/cycle-utils'
 import {
   getTransactions,
   createTransaction,
@@ -88,7 +89,14 @@ export default function FinancePage() {
 
   // Multi-POV scope: 'aegg' | 'peppaa' | 'joint' | 'all' (default directly to logged-in user's role)
   const [selectedScope, setSelectedScope] = useState<Scope | 'all'>('aegg')
-  const [userProfile, setUserProfile] = useState<{ id: string; role: string; partnerId?: string } | null>(null)
+  const [userProfile, setUserProfile] = useState<{
+    id: string
+    role: string
+    partnerId?: string
+    billing_cycle_start_day?: number
+    default_account_id?: string | null
+    joint_default_account_id?: string | null
+  } | null>(null)
   const [quickExpenseOpen, setQuickExpenseOpen] = useState(false)
 
   // Modals state
@@ -242,6 +250,11 @@ export default function FinancePage() {
       return true
     })
   }, [savings, selectedScope, userProfile])
+
+  const billingCycle = useMemo(() => {
+    const startDay = userProfile?.billing_cycle_start_day ?? 25
+    return getBillingCycle(startDay)
+  }, [userProfile])
 
   // Transaction Handlers
   const handleSubmitTransaction = async (formData: FormData) => {
@@ -397,19 +410,29 @@ export default function FinancePage() {
           <FinanceNavTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
           <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 space-y-6">
-            {/* Header Title & Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Header Title & Action Buttons (Siohioma Style) */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Keuangan Aegg & Peppaa</h1>
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
+                  Dashboard
+                </h1>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                  Catat arus kas, pantau tabungan bersama, dan capai target finansial berdua.
+                  An any way to manage finance with care and precision.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+
+              <div className="flex items-center flex-wrap gap-2.5">
+                {/* Siohioma Date Range Pill */}
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-card border border-border/80 shadow-xs text-xs font-bold text-foreground">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>{billingCycle.label}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground opacity-70" />
+                </div>
+
                 <Button
                   onClick={() => setQuickExpenseOpen(true)}
                   variant="outline"
-                  className="rounded-full text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 h-9 px-4"
+                  className="rounded-xl text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 h-9 px-3.5"
                 >
                   <Zap className="w-3.5 h-3.5 mr-1.5" /> Catat Cepat
                 </Button>
@@ -419,9 +442,9 @@ export default function FinancePage() {
                     setSelectedType('expense')
                     setShowTransactionModal(true)
                   }}
-                  className="rounded-full text-xs font-semibold h-9 px-4"
+                  className="rounded-xl text-xs font-bold h-9 px-4 shadow-xs"
                 >
-                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Catat Manual
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> + Catat Transaksi
                 </Button>
               </div>
             </div>

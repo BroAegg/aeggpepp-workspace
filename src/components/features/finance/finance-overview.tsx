@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Wallet,
@@ -21,13 +21,18 @@ import {
   Copy,
   Check,
   MoreVertical,
+  MoreHorizontal,
   Receipt,
   RefreshCw,
   ArrowLeftRight,
   ChevronDown,
+  ChevronRight,
   Tag,
   X,
   ExternalLink,
+  Zap,
+  ShoppingBag,
+  TrendingUp,
 } from 'lucide-react'
 import type { Transaction, Budget, SavingsAccount, Subscription, WeddingBudgetItem, Scope } from '@/types'
 import { cn } from '@/lib/utils'
@@ -35,8 +40,6 @@ import { OwnerBadge } from '@/components/ui/owner-badge'
 import { BankLogo, getBankPreset } from '@/lib/bank-registry'
 import { toast } from '@/components/ui/toast'
 import { quickUpdateTransaction } from '@/lib/actions/finance'
-import { FinanceCharts } from '@/components/features/finance/finance-charts'
-import { NevBankDonutChart } from '@/components/features/finance/nevbank-donut-chart'
 import { getBillingCycle, isDateInBillingCycle, calculateDailySafeToSpend } from '@/lib/cycle-utils'
 import { PayFromPocketModal, type PayTarget } from '@/components/features/finance/modals/pay-from-pocket-modal'
 import { FinanceSettingsModal } from '@/components/features/finance/modals/finance-settings-modal'
@@ -46,6 +49,11 @@ import { getSubscriptions } from '@/lib/actions/subscriptions'
 import { getWeddingBudgetItems } from '@/lib/actions/wedding'
 import { useWorkspaceStore } from '@/stores/workspace-store'
 import { TRANSACTION_CATEGORIES } from '@/lib/constants'
+import {
+  SiohiomaRevenueChart,
+  SiohiomaHorizontalReport,
+  SiohiomaDonutPerformance,
+} from '@/components/features/finance/siohioma-charts'
 
 export interface FinanceOverviewProps {
   transactions: Transaction[]
@@ -128,7 +136,7 @@ export function FinanceOverview({
     }
   }, [cachedWedding])
 
-  // Close card menus when clicked outside
+  // Close menus on outside click
   useEffect(() => {
     const handleOutsideClick = () => {
       setOpenMenuAccountId(null)
@@ -197,10 +205,8 @@ export function FinanceOverview({
       )
       .reduce((s, a) => s + (Number(a.balance) || 0), 0)
 
-    // Calculate Daily Safe-to-Spend
     const safeToSpend = calculateDailySafeToSpend(remainingBudget, cycle.daysRemaining)
 
-    // Calculate Unpaid Wedding Commitments (Exclude sponsored/parent funded)
     let totalUnpaidVendor = 0
     weddingItems.forEach((item) => {
       if (item.is_sponsored) return
@@ -230,9 +236,8 @@ export function FinanceOverview({
 
     const weddingLiquidityDelta = lockedSavings - totalUnpaidVendor
 
-    // Recent 5 expenses or transactions
-    const expenseList = cycleTx.filter((t) => t.type === 'expense')
-    const recent = (expenseList.length > 0 ? expenseList : (allTransactions || transactions).filter((t) => t.type === 'expense')).slice(0, 5)
+    // Recent 6 transactions for Siohioma Transaction list
+    const recent = (cycleTx.length > 0 ? cycleTx : allTransactions || transactions).slice(0, 6)
 
     return {
       expense,
@@ -246,7 +251,7 @@ export function FinanceOverview({
       totalSavingsAmount,
       totalUnpaidVendor,
       weddingLiquidityDelta,
-      recentExpenses: recent,
+      recentTransactions: recent,
     }
   }, [transactions, allTransactions, budgets, savings, cycle, cycleTx, weddingItems])
 
@@ -267,16 +272,7 @@ export function FinanceOverview({
     return savings.find((s) => !s.is_locked && s.scope !== 'joint') || savings[0] || null
   }, [savings, userProfile, activeScope])
 
-  const mainPreset = useMemo(() => {
-    return mainAccount ? getBankPreset(mainAccount.bank_code) : null
-  }, [mainAccount])
-
-  // Average daily spending so far
-  const avgDailySpending = useMemo(() => {
-    return Math.round(stats.expense / (cycleElapsedDays || 1))
-  }, [stats.expense, cycleElapsedDays])
-
-  // 2. Build 14-Day Upcoming Commitments Timeline
+  // 14-Day Upcoming Commitments Timeline
   const upcomingCommitments = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -287,7 +283,6 @@ export function FinanceOverview({
     const list: TimelineCommitmentItem[] = []
     const currentMonthYear = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
-    // A. Subscriptions due within 14 days
     subscriptions.forEach((sub) => {
       if (!sub.is_active) return
       if (sub.last_paid_at && sub.last_paid_at.startsWith(currentMonthYear)) return
@@ -318,7 +313,6 @@ export function FinanceOverview({
       }
     })
 
-    // B. Wedding Milestones due within 14 days
     weddingItems.forEach((item) => {
       const checkMilestone = (
         milestone: 'dp' | 'termin2' | 'pelunasan',
@@ -412,469 +406,221 @@ export function FinanceOverview({
     return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
   }
 
+  const getCategoryIcon = (category: string) => {
+    const found = TRANSACTION_CATEGORIES.expense.find((c) => c.value === category)
+    return found ? found.icon : '💳'
+  }
+
   return (
     <div className="space-y-6">
-      {/* ========================================================= */}
-      {/* BARIS 1: ASYMMETRIC HERO GRID (lg:col-span-8 / lg:col-span-4) */}
-      {/* ========================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* KARTU KIRI: REKENING UTAMA & SALDO AKTIF (lg:col-span-8) */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="lg:col-span-8 bg-card border border-border/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between min-h-[200px] relative overflow-hidden"
-        >
-          {/* Top Row: Account Info & Balance */}
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Rekening Utama
+      {/* ========================================================================= */}
+      {/* SIOHIOMA ASYMMETRIC GRID: CENTER-LEFT (8 COLS) + RIGHT SIDEBAR (4 COLS)   */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        
+        {/* ========================================================= */}
+        {/* KOLOM KIRI / UTAMA (lg:col-span-8)                        */}
+        {/* ========================================================= */}
+        <div className="lg:col-span-8 space-y-5">
+          
+          {/* ------------------------------------------------------------- */}
+          {/* BARIS 1: 3 HERO METRIC CARDS (Spotlight + Net Income + Return) */}
+          {/* ------------------------------------------------------------- */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            
+            {/* 1. Siohioma Update Card (Dark Spotlight Card) */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-zinc-900 text-white dark:bg-zinc-950 dark:border-primary/30 border border-zinc-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[145px] relative overflow-hidden"
+            >
+              {/* Badge & Date */}
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white border border-white/15">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  Update
                 </span>
-                {mainPreset && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border/60">
-                    {mainPreset.name}
-                  </span>
-                )}
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight truncate max-w-[340px]">
-                {mainAccount?.name || 'Rekening Operasional'}
-              </h2>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground pt-0.5">
-                <span className="font-mono">
-                  {mainAccount?.account_number
-                    ? `•••• ${mainAccount.account_number.slice(-4)}`
-                    : 'Kantong Operasional Harian'}
+                <span className="text-[11px] text-zinc-400 font-mono">
+                  Siklus {cycle.label}
                 </span>
-                {mainAccount?.account_number && (
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(mainAccount.account_number!, 'main-acc')}
-                    title="Salin Nomor Rekening"
-                    className="hover:text-foreground transition-colors p-0.5 rounded hover:bg-secondary"
-                  >
-                    {copiedId === 'main-acc' ? (
-                      <Check className="w-3.5 h-3.5 text-primary" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                )}
               </div>
-            </div>
 
-            {/* Available Funds Tabular Big Balance */}
-            <div className="sm:text-right">
-              <span className="text-xs font-semibold text-muted-foreground block">
-                Saldo Tersedia
-              </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight tabular-nums mt-0.5">
-                {formatRupiah(mainAccount ? Number(mainAccount.balance) : stats.operationalSavings)}
-              </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {activeScope === 'joint' ? 'Kas & Tabungan Bersama' : 'Siap belanja tanpa ganggu tabungan'}
-              </p>
-            </div>
-          </div>
+              {/* Bold Headline Statement */}
+              <div className="my-2">
+                <p className="text-sm font-bold text-zinc-100 leading-snug">
+                  {activeScope === 'joint'
+                    ? stats.weddingLiquidityDelta >= 0
+                      ? `Likuiditas Kas Bersama surplus ${formatRupiah(stats.weddingLiquidityDelta)}`
+                      : `Defisit komitmen vendor sebesar ${formatRupiah(Math.abs(stats.weddingLiquidityDelta))}`
+                    : `Aman Jajan harian kamu ${formatRupiah(stats.safeToSpend.dailyAmount)} / hari`}
+                </p>
+              </div>
 
-          {/* Bottom Row: NevBank Action Buttons */}
-          <div className="flex items-center gap-3 pt-5 mt-4 border-t border-border/50">
-            <button
-              type="button"
-              onClick={() => {
-                if (onOpenTransfer) onOpenTransfer()
-                else if (onOpenAddTransaction) onOpenAddTransaction('transfer')
-              }}
-              className="btn-primary text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition-transform active:scale-98"
-            >
-              <ArrowLeftRight className="w-4 h-4" />
-              Transfer Dana
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (onOpenAddTransaction) onOpenAddTransaction('expense')
-                else onOpenQuickExpense()
-              }}
-              className="btn-secondary text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition-transform active:scale-98 border border-border/80"
-            >
-              <Plus className="w-4 h-4" />
-              Catat Transaksi
-            </button>
-          </div>
-        </motion.div>
-
-        {/* KARTU KANAN: SPOTLIGHT CARD KONTEKSTUAL (lg:col-span-4) */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className={cn(
-            'lg:col-span-4 rounded-2xl p-6 shadow-xs flex flex-col justify-between min-h-[200px] border transition-all',
-            // Pink mode: soft rose gradient surface. Dark mode: dark elevated surface with rose glow
-            'bg-gradient-to-br from-rose-500/10 via-pink-500/5 to-rose-500/15 border-rose-500/30 dark:bg-card/95 dark:from-transparent dark:to-transparent dark:border-primary/30 dark:shadow-[0_0_20px_rgba(251,113,133,0.08)]'
-          )}
-        >
-          {/* Top Title & Badge */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              {activeScope === 'joint' ? (
-                <>
-                  <Heart className="w-4 h-4 text-primary" />
-                  Likuiditas Dana Nikah
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  Aman Jajan Hari Ini
-                </>
-              )}
-            </span>
-            <span
-              className={cn(
-                'text-[10px] font-bold px-2 py-0.5 rounded-md border',
-                activeScope === 'joint'
-                  ? stats.weddingLiquidityDelta >= 0
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
-                  : stats.safeToSpend.status === 'safe'
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                  : stats.safeToSpend.status === 'warning'
-                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
-                  : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
-              )}
-            >
-              {activeScope === 'joint'
-                ? stats.weddingLiquidityDelta >= 0
-                  ? '🟢 Likuiditas Aman'
-                  : '🔴 Defisit Vendor'
-                : stats.safeToSpend.status === 'safe'
-                ? '🟢 Aman'
-                : stats.safeToSpend.status === 'warning'
-                ? '🟡 Tipis'
-                : '🔴 Defisit'}
-            </span>
-          </div>
-
-          {/* Center Metric */}
-          <div className="my-3">
-            <h4 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight tabular-nums">
-              {activeScope === 'joint'
-                ? `${stats.weddingLiquidityDelta >= 0 ? '+' : ''}${formatRupiah(stats.weddingLiquidityDelta)}`
-                : `${formatRupiah(stats.safeToSpend.dailyAmount)}`}
-              {activeScope !== 'joint' && (
-                <span className="text-xs font-medium text-muted-foreground ml-1">/ hari</span>
-              )}
-            </h4>
-            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-              {activeScope === 'joint'
-                ? `Dana tabungan terkunci ${formatRupiah(stats.lockedSavings)} vs Sisa komitmen vendor ${formatRupiah(stats.totalUnpaidVendor)}.`
-                : `${cycle.daysRemaining} hari menuju gajian (${cycle.nextPaydayLabel}). Sisa anggaran ${formatRupiah(stats.remainingBudget)}.`}
-            </p>
-          </div>
-
-          {/* Bottom CTA Button */}
-          <div className="pt-2">
-            {activeScope === 'joint' ? (
+              {/* Bottom CTA Link */}
               <button
                 type="button"
                 onClick={() => {
-                  if (onSwitchToSavings) onSwitchToSavings()
-                  else onSwitchToAdvanced()
+                  if (activeScope === 'joint') {
+                    if (onSwitchToSavings) onSwitchToSavings()
+                    else onSwitchToAdvanced()
+                  } else {
+                    onOpenQuickExpense()
+                  }
                 }}
-                className="w-full btn-primary text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-transform active:scale-98"
+                className="text-xs font-semibold text-zinc-300 hover:text-white inline-flex items-center gap-1 transition-colors group text-left"
               >
-                Rincian Vendor Nikah
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>{activeScope === 'joint' ? 'See Statistics' : 'Catat Cepat'}</span>
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onOpenQuickExpense}
-                className="w-full btn-primary text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-transform active:scale-98"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Catat Pengeluaran Cepat
-              </button>
-            )}
-          </div>
-        </motion.div>
-      </div>
+            </motion.div>
 
-      {/* ========================================================= */}
-      {/* BARIS 2: DERETAN KARTU REKENING (grid-cols-1 sm:2 lg:4) */}
-      {/* ========================================================= */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-bold text-foreground">Kantong & Rekening Aktif</h3>
-          <button
-            type="button"
-            onClick={onSwitchToSavings}
-            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
-          >
-            Kelola Semua Kantong
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {savings.slice(0, 4).map((acc) => {
-            const preset = getBankPreset(acc.bank_code)
-            return (
-              <motion.div
-                key={acc.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                onClick={() => setLedgerAccount(acc)}
-                className="bg-card hover:bg-secondary/30 border border-border/80 hover:border-primary/40 rounded-2xl p-4 shadow-xs transition-all cursor-pointer group relative flex flex-col justify-between min-h-[110px]"
-              >
-                {/* Card Top: Bank Name & Vector Logo */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
-                      {acc.name}
-                    </h4>
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                      <span>{acc.account_number ? `•••• ${acc.account_number.slice(-4)}` : preset.shortName}</span>
-                      {acc.account_number && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleCopy(acc.account_number!, acc.id)
-                          }}
-                          className="hover:text-foreground p-0.5 rounded"
-                          title="Salin no rekening"
-                        >
-                          {copiedId === acc.id ? (
-                            <Check className="w-3 h-3 text-primary" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="shrink-0">
-                    <BankLogo bankCode={acc.bank_code} className="w-7 h-7" />
-                  </div>
-                </div>
-
-                {/* Card Bottom: Balance & Menu ⋮ */}
-                <div className="flex items-center justify-between pt-3 mt-2 border-t border-border/40">
-                  <span className="text-base font-black text-foreground tabular-nums tracking-tight">
-                    {formatRupiah(Number(acc.balance) || 0)}
-                  </span>
-
-                  {/* ⋮ Three-dots menu */}
-                  <div className="relative" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenMenuAccountId(openMenuAccountId === acc.id ? null : acc.id)}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                      title="Menu kantong"
-                    >
-                      <MoreVertical className="w-3.5 h-3.5" />
-                    </button>
-
-                    {openMenuAccountId === acc.id && (
-                      <div className="absolute right-0 bottom-full mb-1 w-44 bg-popover text-popover-foreground border border-border/80 shadow-lg rounded-xl py-1 z-30 text-xs animate-in">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOpenMenuAccountId(null)
-                            setLedgerAccount(acc)
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-secondary flex items-center gap-2"
-                        >
-                          <Receipt className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span>Mutasi Rekening</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOpenMenuAccountId(null)
-                            setReconcileAccount(acc)
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-secondary flex items-center gap-2"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span>Sesuaikan Saldo</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOpenMenuAccountId(null)
-                            if (onOpenTransfer) onOpenTransfer()
-                            else if (onOpenAddTransaction) onOpenAddTransaction('transfer')
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-secondary flex items-center gap-2 text-primary font-medium"
-                        >
-                          <ArrowLeftRight className="w-3.5 h-3.5" />
-                          <span>Transfer dari Sini</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* BARIS 3: SPLIT BAWAH (lg:col-span-7 Transaksi / lg:col-span-5 Ringkasan & Donut) */}
-      {/* ========================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* KIRI: TRANSAKSI TERAKHIR (lg:col-span-7) */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="lg:col-span-7 bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-4"
-        >
-          {/* Header with Arrow Button */}
-          <div className="flex items-center justify-between pb-2 border-b border-border/50">
-            <div>
-              <h4 className="text-sm font-bold text-foreground">Transaksi Terakhir</h4>
-              <p className="text-xs text-muted-foreground">Aktivitas arus kas tercatat dalam siklus aktif</p>
-            </div>
-            <button
-              type="button"
-              onClick={onSwitchToAdvanced}
-              className="w-8 h-8 rounded-full bg-primary text-primary-foreground hover:opacity-90 flex items-center justify-center shadow-xs transition-transform active:scale-95"
-              title="Ke Buku Besar Transaksi"
+            {/* 2. Net Income Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.04 }}
+              className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[145px]"
             >
-              <ArrowRight className="w-4 h-4" />
-            </button>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground">Net Income</span>
+                <button
+                  type="button"
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="my-1">
+                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight tabular-nums">
+                  {formatRupiah(stats.income)}
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>+35% from last month</span>
+              </div>
+            </motion.div>
+
+            {/* 3. Total Return Card (Pengeluaran Siklus) */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 }}
+              className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[145px]"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground">Total Return</span>
+                <button
+                  type="button"
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="my-1">
+                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight tabular-nums">
+                  {formatRupiah(stats.expense)}
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+                <span className="text-rose-500 font-bold">-24%</span>
+                <span>from last month</span>
+              </div>
+            </motion.div>
           </div>
 
-          {/* Table Rows (Minimalist NevBank Row Table) */}
-          <div className="divide-y divide-border/40">
-            {stats.recentExpenses.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted-foreground">
-                Belum ada transaksi tercatat pada periode ini.
+          {/* ------------------------------------------------------------- */}
+          {/* BARIS 2 & 3: SPLIT GRID (Transaction List + Charts Stack)     */}
+          {/* ------------------------------------------------------------- */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+            
+            {/* =========================================================== */}
+            {/* KIRI: SIOHIOMA TRANSACTION CARD (md:col-span-5)            */}
+            {/* =========================================================== */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="md:col-span-5 bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-4"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h4 className="text-base font-bold text-foreground">Transaction</h4>
+                <button
+                  type="button"
+                  onClick={onSwitchToAdvanced}
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+                  title="Lihat semua transaksi"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
               </div>
-            ) : (
-              stats.recentExpenses.map((tx) => {
-                const role = (tx as any).profiles?.role || 'aegg'
-                const isExpense = tx.type === 'expense'
-                const isQuickEditing = quickEditTx?.id === tx.id
 
-                return (
-                  <div
-                    key={tx.id}
-                    className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 first:pt-0 last:pb-0 relative"
-                  >
-                    {/* Left: Date + Title + Source Badge */}
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-[11px] font-semibold text-muted-foreground w-14 shrink-0 tabular-nums">
-                        {formatTxDate(tx.date)}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-xs font-bold text-foreground truncate max-w-[200px]">
-                            {tx.description || tx.merchant || tx.category}
-                          </p>
-                          {tx.source === 'whatsapp' ? (
-                            <span
-                              className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase"
-                              title="Dicatat otomatis lewat WhatsApp Nanang"
-                            >
-                              WA
-                            </span>
-                          ) : (
-                            <span
-                              className="text-[9px] font-medium px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border/50 uppercase"
-                              title="Dicatat lewat Web Dashboard"
-                            >
-                              Web
-                            </span>
-                          )}
-                          <OwnerBadge role={role} compact />
-                        </div>
+              {/* Transaction Rows */}
+              <div className="divide-y divide-border/40">
+                {stats.recentTransactions.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-muted-foreground">
+                    Belum ada transaksi tercatat.
+                  </div>
+                ) : (
+                  stats.recentTransactions.map((tx) => {
+                    const isExpense = tx.type === 'expense'
+                    const isQuickEditing = quickEditTx?.id === tx.id
 
-                        {/* Subline: Category & Account with 1-Tap Inline Quick-Edit */}
-                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5 relative">
-                          {/* 1-Tap Category Quick-Edit Trigger */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setQuickEditTx(
-                                isQuickEditing && quickEditTx?.type === 'category'
-                                  ? null
-                                  : { id: tx.id, type: 'category' }
-                              )
-                            }}
-                            className="capitalize hover:text-foreground hover:bg-secondary px-1 py-0.5 rounded transition-colors flex items-center gap-0.5 font-medium"
-                          >
-                            <span>{tx.category ? tx.category.replace(/_/g, ' ') : 'Lainnya'}</span>
-                            <ChevronDown className="w-2.5 h-2.5 opacity-60" />
-                          </button>
-
-                          <span>•</span>
-
-                          {/* 1-Tap Account Quick-Edit Trigger */}
-                          {tx.account ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setQuickEditTx(
-                                  isQuickEditing && quickEditTx?.type === 'account'
-                                    ? null
-                                    : { id: tx.id, type: 'account' }
-                                )
-                              }}
-                              className="hover:text-foreground hover:bg-secondary px-1 py-0.5 rounded transition-colors flex items-center gap-1 font-medium"
-                            >
-                              <BankLogo bankCode={tx.account.bank_code} className="w-3.5 h-3.5 inline-block" />
-                              <span className="truncate max-w-[100px]">{tx.account.name}</span>
-                              <ChevronDown className="w-2.5 h-2.5 opacity-60" />
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setQuickEditTx(
-                                  isQuickEditing && quickEditTx?.type === 'account'
-                                    ? null
-                                    : { id: tx.id, type: 'account' }
-                                )
-                              }}
-                              className="text-primary hover:bg-primary/10 px-1 py-0.5 rounded flex items-center gap-0.5 font-medium"
-                            >
-                              <Wallet className="w-3 h-3" />
-                              <span>+ Rekening</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right: Nominal Tabular Nums */}
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                      <span
-                        className={cn(
-                          'text-xs font-black tabular-nums tracking-tight',
-                          isExpense ? 'text-foreground' : 'text-emerald-600 dark:text-emerald-400'
-                        )}
-                      >
-                        {isExpense ? '-' : '+'} {formatRupiah(tx.amount)}
-                      </span>
-                    </div>
-
-                    {/* Popover Inline Quick-Edit Dropdown */}
-                    {isQuickEditing && (
+                    return (
                       <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute left-8 top-12 z-40 bg-popover text-popover-foreground border border-border shadow-xl rounded-xl p-2 w-64 max-h-56 overflow-y-auto animate-in text-xs"
+                        key={tx.id}
+                        className="py-3 flex items-center justify-between gap-3 first:pt-0 last:pb-0 relative group"
                       >
-                        {quickEditTx.type === 'category' ? (
-                          <div className="space-y-1">
+                        {/* Left: Round Square Icon + Description + Date */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Round Square Thumbnail / Icon */}
+                          <div className="w-10 h-10 rounded-xl bg-secondary/80 border border-border/60 flex items-center justify-center shrink-0 text-base shadow-2xs group-hover:border-primary/40 transition-colors">
+                            {tx.account ? (
+                              <BankLogo bankCode={tx.account.bank_code} className="w-5 h-5" />
+                            ) : (
+                              <span>{getCategoryIcon(tx.category || '')}</span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-foreground truncate max-w-[140px] sm:max-w-[160px]">
+                              {tx.description || tx.merchant || tx.category || 'Transaksi'}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              {formatTxDate(tx.date)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right: Completed Status / Amount + Account Code */}
+                        <div className="text-right shrink-0">
+                          <p
+                            className={cn(
+                              'text-xs font-black tabular-nums tracking-tight',
+                              isExpense ? 'text-foreground' : 'text-emerald-600 dark:text-emerald-400'
+                            )}
+                          >
+                            {isExpense ? '-' : '+'} {formatRupiah(tx.amount)}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-[90px]">
+                            {tx.account?.name
+                              ? tx.account.name
+                              : tx.source === 'whatsapp'
+                              ? 'WA-NANANG'
+                              : 'COMPLETED'}
+                          </p>
+                        </div>
+
+                        {/* Popover Inline Quick-Edit Dropdown */}
+                        {isQuickEditing && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute left-8 top-12 z-40 bg-popover text-popover-foreground border border-border shadow-xl rounded-xl p-2 w-64 max-h-56 overflow-y-auto animate-in text-xs"
+                          >
                             <p className="font-bold text-[11px] text-muted-foreground px-2 py-1 uppercase tracking-wider">
                               Ubah Kategori
                             </p>
@@ -894,198 +640,205 @@ export function FinanceOverview({
                               </button>
                             ))}
                           </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <p className="font-bold text-[11px] text-muted-foreground px-2 py-1 uppercase tracking-wider">
-                              Pilih Rekening Sumber
-                            </p>
-                            {savings.map((acc) => (
-                              <button
-                                key={acc.id}
-                                type="button"
-                                disabled={isUpdating}
-                                onClick={() => handleQuickUpdateAccount(tx.id, acc.id)}
-                                className={cn(
-                                  'w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between hover:bg-secondary transition-colors',
-                                  tx.account_id === acc.id && 'bg-secondary font-bold text-primary'
-                                )}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <BankLogo bankCode={acc.bank_code} className="w-3.5 h-3.5 shrink-0" />
-                                  <span className="truncate">{acc.name}</span>
-                                </div>
-                                <span className="tabular-nums text-[10px] text-muted-foreground">
-                                  {formatRupiah(Number(acc.balance) || 0)}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                )
-              })
-            )}
-          </div>
+                    )
+                  })
+                )}
+              </div>
 
-          {/* Footer See More */}
-          <div className="pt-2 text-center border-t border-border/40">
-            <button
-              type="button"
-              onClick={onSwitchToAdvanced}
-              className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
-            >
-              Lihat Semua Transaksi
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </motion.div>
+              {/* View All Transactions Link */}
+              <div className="pt-2 text-center border-t border-border/40">
+                <button
+                  type="button"
+                  onClick={onSwitchToAdvanced}
+                  className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  <span>See All Transactions</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </motion.div>
 
-        {/* KANAN: ALL EXPENSES & DONUT CHART (lg:col-span-5) */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="lg:col-span-5 bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-5"
-        >
-          {/* Header with Arrow Button */}
-          <div className="flex items-center justify-between pb-2 border-b border-border/50">
-            <div>
-              <h4 className="text-sm font-bold text-foreground">Ringkasan Pengeluaran</h4>
-              <p className="text-xs text-muted-foreground">Siklus {cycle.label}</p>
-            </div>
-            <button
-              type="button"
-              onClick={onSwitchToBudgets}
-              className="w-8 h-8 rounded-full bg-primary text-primary-foreground hover:opacity-90 flex items-center justify-center shadow-xs transition-transform active:scale-95"
-              title="Ke Halaman Anggaran"
-            >
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+            {/* =========================================================== */}
+            {/* KANAN: CHARTS STACK (Revenue + Sales Report) (md:col-span-7) */}
+            {/* =========================================================== */}
+            <div className="md:col-span-7 space-y-5">
+              {/* 1. Siohioma Revenue Grouped Bar Chart */}
+              <SiohiomaRevenueChart
+                transactions={transactions}
+                cycle={cycle}
+                startDay={startDay}
+              />
 
-          {/* NevBank 3-Metric Aligned Row (Daily, Weekly/Avg, Monthly) */}
-          <div className="grid grid-cols-3 gap-2 py-1 text-center bg-secondary/30 rounded-xl p-2.5 border border-border/40">
-            <div>
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Aman / Hari
-              </span>
-              <span className="text-xs sm:text-sm font-black text-foreground tabular-nums block mt-0.5">
-                {formatRupiah(stats.safeToSpend.dailyAmount)}
-              </span>
-            </div>
-            <div className="border-x border-border/40">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Rata-rata
-              </span>
-              <span className="text-xs sm:text-sm font-black text-foreground tabular-nums block mt-0.5">
-                {formatRupiah(avgDailySpending)}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Total Siklus
-              </span>
-              <span className="text-xs sm:text-sm font-black text-primary tabular-nums block mt-0.5">
-                {formatRupiah(stats.expense)}
-              </span>
+              {/* 2. Siohioma Sales Report (Horizontal Bars) */}
+              <SiohiomaHorizontalReport
+                transactions={transactions}
+                cycle={cycle}
+              />
             </div>
           </div>
+        </div>
 
-          {/* Interactive Donut Chart with Center Hole Highlight */}
-          <NevBankDonutChart
+        {/* ========================================================= */}
+        {/* KOLOM KANAN / RIGHT SIDEBAR (lg:col-span-4)                */}
+        {/* ========================================================= */}
+        <div className="lg:col-span-4 space-y-5">
+          
+          {/* 1. Total View Performance (Donut Chart + Center Count + 3 Pills) */}
+          <SiohiomaDonutPerformance
             transactions={transactions}
             cycle={cycle}
-            formatCurrency={formatRupiah}
+            totalBudget={stats.totalBudget}
+            onViewBudgetDetails={onSwitchToBudgets}
           />
 
-          {/* Section: Timeline Komitmen 14 Hari */}
-          <div className="pt-3 border-t border-border/50 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-primary" />
-                Timeline Komitmen 14 Hari
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                {upcomingCommitments.length} komitmen
-              </span>
+          {/* 2. Siohioma Spotlight Promo Banner ("Level up your sales...") */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl p-5 shadow-xs border relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-primary/5 to-emerald-500/15 border-emerald-500/25 dark:bg-card/90 dark:border-primary/20 space-y-3"
+          >
+            {/* Decorative Geometric Starburst in Top Right Corner */}
+            <div className="absolute -top-3 -right-3 w-20 h-20 opacity-20 dark:opacity-30 pointer-events-none text-emerald-500">
+              <svg viewBox="0 0 100 100" fill="currentColor">
+                <polygon points="50,0 63,38 100,50 63,62 50,100 37,62 0,50 37,38" />
+              </svg>
             </div>
 
-            {upcomingCommitments.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground py-2 text-center bg-secondary/20 rounded-lg">
-                Tidak ada tagihan atau termin dalam 14 hari ke depan.
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shadow-2xs">
+              <Sparkles className="w-5 h-5" />
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="text-base font-bold text-foreground leading-snug">
+                Level up your financial managing to the next level.
+              </h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Kelola kantong tabungan pernikahan, investasi impian, dan cashflow harian berdua secara realtime.
               </p>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {upcomingCommitments.slice(0, 3).map((item) => (
+            </div>
+
+            <button
+              type="button"
+              onClick={onSwitchToSavings}
+              className="w-full py-2.5 px-4 rounded-xl btn-primary text-xs font-bold shadow-xs transition-transform active:scale-98 flex items-center justify-center gap-1.5"
+            >
+              <span>Kelola Kantong Tabungan</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+
+          {/* 3. Kantong & Rekening Aktif (Compact Quick-Action Cards) */}
+          <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-foreground">Kantong & Rekening</h4>
+              <button
+                type="button"
+                onClick={onSwitchToSavings}
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+              >
+                <span>Semua</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {savings.slice(0, 3).map((acc) => {
+                const preset = getBankPreset(acc.bank_code)
+                return (
                   <div
-                    key={item.id}
-                    className="p-2.5 rounded-xl border border-border/60 bg-card hover:bg-secondary/30 transition-colors flex items-center justify-between gap-2 text-xs"
+                    key={acc.id}
+                    onClick={() => setLedgerAccount(acc)}
+                    className="p-3 rounded-xl border border-border/60 hover:bg-secondary/40 transition-colors cursor-pointer flex items-center justify-between gap-3 text-xs group"
                   >
-                    <div className="min-w-0">
-                      <p className="font-bold text-foreground truncate">{item.title}</p>
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                        <span
-                          className={cn(
-                            'font-bold px-1 rounded',
-                            item.isOverdue
-                              ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
-                              : item.relativeDays === 0
-                              ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
-                              : 'bg-secondary text-muted-foreground'
-                          )}
-                        >
-                          {item.isOverdue
-                            ? `Terlewat ${Math.abs(item.relativeDays)} hari`
-                            : item.relativeDays === 0
-                            ? 'Hari ini'
-                            : `H-${item.relativeDays}`}
-                        </span>
-                        <span>•</span>
-                        <span className="tabular-nums font-bold text-foreground">
-                          {formatRupiah(item.amount)}
-                        </span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <BankLogo bankCode={acc.bank_code} className="w-6 h-6 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                          {acc.name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          {acc.account_number ? `•••• ${acc.account_number.slice(-4)}` : preset.shortName}
+                        </p>
                       </div>
                     </div>
 
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-foreground tabular-nums">
+                        {formatRupiah(Number(acc.balance) || 0)}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="pt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenTransfer) onOpenTransfer()
+                  else if (onOpenAddTransaction) onOpenAddTransaction('transfer')
+                }}
+                className="flex-1 py-1.5 px-3 rounded-lg border border-border/80 hover:bg-secondary text-xs font-bold text-foreground transition-colors flex items-center justify-center gap-1.5"
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Transfer Dana</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 4. Timeline Komitmen 14 Hari */}
+          {upcomingCommitments.length > 0 && (
+            <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-primary" />
+                  Timeline 14 Hari
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                  {upcomingCommitments.length} komitmen
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {upcomingCommitments.slice(0, 3).map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-2.5 rounded-xl border border-border/60 bg-secondary/20 flex items-center justify-between gap-2 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold text-foreground truncate">{item.title}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {item.dueDateStr} • <span className="font-bold text-foreground">{formatRupiah(item.amount)}</span>
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setPayTarget(item.target)}
-                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:opacity-90 shrink-0 transition-transform active:scale-95"
+                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:opacity-90 shrink-0"
                     >
                       Bayar
                     </button>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        </motion.div>
+            </div>
+          )}
+
+        </div>
       </div>
 
       {/* ========================================================= */}
-      {/* SECTION TAMBAHAN: TREN ARUS KAS 6 SIKLUS GAJIAN */}
+      {/* MODALS PERSISTENCE (MUTASI, RECONCILE, PAY TARGET, SETTINGS) */}
       {/* ========================================================= */}
-      <FinanceCharts
-        transactions={transactions}
-        cycle={cycle}
-        startDay={startDay}
-        scope={activeScope}
-        mode="trend-only"
-      />
-
-      {/* ========================================================= */}
-      {/* MODALS */}
-      {/* ========================================================= */}
-      {/* Account Ledger Drawer (Mutasi) */}
       <AccountLedgerDrawer
         isOpen={!!ledgerAccount}
         onClose={() => setLedgerAccount(null)}
         account={ledgerAccount}
       />
 
-      {/* Reconcile Modal (Sesuaikan Saldo) */}
       <ReconcileModal
         isOpen={!!reconcileAccount}
         onClose={() => setReconcileAccount(null)}
@@ -1095,7 +848,6 @@ export function FinanceOverview({
         }}
       />
 
-      {/* Finance Settings Modal */}
       <FinanceSettingsModal
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
@@ -1106,7 +858,6 @@ export function FinanceOverview({
         }}
       />
 
-      {/* Pay From Pocket Modal */}
       <PayFromPocketModal
         isOpen={!!payTarget}
         onClose={() => setPayTarget(null)}
@@ -1123,6 +874,5 @@ export function FinanceOverview({
   )
 }
 
-// Backwards compatibility alias
 export const GamifiedOverview = FinanceOverview
 export type { FinanceOverviewProps as GamifiedOverviewProps }
