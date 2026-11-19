@@ -428,53 +428,71 @@ export function FinanceOverview({
           {/* ------------------------------------------------------------- */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             
-            {/* 1. Siohioma Update Card (Dark Spotlight Card) */}
+            {/* 1. Aman Jajan Hari Ini / Likuiditas Kas Bersama */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-zinc-900 text-white dark:bg-zinc-950 dark:border-primary/30 border border-zinc-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[145px] relative overflow-hidden"
+              className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[145px]"
             >
-              {/* Badge & Date */}
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white border border-white/15">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                  Update
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  {activeScope === 'joint' ? (
+                    <>
+                      <Heart className="w-3.5 h-3.5 text-primary" />
+                      Likuiditas Nikah
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                      Aman Jajan Hari Ini
+                    </>
+                  )}
                 </span>
-                <span className="text-[11px] text-zinc-400 font-mono">
-                  Siklus {cycle.label}
-                </span>
-              </div>
-
-              {/* Bold Headline Statement */}
-              <div className="my-2">
-                <p className="text-sm font-bold text-zinc-100 leading-snug">
+                <span
+                  className={cn(
+                    'text-[10px] font-bold px-2 py-0.5 rounded-md border',
+                    activeScope === 'joint'
+                      ? stats.weddingLiquidityDelta >= 0
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                        : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                      : stats.safeToSpend.status === 'safe'
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                      : stats.safeToSpend.status === 'warning'
+                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                      : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                  )}
+                >
                   {activeScope === 'joint'
                     ? stats.weddingLiquidityDelta >= 0
-                      ? `Likuiditas Kas Bersama surplus ${formatRupiah(stats.weddingLiquidityDelta)}`
-                      : `Defisit komitmen vendor sebesar ${formatRupiah(Math.abs(stats.weddingLiquidityDelta))}`
-                    : `Aman Jajan harian kamu ${formatRupiah(stats.safeToSpend.dailyAmount)} / hari`}
-                </p>
+                      ? '🟢 Aman'
+                      : '🔴 Defisit'
+                    : stats.safeToSpend.status === 'safe'
+                    ? '🟢 Aman'
+                    : stats.safeToSpend.status === 'warning'
+                    ? '🟡 Tipis'
+                    : '🔴 Defisit'}
+                </span>
               </div>
 
-              {/* Bottom CTA Link */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeScope === 'joint') {
-                    if (onSwitchToSavings) onSwitchToSavings()
-                    else onSwitchToAdvanced()
-                  } else {
-                    onOpenQuickExpense()
-                  }
-                }}
-                className="text-xs font-semibold text-zinc-300 hover:text-white inline-flex items-center gap-1 transition-colors group text-left"
-              >
-                <span>{activeScope === 'joint' ? 'See Statistics' : 'Catat Cepat'}</span>
-                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </button>
+              <div className="my-1">
+                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight tabular-nums">
+                  {activeScope === 'joint'
+                    ? `${stats.weddingLiquidityDelta >= 0 ? '+' : ''}${formatRupiah(stats.weddingLiquidityDelta)}`
+                    : formatRupiah(stats.safeToSpend.dailyAmount)}
+                  {activeScope !== 'joint' && (
+                    <span className="text-xs font-medium text-muted-foreground ml-1">/ hari</span>
+                  )}
+                </h3>
+              </div>
+
+              <p className="text-xs text-muted-foreground truncate">
+                {activeScope === 'joint'
+                  ? `Sisa komitmen vendor: ${formatRupiah(stats.totalUnpaidVendor)}`
+                  : `${cycle.daysRemaining} hari ke gajian (${cycle.nextPaydayLabel})`}
+              </p>
             </motion.div>
 
-            {/* 2. Net Income Card */}
+            {/* 2. Pemasukan Siklus Ini */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -482,28 +500,27 @@ export function FinanceOverview({
               className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[145px]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-muted-foreground">Net Income</span>
-                <button
-                  type="button"
-                  className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
+                <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                  Pemasukan Siklus Ini
+                </span>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {cycleTx.filter((t) => t.type === 'income').length} Tx Masuk
+                </span>
               </div>
 
               <div className="my-1">
-                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight tabular-nums">
+                <h3 className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight tabular-nums">
                   {formatRupiah(stats.income)}
                 </h3>
               </div>
 
-              <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>+35% from last month</span>
-              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                Total arus kas masuk tercatat
+              </p>
             </motion.div>
 
-            {/* 3. Total Return Card (Pengeluaran Siklus) */}
+            {/* 3. Pengeluaran Siklus Ini */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -511,13 +528,13 @@ export function FinanceOverview({
               className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between min-h-[145px]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-muted-foreground">Total Return</span>
-                <button
-                  type="button"
-                  className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
+                <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                  <TrendingDown className="w-3.5 h-3.5 text-rose-500" />
+                  Pengeluaran Siklus Ini
+                </span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-secondary text-foreground">
+                  {stats.budgetPercent}% Anggaran
+                </span>
               </div>
 
               <div className="my-1">
@@ -526,10 +543,9 @@ export function FinanceOverview({
                 </h3>
               </div>
 
-              <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-                <span className="text-rose-500 font-bold">-24%</span>
-                <span>from last month</span>
-              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                Sisa anggaran: <span className="font-semibold text-foreground">{formatRupiah(stats.remainingBudget)}</span>
+              </p>
             </motion.div>
           </div>
 
@@ -548,7 +564,10 @@ export function FinanceOverview({
             >
               {/* Header */}
               <div className="flex items-center justify-between">
-                <h4 className="text-base font-bold text-foreground">Transaction</h4>
+                <div>
+                  <h4 className="text-base font-bold text-foreground">Transaksi Terakhir</h4>
+                  <p className="text-xs text-muted-foreground">Aktivitas arus kas siklus aktif</p>
+                </div>
                 <button
                   type="button"
                   onClick={onSwitchToAdvanced}
@@ -654,24 +673,24 @@ export function FinanceOverview({
                   onClick={onSwitchToAdvanced}
                   className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
                 >
-                  <span>See All Transactions</span>
+                  <span>Lihat Semua Transaksi</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </motion.div>
 
             {/* =========================================================== */}
-            {/* KANAN: CHARTS STACK (Revenue + Sales Report) (md:col-span-7) */}
+            {/* KANAN: CHARTS STACK (Arus Kas + Kategori Belanja) (md:col-span-7) */}
             {/* =========================================================== */}
             <div className="md:col-span-7 space-y-5">
-              {/* 1. Siohioma Revenue Grouped Bar Chart */}
+              {/* 1. Tren Arus Kas Bar Chart */}
               <SiohiomaRevenueChart
                 transactions={transactions}
                 cycle={cycle}
                 startDay={startDay}
               />
 
-              {/* 2. Siohioma Sales Report (Horizontal Bars) */}
+              {/* 2. Kategori Belanja Terbesar (Horizontal Bars) */}
               <SiohiomaHorizontalReport
                 transactions={transactions}
                 cycle={cycle}
@@ -685,7 +704,7 @@ export function FinanceOverview({
         {/* ========================================================= */}
         <div className="lg:col-span-4 space-y-5">
           
-          {/* 1. Total View Performance (Donut Chart + Center Count + 3 Pills) */}
+          {/* 1. Alokasi Anggaran Belanja (Donut Chart) */}
           <SiohiomaDonutPerformance
             transactions={transactions}
             cycle={cycle}
@@ -693,43 +712,7 @@ export function FinanceOverview({
             onViewBudgetDetails={onSwitchToBudgets}
           />
 
-          {/* 2. Siohioma Spotlight Promo Banner ("Level up your sales...") */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl p-5 shadow-xs border relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-primary/5 to-emerald-500/15 border-emerald-500/25 dark:bg-card/90 dark:border-primary/20 space-y-3"
-          >
-            {/* Decorative Geometric Starburst in Top Right Corner */}
-            <div className="absolute -top-3 -right-3 w-20 h-20 opacity-20 dark:opacity-30 pointer-events-none text-emerald-500">
-              <svg viewBox="0 0 100 100" fill="currentColor">
-                <polygon points="50,0 63,38 100,50 63,62 50,100 37,62 0,50 37,38" />
-              </svg>
-            </div>
-
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shadow-2xs">
-              <Sparkles className="w-5 h-5" />
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="text-base font-bold text-foreground leading-snug">
-                Level up your financial managing to the next level.
-              </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Kelola kantong tabungan pernikahan, investasi impian, dan cashflow harian berdua secara realtime.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={onSwitchToSavings}
-              className="w-full py-2.5 px-4 rounded-xl btn-primary text-xs font-bold shadow-xs transition-transform active:scale-98 flex items-center justify-center gap-1.5"
-            >
-              <span>Kelola Kantong Tabungan</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </motion.div>
-
-          {/* 3. Kantong & Rekening Aktif (Compact Quick-Action Cards) */}
+          {/* 2. Kantong & Rekening Aktif (Compact Quick-Action Cards) */}
           <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-bold text-foreground">Kantong & Rekening</h4>

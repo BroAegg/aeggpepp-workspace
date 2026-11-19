@@ -410,23 +410,22 @@ export default function FinancePage() {
           <FinanceNavTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
           <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 space-y-6">
-            {/* Header Title & Action Buttons (Siohioma Style) */}
+            {/* Header Title, Period Pill & Action Buttons */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-                  Dashboard
+                  Keuangan Aegg & Peppaa
                 </h1>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                  An any way to manage finance with care and precision.
+                  Pantau arus kas harian, anggaran belanja, dan tabungan bersama berdua.
                 </p>
               </div>
 
               <div className="flex items-center flex-wrap gap-2.5">
-                {/* Siohioma Date Range Pill */}
+                {/* Billing Cycle Period Pill */}
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-card border border-border/80 shadow-xs text-xs font-bold text-foreground">
                   <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>{billingCycle.label}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground opacity-70" />
+                  <span>Siklus {billingCycle.label}</span>
                 </div>
 
                 <Button
@@ -444,7 +443,7 @@ export default function FinancePage() {
                   }}
                   className="rounded-xl text-xs font-bold h-9 px-4 shadow-xs"
                 >
-                  <Plus className="w-3.5 h-3.5 mr-1.5" /> + Catat Transaksi
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Catat Transaksi
                 </Button>
               </div>
             </div>

@@ -20,20 +20,23 @@ import {
   ShoppingBag,
   MoreHorizontal,
   ChevronRight,
-  Sparkles,
+  PieChart as PieIcon,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TRANSACTION_CATEGORIES } from '@/lib/constants'
 import { getBillingCycle, isDateInBillingCycle, type BillingCycle } from '@/lib/cycle-utils'
 import type { Transaction } from '@/types'
 
-const DONUT_PALETTE = [
-  '#f59e0b', // amber / orange (like 16% in Siohioma)
-  '#0d9488', // dark teal (like 23% in Siohioma)
-  '#84cc16', // lime green (like 68% in Siohioma)
+const CATEGORY_COLORS = [
+  '#f59e0b', // amber
+  '#0d9488', // teal
+  '#84cc16', // lime
   '#3b82f6', // blue
   '#ec4899', // pink
   '#8b5cf6', // purple
+  '#f43f5e', // rose
+  '#06b6d4', // cyan
 ]
 
 const formatRupiah = (val: number) => {
@@ -59,7 +62,7 @@ const formatShort = (amount: number) => {
 }
 
 // =========================================================================
-// 1. SIOHIOMA REVENUE BAR CHART (Grouped Income vs Expense across 6 cycles)
+// 1. TREN ARUS KAS 6 SIKLUS (Grouped Bar Chart: Pemasukan vs Pengeluaran)
 // =========================================================================
 interface SiohiomaRevenueChartProps {
   transactions: Transaction[]
@@ -85,6 +88,7 @@ export function SiohiomaRevenueChart({
       fullLabel: string
       income: number
       expense: number
+      net: number
     }> = []
 
     for (let i = 5; i >= 0; i--) {
@@ -118,6 +122,7 @@ export function SiohiomaRevenueChart({
         fullLabel: c.label,
         income: inc,
         expense: exp,
+        net: inc - exp,
       })
     }
 
@@ -145,15 +150,18 @@ export function SiohiomaRevenueChart({
     <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-4">
       {/* Header: Title on Left, Legend on Right */}
       <div className="flex items-center justify-between">
-        <h4 className="text-base font-bold text-foreground">Revenue</h4>
+        <div className="space-y-0.5">
+          <h4 className="text-base font-bold text-foreground">Tren Arus Kas</h4>
+          <p className="text-xs text-muted-foreground">Histori pemasukan vs pengeluaran 6 siklus terakhir</p>
+        </div>
         <div className="flex items-center gap-3 text-xs font-semibold">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-700 dark:bg-emerald-600" />
-            <span className="text-muted-foreground">Income</span>
+            <span className="text-muted-foreground">Pemasukan</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-lime-500" />
-            <span className="text-muted-foreground">Expenses</span>
+            <span className="text-muted-foreground">Pengeluaran</span>
           </div>
         </div>
       </div>
@@ -163,18 +171,28 @@ export function SiohiomaRevenueChart({
         <span className="text-2xl sm:text-3xl font-black text-foreground tracking-tight tabular-nums">
           {formatRupiah(trendData.currentIncome)}
         </span>
-        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-          <TrendingUp className="w-3.5 h-3.5" />
-          {trendData.growthPercent >= 0 ? `+${trendData.growthPercent}%` : `${trendData.growthPercent}%`} from last cycle
-        </span>
+        {trendData.growthPercent !== 0 && (
+          <span
+            className={cn(
+              'text-xs font-bold flex items-center gap-0.5',
+              trendData.growthPercent > 0
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-rose-500'
+            )}
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            {trendData.growthPercent > 0 ? `+${trendData.growthPercent}%` : `${trendData.growthPercent}%`} vs siklus lalu
+          </span>
+        )}
       </div>
 
       {/* Grouped Bar Chart */}
       {!isMounted || !trendData.hasData ? (
         <div className="h-[180px] flex flex-col items-center justify-center text-center p-4 bg-secondary/15 rounded-xl border border-dashed border-border/70">
-          <p className="text-xs font-semibold text-foreground">Belum ada histori grafik</p>
+          <BarChart3 className="w-6 h-6 text-muted-foreground/40 mb-1.5" />
+          <p className="text-xs font-semibold text-foreground">Belum ada riwayat grafik</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            Data grafik akan terisi otomatis saat transaksi tercatat di siklus ini.
+            Grafik 6 siklus akan otomatis terbentuk dari transaksi yang tercatat.
           </p>
         </div>
       ) : (
@@ -208,13 +226,13 @@ export function SiohiomaRevenueChart({
                   const data = payload[0].payload
                   return (
                     <div className="bg-popover border border-border/80 rounded-xl px-3 py-2 shadow-lg text-xs space-y-1">
-                      <p className="font-bold text-foreground">{data.fullLabel}</p>
+                      <p className="font-bold text-foreground">Siklus {data.fullLabel}</p>
                       <div className="flex items-center justify-between gap-4 text-emerald-600 dark:text-emerald-400 text-[11px]">
-                        <span>Income:</span>
+                        <span>Pemasukan:</span>
                         <span className="font-bold tabular-nums">+{formatRupiah(data.income)}</span>
                       </div>
                       <div className="flex items-center justify-between gap-4 text-lime-600 dark:text-lime-400 text-[11px]">
-                        <span>Expenses:</span>
+                        <span>Pengeluaran:</span>
                         <span className="font-bold tabular-nums">-{formatRupiah(data.expense)}</span>
                       </div>
                     </div>
@@ -223,14 +241,14 @@ export function SiohiomaRevenueChart({
               />
               <Bar
                 dataKey="income"
-                name="Income"
+                name="Pemasukan"
                 fill="#047857"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={18}
               />
               <Bar
                 dataKey="expense"
-                name="Expenses"
+                name="Pengeluaran"
                 fill="#84cc16"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={18}
@@ -244,7 +262,7 @@ export function SiohiomaRevenueChart({
 }
 
 // =========================================================================
-// 2. SIOHIOMA SALES REPORT (Horizontal Category Progress Breakdown)
+// 2. KATEGORI PENGELUARAN TERBESAR (Horizontal Progress Breakdown)
 // =========================================================================
 interface SiohiomaHorizontalReportProps {
   transactions: Transaction[]
@@ -288,7 +306,7 @@ export function SiohiomaHorizontalReport({
     const maxAmount = items.length > 0 ? items[0].amount : 1000000
 
     return {
-      items: items.slice(0, 3), // Top 3 matching Siohioma
+      items: items.slice(0, 4), // Top 4 categories
       totalExpense,
       maxAmount,
     }
@@ -298,35 +316,32 @@ export function SiohiomaHorizontalReport({
     <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h4 className="text-base font-bold text-foreground">Sales Report</h4>
-        <button
-          type="button"
-          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-        >
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
+        <div>
+          <h4 className="text-base font-bold text-foreground">Kategori Belanja Terbesar</h4>
+          <p className="text-xs text-muted-foreground">Distribusi pengeluaran di siklus {cycle.label}</p>
+        </div>
       </div>
 
       {categoryData.items.length === 0 ? (
         <div className="py-6 text-center text-xs text-muted-foreground bg-secondary/15 rounded-xl border border-dashed border-border/70">
-          Belum ada transaksi kategori di siklus ini
+          Belum ada transaksi pengeluaran di siklus ini
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           {categoryData.items.map((item, idx) => {
             const widthPct = Math.max(8, Math.min(100, Math.round((item.amount / categoryData.maxAmount) * 100)))
             return (
               <div key={item.category} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-muted-foreground">
-                    {item.label} ({item.percentage}%)
+                  <span className="text-foreground">
+                    {item.label} <span className="text-muted-foreground font-normal">({item.percentage}%)</span>
                   </span>
                   <span className="text-foreground tabular-nums font-bold">
                     {formatRupiah(item.amount)}
                   </span>
                 </div>
                 {/* Horizontal Progress Bar */}
-                <div className="w-full bg-secondary/80 rounded-full h-3 overflow-hidden">
+                <div className="w-full bg-secondary/80 rounded-full h-2.5 overflow-hidden">
                   <div
                     className={cn(
                       'h-full rounded-full transition-all duration-500',
@@ -334,6 +349,8 @@ export function SiohiomaHorizontalReport({
                         ? 'bg-lime-500'
                         : idx === 1
                         ? 'bg-lime-400'
+                        : idx === 2
+                        ? 'bg-teal-500'
                         : 'bg-amber-500/80'
                     )}
                     style={{ width: `${widthPct}%` }}
@@ -343,12 +360,11 @@ export function SiohiomaHorizontalReport({
             )
           })}
 
-          {/* Scale Axis Markers (0, 25%, 50%, 75%, 100%) */}
+          {/* Scale Axis Markers */}
           <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-border/40 font-mono">
             <span>0</span>
-            <span>{formatShort(categoryData.maxAmount * 0.25)}</span>
-            <span>{formatShort(categoryData.maxAmount * 0.5)}</span>
-            <span>{formatShort(categoryData.maxAmount * 0.75)}</span>
+            <span>{formatShort(categoryData.maxAmount * 0.33)}</span>
+            <span>{formatShort(categoryData.maxAmount * 0.66)}</span>
             <span>{formatShort(categoryData.maxAmount)}</span>
           </div>
         </div>
@@ -358,7 +374,7 @@ export function SiohiomaHorizontalReport({
 }
 
 // =========================================================================
-// 3. SIOHIOMA TOTAL VIEW PERFORMANCE (Donut Chart + Central Count + 3 Pills)
+// 3. ALOKASI ANGGARAN BELANJA (Donut Chart + Total Belanja)
 // =========================================================================
 interface SiohiomaDonutPerformanceProps {
   transactions: Transaction[]
@@ -373,7 +389,7 @@ export function SiohiomaDonutPerformance({
   totalBudget = 5000000,
   onViewBudgetDetails,
 }: SiohiomaDonutPerformanceProps) {
-  const [activePill, setActivePill] = useState<'count' | 'percentage' | 'sales'>('count')
+  const [activeTab, setActiveTab] = useState<'nominal' | 'persen'>('nominal')
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
@@ -386,6 +402,11 @@ export function SiohiomaDonutPerformance({
     )
     const totalExpense = cycleExpenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
+    const labelMap: Record<string, string> = {}
+    TRANSACTION_CATEGORIES.expense.forEach((cat) => {
+      labelMap[cat.value] = cat.label
+    })
+
     const grouped: Record<string, number> = {}
     cycleExpenses.forEach((t) => {
       const cat = t.category || 'other'
@@ -396,10 +417,10 @@ export function SiohiomaDonutPerformance({
       .map(([cat, amount], idx) => {
         const pct = totalExpense > 0 ? (amount / totalExpense) * 100 : 0
         return {
-          name: cat,
+          name: labelMap[cat] || cat.replace(/_/g, ' '),
           value: amount,
           percentage: Math.round(pct),
-          color: DONUT_PALETTE[idx % DONUT_PALETTE.length],
+          color: CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
         }
       })
       .sort((a, b) => b.value - a.value)
@@ -415,14 +436,47 @@ export function SiohiomaDonutPerformance({
   return (
     <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-4">
       {/* Title */}
-      <h4 className="text-base font-bold text-foreground">Total View Performance</h4>
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="text-base font-bold text-foreground">Alokasi Anggaran</h4>
+          <p className="text-xs text-muted-foreground">Proporsi belanja siklus ini</p>
+        </div>
 
-      {/* Donut Chart with Center Count */}
-      <div className="relative h-[200px] flex items-center justify-center">
+        {/* Toggle Nominal vs Persen */}
+        <div className="inline-flex p-0.5 bg-secondary/80 rounded-lg border border-border/60">
+          <button
+            type="button"
+            onClick={() => setActiveTab('nominal')}
+            className={cn(
+              'px-2 py-0.5 text-[10px] font-bold rounded transition-all',
+              activeTab === 'nominal'
+                ? 'bg-card text-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Rp
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('persen')}
+            className={cn(
+              'px-2 py-0.5 text-[10px] font-bold rounded transition-all',
+              activeTab === 'persen'
+                ? 'bg-card text-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            %
+          </button>
+        </div>
+      </div>
+
+      {/* Donut Chart with Center Total Belanja */}
+      <div className="relative h-[190px] flex items-center justify-center">
         {!isMounted || data.items.length === 0 ? (
           <div className="w-36 h-36 rounded-full border-4 border-dashed border-border/80 flex flex-col items-center justify-center text-center p-2">
-            <span className="text-[10px] text-muted-foreground font-semibold">Total Count</span>
-            <span className="text-lg font-black text-foreground">0</span>
+            <span className="text-[10px] text-muted-foreground font-semibold">Total Belanja</span>
+            <span className="text-lg font-black text-foreground">Rp 0</span>
           </div>
         ) : (
           <>
@@ -433,8 +487,8 @@ export function SiohiomaDonutPerformance({
                   dataKey="value"
                   cx="50%"
                   cy="50%"
-                  innerRadius={62}
-                  outerRadius={85}
+                  innerRadius={60}
+                  outerRadius={82}
                   paddingAngle={3}
                   stroke="transparent"
                 >
@@ -445,75 +499,61 @@ export function SiohiomaDonutPerformance({
               </PieChart>
             </ResponsiveContainer>
 
-            {/* Siohioma Center Hole: Total Count & Big Number */}
+            {/* Center Hole: Total Belanja */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-              <span className="text-[11px] font-semibold text-muted-foreground">
-                Total Count
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Total Belanja
               </span>
-              <span className="text-2xl font-black text-foreground tabular-nums tracking-tight">
-                {activePill === 'count'
-                  ? formatShort(data.totalExpense)
-                  : activePill === 'percentage'
-                  ? `${Math.min(100, Math.round((data.totalExpense / totalBudget) * 100))}%`
-                  : `${data.count} Tx`}
+              <span className="text-xl font-black text-foreground tabular-nums tracking-tight">
+                {formatShort(data.totalExpense)}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {data.count} transaksi
               </span>
             </div>
           </>
         )}
       </div>
 
-      {/* Advice Text */}
-      <p className="text-xs text-muted-foreground text-center px-2">
-        Here are some tips on how to improve your financial score and budget allocation.
-      </p>
+      {/* Top 3 Category Breakdown Pills */}
+      {data.items.length > 0 && (
+        <div className="space-y-1.5 pt-1 border-t border-border/40">
+          {data.items.slice(0, 3).map((item) => (
+            <div
+              key={item.name}
+              className="flex items-center justify-between text-xs py-1 px-1.5 rounded-lg hover:bg-secondary/40 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="truncate text-foreground font-medium">{item.name}</span>
+              </div>
+              <span className="font-bold tabular-nums text-foreground shrink-0">
+                {activeTab === 'nominal' ? formatRupiah(item.value) : `${item.percentage}%`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* Guide Views CTA Button */}
-      <button
-        type="button"
-        onClick={onViewBudgetDetails}
-        className="w-full py-2 px-4 rounded-xl border border-border/80 hover:bg-secondary text-xs font-bold text-foreground transition-colors flex items-center justify-center gap-1.5 shadow-xs"
-      >
-        <span>Guide Views</span>
-        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-      </button>
+      {/* Budget Summary & CTA */}
+      <div className="pt-2 border-t border-border/40 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Sisa Anggaran Belanja:</span>
+          <span className="font-bold text-foreground tabular-nums">
+            {formatRupiah(data.remaining)}
+          </span>
+        </div>
 
-      {/* Siohioma Segmented Pills: [ View Count ] [ Percentage ] [ Sales ] */}
-      <div className="grid grid-cols-3 gap-1 p-1 bg-secondary/80 rounded-xl border border-border/60">
         <button
           type="button"
-          onClick={() => setActivePill('count')}
-          className={cn(
-            'py-1.5 text-[11px] font-bold rounded-lg transition-all text-center',
-            activePill === 'count'
-              ? 'bg-card text-foreground shadow-xs border border-border/80'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
+          onClick={onViewBudgetDetails}
+          className="w-full py-2 px-3 rounded-xl border border-border/80 hover:bg-secondary text-xs font-bold text-foreground transition-colors flex items-center justify-center gap-1.5 shadow-xs"
         >
-          View Count
-        </button>
-        <button
-          type="button"
-          onClick={() => setActivePill('percentage')}
-          className={cn(
-            'py-1.5 text-[11px] font-bold rounded-lg transition-all text-center',
-            activePill === 'percentage'
-              ? 'bg-card text-foreground shadow-xs border border-border/80'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          Percentage
-        </button>
-        <button
-          type="button"
-          onClick={() => setActivePill('sales')}
-          className={cn(
-            'py-1.5 text-[11px] font-bold rounded-lg transition-all text-center',
-            activePill === 'sales'
-              ? 'bg-card text-foreground shadow-xs border border-border/80'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          Sales
+          <span>Kelola Target Anggaran</span>
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </div>
     </div>
